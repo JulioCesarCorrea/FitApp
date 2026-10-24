@@ -1,0 +1,15 @@
+# Postgres local para desarrollo. Credenciales solo de desarrollo (no usar en Railway).
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: fitness
+      POSTGRES_USER: fitness
+      POSTGRES_PASSWORD: fitness_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - fitness_pg:/var/lib/postgresql/data
+
+volumes:
+  fitness_pg:

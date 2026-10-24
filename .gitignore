@@ -1,0 +1,28 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+
+# Entorno y secretos
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# Editor
+.idea/
+*.swp
