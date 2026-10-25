@@ -106,6 +106,31 @@ public sealed class ExerciseApiTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.BadRequest, badDay.StatusCode);
     }
 
+    // AC-10
+    [Fact]
+    public async Task AC_training_002_10_rechaza_el_mismo_ejercicio_dos_veces_en_el_mismo_dia()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        var response = await client.PutAsJsonAsync("/plan/days/martes", Day(false, Entry(PressPlano, 0), Entry(PressPlano, 1)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("una vez por día", await response.Content.ReadAsStringAsync());
+        Assert.Empty((await client.GetFromJsonAsync<PlanDto>("/plan"))!.Days);
+    }
+
+    [Fact]
+    public async Task AC_training_002_10_el_mismo_ejercicio_si_puede_estar_en_dias_distintos()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        var martes = await client.PutAsJsonAsync("/plan/days/martes", Day(false, Entry(PressPlano)));
+        var jueves = await client.PutAsJsonAsync("/plan/days/jueves", Day(false, Entry(PressPlano)));
+
+        Assert.Equal(HttpStatusCode.OK, martes.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, jueves.StatusCode);
+    }
+
     // AC-04
     private static EquipmentRequest Equipment(decimal step = 5m, decimal[]? dumbbells = null) =>
         new(dumbbells ?? [20m, 22.5m, 25m], new Dictionary<string, decimal> { ["recta"] = 20m, ["z"] = 8m }, [2.5m, 5m], step, 0m);

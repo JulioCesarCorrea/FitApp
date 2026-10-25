@@ -27,7 +27,10 @@ public sealed class SavePlanDayValidator : AbstractValidator<SavePlanDayRequest>
     {
         RuleFor(x => x.Entries).NotNull()
             .Must(e => e is { Count: <= MaxEntriesPerDay }).WithMessage($"Se admiten como máximo {MaxEntriesPerDay} ejercicios por día.")
-            .Must(e => e.Select(x => x.Id).Distinct().Count() == e.Count).WithMessage("Hay identificadores repetidos.");
+            .Must(e => e.Select(x => x.Id).Distinct().Count() == e.Count).WithMessage("Hay identificadores repetidos.")
+            // AC-training-002-10: un ejercicio puede estar en varios días, pero solo una vez en cada día.
+            .Must(e => e.Select(x => x.ExerciseId).Distinct().Count() == e.Count)
+            .WithMessage("Un ejercicio solo puede estar una vez por día.");
         RuleForEach(x => x.Entries).ChildRules(entry =>
         {
             entry.RuleFor(x => x.Id).NotEmpty().WithMessage("Cada entrada necesita su identificador.");

@@ -13,7 +13,7 @@ interface ProblemDetails {
 }
 
 /** Prefiere el detalle de validación al título genérico de ProblemDetails. */
-function reasonFrom(problem: ProblemDetails | null, status: number): string {
+export function reasonFrom(problem: ProblemDetails | null, status: number): string {
   const messages = Object.values(problem?.errors ?? {}).flat();
   if (messages.length > 0) return messages.join(' ');
   return problem?.detail ?? problem?.title ?? `HTTP ${status}`;

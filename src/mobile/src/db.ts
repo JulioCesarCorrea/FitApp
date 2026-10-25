@@ -1,8 +1,6 @@
 import * as Crypto from 'expo-crypto';
-import * as SQLite from 'expo-sqlite';
+import { getDb } from './database';
 import type { LocalWeight, WeightStatus, WeightStore } from './sync';
-
-const SCHEMA_VERSION = 1;
 
 interface Row {
   id: string;
@@ -26,23 +24,7 @@ export async function openStore(): Promise<WeightStore & {
   add(weightKg: number): Promise<LocalWeight>;
   listAll(): Promise<LocalWeight[]>;
 }> {
-  const db = await SQLite.openDatabaseAsync('fitness.db');
-
-  const current = (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version ?? 0;
-  if (current < 1) {
-    await db.execAsync(`
-      PRAGMA journal_mode = WAL;
-      CREATE TABLE weight_queue (
-        id TEXT PRIMARY KEY NOT NULL,
-        weight_kg REAL NOT NULL,
-        measured_at TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        error TEXT
-      );
-    `);
-  }
-  await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+  const db = await getDb(); // migraciones en database.ts
 
   return {
     // AC-mobile-001-01: solo escribe en SQLite; el UUID nace aquí y no cambia nunca.
