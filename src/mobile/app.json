@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
@@ -22,6 +22,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-router",
       "expo-sqlite",
       [
         "expo-camera",
@@ -29,7 +30,10 @@
           "cameraPermission": "La cámara se usa para escanear códigos de barras de alimentos.",
           "recordAudioAndroid": false
         }
-      ]
-    ]
+      ],
+      "expo-router",
+      "expo-image"
+    ],
+    "scheme": "fitnessapp"
   }
 }
