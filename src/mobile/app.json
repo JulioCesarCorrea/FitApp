@@ -20,6 +20,16 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "La cámara se usa para escanear códigos de barras de alimentos.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ]
   }
 }

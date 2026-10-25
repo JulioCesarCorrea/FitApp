@@ -26,3 +26,6 @@ appsettings.Local.json
 # Editor
 .idea/
 *.swp
+
+# Documentación de trabajo y configuración local de Claude (no se publica)
+.claude/

@@ -4,7 +4,7 @@ Aplicación personal (círculo cercano, ~6 personas) de nutrición, entrenamient
 
 Estado: **Fase 1 — fundamentos**. Aún no hay funcionalidades de producto.
 
-## Stack (ver `docs/adr/0001-stack.md`)
+## Stack
 
 - App móvil: React Native + Expo + TypeScript (Android e iOS)
 - Backend: .NET 10 Minimal API, handlers simples, vertical slices
@@ -32,16 +32,15 @@ cd src/mobile && pnpm install && pnpm start   # app móvil
 
 ## Cómo trabajamos (SDD ligero)
 
-1. `docs/00-constitution.md` define los principios no negociables.
-2. Cada funcionalidad tiene una ficha en `docs/specs/` con criterios de aceptación (`AC-...`).
-3. Cada test cita el `AC-...` que verifica.
-4. Las decisiones técnicas se registran en `docs/adr/`.
-5. `docs/traceability.md` relaciona criterio → prueba → código.
+1. Cada funcionalidad tiene una ficha con criterios de aceptación (`AC-...`).
+2. Cada test cita el `AC-...` que verifica.
+3. Las decisiones técnicas se registran como ADR.
+
+La documentación de trabajo (constitución, specs, ADR, arquitectura) vive en `.claude/` y no se publica en este repositorio.
 
 ## Estructura
 
 ```
-docs/          constitución, specs, ADR, arquitectura
 src/           api (.NET) y mobile (Expo)
 tests/         pruebas del backend
 ```
