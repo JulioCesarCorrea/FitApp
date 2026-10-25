@@ -15,6 +15,7 @@ Excluye: tendencias, edición, borrado, autenticación real (se usa un usuario d
 - AC-progress-001-02: Dado un registro ya guardado, cuando el mismo cliente reenvía exactamente la misma petición (mismo `id`), entonces responde 200 con el registro existente y no se crea un duplicado.
 - AC-progress-001-03: Dado un `id` existente de otra persona, cuando otro usuario envía `POST /weights` con ese `id`, entonces responde 409 y no se modifica ni revela el registro ajeno.
 - AC-progress-001-04: Dado un peso fuera de (20, 500) kg o una fecha en el futuro lejano (más de 1 día adelante), cuando se envía, entonces responde 400 con ProblemDetails y no guarda nada.
+- AC-progress-001-06: Dado un cuerpo que no es JSON válido o con un `id` que no es un GUID, cuando se envía a `POST /weights`, entonces responde 400 con ProblemDetails (nunca 500) y no guarda nada.
 - AC-progress-001-05: Dados registros de dos usuarios, cuando un usuario lista `GET /weights`, entonces recibe solo los suyos, ordenados por fecha descendente.
 
 ## Reglas y datos

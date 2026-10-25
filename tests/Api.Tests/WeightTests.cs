@@ -98,6 +98,19 @@ public sealed class WeightTests(ApiFixture api)
         Assert.Equal([newer.Id, older.Id], list!.Select(w => w.Id).ToArray());
     }
 
+    [Theory]
+    [InlineData("{\"id\":\"no-es-guid\",\"weightKg\":80,\"measuredAt\":\"2026-01-01T00:00:00Z\"}")]
+    [InlineData("esto no es json")]
+    public async Task AC_progress_001_06_cuerpo_invalido_responde_400_no_500(string json)
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        var response = await client.PostAsync("/weights", new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty((await client.GetFromJsonAsync<List<WeightBody>>("/weights"))!);
+    }
+
     [Fact]
     public async Task Sin_sesion_responde_401()
     {
