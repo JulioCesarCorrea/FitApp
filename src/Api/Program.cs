@@ -1,5 +1,8 @@
 using FitnessApp.Api.Common;
 using FitnessApp.Api.Features.Progress.Weights;
+using FitnessApp.Api.Features.Training.Catalog;
+using FitnessApp.Api.Features.Training.Equipment;
+using FitnessApp.Api.Features.Training.Plan;
 using FitnessApp.Api.Infrastructure;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -23,12 +26,18 @@ builder.Services.AddScoped<ICurrentUser>(sp =>
 
 builder.Services.AddScoped<CreateWeightHandler>();
 builder.Services.AddScoped<ListWeightsHandler>();
+builder.Services.AddScoped<ListCatalogHandler>();
+builder.Services.AddScoped<PlanHandler>();
+builder.Services.AddScoped<EquipmentHandler>();
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapWeightEndpoints();
+app.MapCatalogEndpoints();
+app.MapPlanEndpoints();
+app.MapEquipmentEndpoints();
 
 app.Run();
 
