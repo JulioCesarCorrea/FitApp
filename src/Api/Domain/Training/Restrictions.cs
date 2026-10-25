@@ -3,7 +3,15 @@ namespace FitnessApp.Api.Domain.Training;
 public enum RestrictionLevel { Contexto = 1, Aviso = 2, Bloqueo = 3 }
 
 /// <summary>Restricción del perfil de una persona (P3). Es un dato, no una regla del código.</summary>
-public sealed record Restriction(string Zone, IReadOnlySet<string> AvoidedMovements, RestrictionLevel Level);
+public sealed record Restriction(
+    string Zone,
+    IReadOnlySet<string> AvoidedMovements,
+    RestrictionLevel Level,
+    DateOnly? ReviewOn = null)
+{
+    /// <summary>Avisa que toca revisarla; el nivel no cambia solo (AC-training-001-10).</summary>
+    public bool IsDueForReview(DateOnly today) => ReviewOn is { } date && today >= date;
+}
 
 public sealed record Exercise(string Name, IReadOnlySet<string> Zones, IReadOnlySet<string> Movements);
 
