@@ -205,6 +205,35 @@ public sealed class TrainingDomainTests
         Assert.DoesNotContain(MethodologyComparison.Compare(reference), c => c.Type == ComparisonType.Diferencia);
     }
 
+    // AC-10
+    [Theory]
+    [InlineData("2026-12-31", false)]
+    [InlineData("2027-01-15", true)]
+    [InlineData("2027-02-01", true)]
+    public void AC_training_001_10_avisa_cuando_llega_o_pasa_la_fecha_de_revision(string today, bool due)
+    {
+        var restriction = new Restriction("abdomen", Set(), RestrictionLevel.Bloqueo, ReviewOn: new DateOnly(2027, 1, 15));
+
+        Assert.Equal(due, restriction.IsDueForReview(DateOnly.Parse(today)));
+    }
+
+    [Fact]
+    public void AC_training_001_10_sin_fecha_de_revision_nunca_avisa()
+    {
+        var restriction = new Restriction("abdomen", Set(), RestrictionLevel.Bloqueo);
+
+        Assert.False(restriction.IsDueForReview(new DateOnly(2030, 1, 1)));
+    }
+
+    [Fact]
+    public void AC_training_001_10_vencida_la_revision_el_nivel_no_cambia_solo()
+    {
+        var restriction = new Restriction("abdomen", Set(), RestrictionLevel.Bloqueo, ReviewOn: new DateOnly(2027, 1, 15));
+
+        Assert.True(restriction.IsDueForReview(new DateOnly(2027, 3, 1)));
+        Assert.Equal(RestrictionOutcome.Bloqueado, RestrictionRules.Check(Crunch, [restriction]).Outcome);
+    }
+
     // AC-09
     [Fact]
     public void AC_training_001_09_avisa_tras_3_sesiones_sin_progreso()
