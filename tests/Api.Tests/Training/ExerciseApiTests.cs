@@ -28,12 +28,12 @@ public sealed class ExerciseApiTests(ApiFixture api)
 
         var catalog = await client.GetFromJsonAsync<CatalogDto>("/exercises");
 
-        Assert.Equal(10, catalog!.Sections.Count);
+        Assert.Equal(11, catalog!.Sections.Count);
         Assert.Equal("Pecho", catalog.Sections[0].Name);
         Assert.Equal(13, catalog.Sections[0].Exercises.Count);
         var press = catalog.Sections[0].Exercises.Single(e => e.Id == PressPlano);
         Assert.Equal(["/exercise-images/press-plano-con-barra-0.jpg", "/exercise-images/press-plano-con-barra-1.jpg"], press.Images);
-        Assert.Equal(103, catalog.Sections.Sum(s => s.Exercises.Count));
+        Assert.Equal(114, catalog.Sections.Sum(s => s.Exercises.Count));
     }
 
     [Fact]

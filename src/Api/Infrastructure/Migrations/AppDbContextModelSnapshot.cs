@@ -486,6 +486,17 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         },
                         new
                         {
+                            Id = "sentadilla-pendulo-en-maquina",
+                            Equipment = "Maquina",
+                            Movements = new[] { "flexion_profunda_de_rodilla", "flexion_profunda_de_cadera" },
+                            Name = "Sentadilla péndulo en máquina",
+                            PrimaryZone = "cuadriceps",
+                            SecondaryZones = new[] { "gluteo" },
+                            Section = "Cuádriceps",
+                            SortOrder = 38
+                        },
+                        new
+                        {
                             Id = "prensa-de-piernas-45",
                             Equipment = "Maquina",
                             Movements = new[] { "flexion_profunda_de_rodilla", "flexion_profunda_de_cadera" },
@@ -493,7 +504,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "cuadriceps",
                             SecondaryZones = new[] { "gluteo", "isquiotibiales" },
                             Section = "Cuádriceps",
-                            SortOrder = 38
+                            SortOrder = 39
                         },
                         new
                         {
@@ -504,7 +515,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "cuadriceps",
                             SecondaryZones = new[] { "gluteo", "isquiotibiales" },
                             Section = "Cuádriceps",
-                            SortOrder = 39
+                            SortOrder = 40
                         },
                         new
                         {
@@ -515,7 +526,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "cuadriceps",
                             SecondaryZones = new string[0],
                             Section = "Cuádriceps",
-                            SortOrder = 40
+                            SortOrder = 41
                         },
                         new
                         {
@@ -526,7 +537,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "cuadriceps",
                             SecondaryZones = new[] { "gluteo", "isquiotibiales" },
                             Section = "Cuádriceps",
-                            SortOrder = 41
+                            SortOrder = 42
                         },
                         new
                         {
@@ -537,7 +548,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "cuadriceps",
                             SecondaryZones = new[] { "gluteo" },
                             Section = "Cuádriceps",
-                            SortOrder = 42
+                            SortOrder = 43
                         },
                         new
                         {
@@ -548,7 +559,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "cuadriceps",
                             SecondaryZones = new string[0],
                             Section = "Cuádriceps",
-                            SortOrder = 43
+                            SortOrder = 44
                         },
                         new
                         {
@@ -560,7 +571,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new[] { "isquiotibiales" },
                             Section = "Glúteo",
-                            SortOrder = 44
+                            SortOrder = 45
                         },
                         new
                         {
@@ -571,7 +582,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new[] { "isquiotibiales" },
                             Section = "Glúteo",
-                            SortOrder = 45
+                            SortOrder = 46
                         },
                         new
                         {
@@ -583,7 +594,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new[] { "isquiotibiales" },
                             Section = "Glúteo",
-                            SortOrder = 46
+                            SortOrder = 47
                         },
                         new
                         {
@@ -594,7 +605,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new[] { "isquiotibiales" },
                             Section = "Glúteo",
-                            SortOrder = 47
+                            SortOrder = 48
                         },
                         new
                         {
@@ -605,7 +616,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new[] { "isquiotibiales" },
                             Section = "Glúteo",
-                            SortOrder = 48
+                            SortOrder = 49
                         },
                         new
                         {
@@ -616,7 +627,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new string[0],
                             Section = "Glúteo",
-                            SortOrder = 49
+                            SortOrder = 50
                         },
                         new
                         {
@@ -628,7 +639,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new[] { "isquiotibiales", "espalda_baja" },
                             Section = "Glúteo",
-                            SortOrder = 50
+                            SortOrder = 51
                         },
                         new
                         {
@@ -639,7 +650,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new[] { "cuadriceps", "aductores" },
                             Section = "Glúteo",
-                            SortOrder = 51
+                            SortOrder = 52
                         },
                         new
                         {
@@ -650,7 +661,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new[] { "cuadriceps", "isquiotibiales" },
                             Section = "Glúteo",
-                            SortOrder = 52
+                            SortOrder = 53
                         },
                         new
                         {
@@ -661,7 +672,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "gluteo",
                             SecondaryZones = new[] { "isquiotibiales", "espalda_baja" },
                             Section = "Glúteo",
-                            SortOrder = 53
+                            SortOrder = 54
                         },
                         new
                         {
@@ -672,7 +683,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "isquiotibiales",
                             SecondaryZones = new[] { "pantorrillas" },
                             Section = "Isquiotibiales",
-                            SortOrder = 54
+                            SortOrder = 55
                         },
                         new
                         {
@@ -683,7 +694,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "isquiotibiales",
                             SecondaryZones = new[] { "pantorrillas" },
                             Section = "Isquiotibiales",
-                            SortOrder = 55
+                            SortOrder = 56
                         },
                         new
                         {
@@ -694,7 +705,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "isquiotibiales",
                             SecondaryZones = new[] { "pantorrillas" },
                             Section = "Isquiotibiales",
-                            SortOrder = 56
+                            SortOrder = 57
                         },
                         new
                         {
@@ -705,7 +716,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "isquiotibiales",
                             SecondaryZones = new[] { "gluteo", "espalda_baja" },
                             Section = "Isquiotibiales",
-                            SortOrder = 57
+                            SortOrder = 58
                         },
                         new
                         {
@@ -717,7 +728,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "isquiotibiales",
                             SecondaryZones = new[] { "gluteo", "espalda_baja" },
                             Section = "Isquiotibiales",
-                            SortOrder = 58
+                            SortOrder = 59
                         },
                         new
                         {
@@ -729,7 +740,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "isquiotibiales",
                             SecondaryZones = new[] { "gluteo", "espalda_baja" },
                             Section = "Isquiotibiales",
-                            SortOrder = 59
+                            SortOrder = 60
                         },
                         new
                         {
@@ -740,7 +751,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "isquiotibiales",
                             SecondaryZones = new[] { "gluteo", "pantorrillas" },
                             Section = "Isquiotibiales",
-                            SortOrder = 60
+                            SortOrder = 61
                         },
                         new
                         {
@@ -751,7 +762,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "isquiotibiales",
                             SecondaryZones = new[] { "gluteo", "espalda_baja" },
                             Section = "Isquiotibiales",
-                            SortOrder = 61
+                            SortOrder = 62
                         },
                         new
                         {
@@ -763,7 +774,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 62
+                            SortOrder = 63
                         },
                         new
                         {
@@ -775,7 +786,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 63
+                            SortOrder = 64
                         },
                         new
                         {
@@ -786,7 +797,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 64
+                            SortOrder = 65
                         },
                         new
                         {
@@ -797,7 +808,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 65
+                            SortOrder = 66
                         },
                         new
                         {
@@ -808,7 +819,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 66
+                            SortOrder = 67
                         },
                         new
                         {
@@ -819,7 +830,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 67
+                            SortOrder = 68
                         },
                         new
                         {
@@ -831,7 +842,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 68
+                            SortOrder = 69
                         },
                         new
                         {
@@ -842,7 +853,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 69
+                            SortOrder = 70
                         },
                         new
                         {
@@ -853,7 +864,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 70
+                            SortOrder = 71
                         },
                         new
                         {
@@ -864,7 +875,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 71
+                            SortOrder = 72
                         },
                         new
                         {
@@ -875,7 +886,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 72
+                            SortOrder = 73
                         },
                         new
                         {
@@ -886,7 +897,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "biceps",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Bíceps",
-                            SortOrder = 73
+                            SortOrder = 74
                         },
                         new
                         {
@@ -897,7 +908,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new string[0],
                             Section = "Tríceps",
-                            SortOrder = 74
+                            SortOrder = 75
                         },
                         new
                         {
@@ -908,7 +919,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new string[0],
                             Section = "Tríceps",
-                            SortOrder = 75
+                            SortOrder = 76
                         },
                         new
                         {
@@ -919,7 +930,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new string[0],
                             Section = "Tríceps",
-                            SortOrder = 76
+                            SortOrder = 77
                         },
                         new
                         {
@@ -931,7 +942,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new string[0],
                             Section = "Tríceps",
-                            SortOrder = 77
+                            SortOrder = 78
                         },
                         new
                         {
@@ -942,7 +953,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new string[0],
                             Section = "Tríceps",
-                            SortOrder = 78
+                            SortOrder = 79
                         },
                         new
                         {
@@ -953,7 +964,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new[] { "hombro_frontal" },
                             Section = "Tríceps",
-                            SortOrder = 79
+                            SortOrder = 80
                         },
                         new
                         {
@@ -964,7 +975,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new[] { "hombro_frontal" },
                             Section = "Tríceps",
-                            SortOrder = 80
+                            SortOrder = 81
                         },
                         new
                         {
@@ -975,7 +986,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new[] { "pecho", "hombro_frontal" },
                             Section = "Tríceps",
-                            SortOrder = 81
+                            SortOrder = 82
                         },
                         new
                         {
@@ -986,7 +997,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new[] { "hombro_frontal" },
                             Section = "Tríceps",
-                            SortOrder = 82
+                            SortOrder = 83
                         },
                         new
                         {
@@ -998,7 +1009,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new[] { "pecho", "hombro_frontal" },
                             Section = "Tríceps",
-                            SortOrder = 83
+                            SortOrder = 84
                         },
                         new
                         {
@@ -1009,7 +1020,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new string[0],
                             Section = "Tríceps",
-                            SortOrder = 84
+                            SortOrder = 85
                         },
                         new
                         {
@@ -1020,7 +1031,120 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "triceps",
                             SecondaryZones = new string[0],
                             Section = "Tríceps",
-                            SortOrder = 85
+                            SortOrder = 86
+                        },
+                        new
+                        {
+                            Id = "curl-de-muneca-con-barra-palmas-arriba",
+                            Bar = "Recta",
+                            Equipment = "Barra",
+                            Movements = new[] { "flexion_de_muneca" },
+                            Name = "Curl de muñeca con barra (palmas arriba)",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new string[0],
+                            Section = "Antebrazos",
+                            SortOrder = 87
+                        },
+                        new
+                        {
+                            Id = "curl-de-muneca-inverso-con-barra-palmas-abajo",
+                            Bar = "Recta",
+                            Equipment = "Barra",
+                            Movements = new[] { "extension_de_muneca" },
+                            Name = "Curl de muñeca inverso con barra (palmas abajo)",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new string[0],
+                            Section = "Antebrazos",
+                            SortOrder = 88
+                        },
+                        new
+                        {
+                            Id = "curl-de-muneca-con-mancuerna",
+                            Equipment = "Mancuernas",
+                            Movements = new[] { "flexion_de_muneca" },
+                            Name = "Curl de muñeca con mancuerna",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new string[0],
+                            Section = "Antebrazos",
+                            SortOrder = 89
+                        },
+                        new
+                        {
+                            Id = "curl-inverso-con-barra",
+                            Bar = "Recta",
+                            Equipment = "Barra",
+                            Movements = new[] { "flexion_de_codo" },
+                            Name = "Curl inverso con barra",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new[] { "biceps" },
+                            Section = "Antebrazos",
+                            SortOrder = 90
+                        },
+                        new
+                        {
+                            Id = "curl-zottman",
+                            Equipment = "Mancuernas",
+                            Movements = new[] { "flexion_de_codo" },
+                            Name = "Curl Zottman",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new[] { "biceps" },
+                            Section = "Antebrazos",
+                            SortOrder = 91
+                        },
+                        new
+                        {
+                            Id = "paseo-del-granjero",
+                            Equipment = "Mancuernas",
+                            Movements = new[] { "acarreo" },
+                            Name = "Paseo del granjero",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new[] { "trapecio", "espalda_baja" },
+                            Section = "Antebrazos",
+                            SortOrder = 92
+                        },
+                        new
+                        {
+                            Id = "rodillo-de-muneca",
+                            Equipment = "PesoCorporal",
+                            Movements = new[] { "flexion_de_muneca", "extension_de_muneca" },
+                            Name = "Rodillo de muñeca",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new[] { "hombro_frontal" },
+                            Section = "Antebrazos",
+                            SortOrder = 93
+                        },
+                        new
+                        {
+                            Id = "curl-de-muneca-en-polea-baja",
+                            Equipment = "Maquina",
+                            Movements = new[] { "flexion_de_muneca" },
+                            Name = "Curl de muñeca en polea baja",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new string[0],
+                            Section = "Antebrazos",
+                            SortOrder = 94
+                        },
+                        new
+                        {
+                            Id = "agarre-de-discos-plate-pinch",
+                            Equipment = "PesoCorporal",
+                            Movements = new[] { "agarre_de_pellizco" },
+                            Name = "Agarre de discos (plate pinch)",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new string[0],
+                            Section = "Antebrazos",
+                            SortOrder = 95
+                        },
+                        new
+                        {
+                            Id = "colgarse-de-la-barra",
+                            Equipment = "PesoCorporal",
+                            Movements = new[] { "suspension" },
+                            Name = "Colgarse de la barra",
+                            PrimaryZone = "antebrazos",
+                            SecondaryZones = new[] { "espalda" },
+                            Section = "Antebrazos",
+                            SortOrder = 96
                         },
                         new
                         {
@@ -1031,7 +1155,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "pantorrillas",
                             SecondaryZones = new string[0],
                             Section = "Pantorrillas",
-                            SortOrder = 86
+                            SortOrder = 97
                         },
                         new
                         {
@@ -1042,7 +1166,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "pantorrillas",
                             SecondaryZones = new string[0],
                             Section = "Pantorrillas",
-                            SortOrder = 87
+                            SortOrder = 98
                         },
                         new
                         {
@@ -1053,7 +1177,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "pantorrillas",
                             SecondaryZones = new string[0],
                             Section = "Pantorrillas",
-                            SortOrder = 88
+                            SortOrder = 99
                         },
                         new
                         {
@@ -1064,7 +1188,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "pantorrillas",
                             SecondaryZones = new string[0],
                             Section = "Pantorrillas",
-                            SortOrder = 89
+                            SortOrder = 100
                         },
                         new
                         {
@@ -1076,7 +1200,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "pantorrillas",
                             SecondaryZones = new string[0],
                             Section = "Pantorrillas",
-                            SortOrder = 90
+                            SortOrder = 101
                         },
                         new
                         {
@@ -1087,7 +1211,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "pantorrillas",
                             SecondaryZones = new string[0],
                             Section = "Pantorrillas",
-                            SortOrder = 91
+                            SortOrder = 102
                         },
                         new
                         {
@@ -1098,7 +1222,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new string[0],
                             Section = "Abdomen",
-                            SortOrder = 92
+                            SortOrder = 103
                         },
                         new
                         {
@@ -1109,7 +1233,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new string[0],
                             Section = "Abdomen",
-                            SortOrder = 93
+                            SortOrder = 104
                         },
                         new
                         {
@@ -1120,7 +1244,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new string[0],
                             Section = "Abdomen",
-                            SortOrder = 94
+                            SortOrder = 105
                         },
                         new
                         {
@@ -1131,7 +1255,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Abdomen",
-                            SortOrder = 95
+                            SortOrder = 106
                         },
                         new
                         {
@@ -1142,7 +1266,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new[] { "antebrazos" },
                             Section = "Abdomen",
-                            SortOrder = 96
+                            SortOrder = 107
                         },
                         new
                         {
@@ -1153,7 +1277,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new string[0],
                             Section = "Abdomen",
-                            SortOrder = 97
+                            SortOrder = 108
                         },
                         new
                         {
@@ -1164,7 +1288,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new[] { "hombro_frontal" },
                             Section = "Abdomen",
-                            SortOrder = 98
+                            SortOrder = 109
                         },
                         new
                         {
@@ -1175,7 +1299,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new[] { "hombro_lateral" },
                             Section = "Abdomen",
-                            SortOrder = 99
+                            SortOrder = 110
                         },
                         new
                         {
@@ -1186,7 +1310,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new[] { "espalda_baja", "hombro_frontal" },
                             Section = "Abdomen",
-                            SortOrder = 100
+                            SortOrder = 111
                         },
                         new
                         {
@@ -1197,7 +1321,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new string[0],
                             Section = "Abdomen",
-                            SortOrder = 101
+                            SortOrder = 112
                         },
                         new
                         {
@@ -1208,7 +1332,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new[] { "hombro_frontal" },
                             Section = "Abdomen",
-                            SortOrder = 102
+                            SortOrder = 113
                         },
                         new
                         {
@@ -1219,7 +1343,7 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                             PrimaryZone = "abdomen",
                             SecondaryZones = new string[0],
                             Section = "Abdomen",
-                            SortOrder = 103
+                            SortOrder = 114
                         });
                 });
 
