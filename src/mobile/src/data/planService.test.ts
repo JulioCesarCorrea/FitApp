@@ -76,6 +76,39 @@ describe('PlanService (SPEC-mobile-002)', () => {
     expect(martes.entries.map((e) => [e.exerciseId, e.order])).toEqual([['a', 0], ['b', 1]]);
   });
 
+  it('AC-mobile-002-11: no añade un ejercicio a un día donde ya está (ni lo envía)', async () => {
+    const { service, store, remote } = setup();
+    await service.assign('a', ['martes']);
+    const enviados = remote.sent.length;
+
+    const outcomes = await service.assign('a', ['martes']);
+
+    expect(outcomes).toEqual([]);
+    expect((await store.getDays())[0].entries).toHaveLength(1);
+    expect(remote.sent.length).toBe(enviados);
+  });
+
+  it('AC-mobile-002-11: al pedir varios días omite solo los que ya lo tienen', async () => {
+    const { service, store } = setup();
+    await service.assign('a', ['martes']);
+
+    const outcomes = await service.assign('a', ['martes', 'jueves']);
+
+    expect(outcomes.map((o) => o.day)).toEqual(['jueves']);
+    const days = await store.getDays();
+    expect(days.map((d) => [d.day, d.entries.length])).toEqual([['martes', 1], ['jueves', 1]]);
+  });
+
+  it('AC-mobile-002-11: informa en qué días ya está un ejercicio', async () => {
+    const { service } = setup();
+    await service.assign('a', ['jueves', 'martes']);
+    await service.assign('b', ['lunes']);
+
+    expect(await service.daysWithExercise('a')).toEqual(['martes', 'jueves']);
+    expect(await service.daysWithExercise('b')).toEqual(['lunes']);
+    expect(await service.daysWithExercise('zzz')).toEqual([]);
+  });
+
   it('AC-mobile-002-04: rechaza un escalón de máquina menor o igual a cero', async () => {
     const { service } = setup();
 

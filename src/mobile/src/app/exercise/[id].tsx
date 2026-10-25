@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { Body, Button, Field, Muted, Title } from '../../components/ui';
 import { DayPicker } from '../../components/DayPicker';
@@ -8,7 +8,7 @@ import { useDeps } from '../../data/DataContext';
 import { findExercise, useCatalog } from '../../data/hooks';
 import { parseKg } from '../../data/format';
 import { describeHits, type DayOutcome } from '../../data/planService';
-import { DAY_NAMES, type DayKey } from '../../data/types';
+import { DAYS, DAY_NAMES, type DayKey } from '../../data/types';
 import { useTheme } from '../../theme';
 
 /** Detalle del ejercicio: elegir uno o más días y añadirlo a la rutina (AC-mobile-002-03, 04, 05). */
@@ -25,8 +25,18 @@ export default function ExerciseDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<DayOutcome[] | null>(null);
   const [imageFailed, setImageFailed] = useState(false);
+  const [taken, setTaken] = useState<DayKey[]>([]);
+
+  // AC-mobile-002-11: días en que este ejercicio ya está; no se pueden elegir otra vez.
+  const loadTaken = useCallback(async () => setTaken(await service.daysWithExercise(id)), [service, id]);
+  useEffect(() => {
+    void loadTaken();
+  }, [loadTaken]);
 
   if (!exercise) return <ActivityIndicator style={styles.center} />;
+
+  const allTaken = taken.length === DAYS.length;
+  const chosen = days.filter((d) => !taken.includes(d));
 
   const add = async () => {
     const parsed = parseKg(step);
@@ -35,7 +45,9 @@ export default function ExerciseDetailScreen() {
       return;
     }
     setError(null);
-    setOutcomes(await service.assign(exercise.id, days, parsed));
+    setOutcomes(await service.assign(exercise.id, chosen, parsed));
+    setDays([]);
+    await loadTaken();
   };
 
   const confirm = async (day: DayKey) => {
@@ -54,7 +66,14 @@ export default function ExerciseDetailScreen() {
       <Muted>{`Zona principal: ${exercise.primaryZone}`}</Muted>
 
       <Body style={styles.label}>Días en que lo harás</Body>
-      <DayPicker selected={days} onChange={setDays} />
+      <DayPicker selected={days} onChange={setDays} unavailable={taken} />
+      {taken.length > 0 && (
+        <Muted testID="days-taken-hint">
+          {allTaken
+            ? 'Este ejercicio ya está en todos los días de tu rutina.'
+            : 'Los días atenuados ya tienen este ejercicio.'}
+        </Muted>
+      )}
 
       {exercise.equipment === 'Maquina' && (
         <Field
@@ -67,7 +86,7 @@ export default function ExerciseDetailScreen() {
       )}
       {error && <Body style={{ color: colors.danger }}>{error}</Body>}
 
-      <Button title="Añadir a mi rutina" onPress={() => void add()} disabled={days.length === 0} testID="add-to-plan" />
+      <Button title="Añadir a mi rutina" onPress={() => void add()} disabled={chosen.length === 0} testID="add-to-plan" />
 
       {outcomes?.map((o) => (
         <View key={o.day} style={[styles.result, { borderColor: colors.border, backgroundColor: colors.surface }]}>

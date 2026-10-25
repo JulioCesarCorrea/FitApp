@@ -64,9 +64,23 @@ export class PlanService {
     return this.store.getDays();
   }
 
-  /** AC-mobile-002-03: añade el ejercicio al final de cada día elegido y lo intenta enviar. */
-  async assign(exerciseId: string, days: DayKey[], machineStepKg: number | null = null): Promise<DayOutcome[]> {
+  /** AC-mobile-002-11: días de la rutina en los que ya está este ejercicio. */
+  async daysWithExercise(exerciseId: string): Promise<DayKey[]> {
+    return (await this.store.getDays())
+      .filter((d) => d.entries.some((e) => e.exerciseId === exerciseId))
+      .map((d) => d.day);
+  }
+
+  /**
+   * AC-mobile-002-03: añade el ejercicio al final de cada día elegido y lo intenta enviar.
+   * AC-mobile-002-11: un ejercicio solo puede estar una vez por día; los días donde ya está se omiten.
+   */
+  async assign(exerciseId: string, requestedDays: DayKey[], machineStepKg: number | null = null): Promise<DayOutcome[]> {
     if (machineStepKg !== null && !(machineStepKg > 0)) throw new Error('El escalón debe ser mayor que 0.');
+
+    const taken = new Set(await this.daysWithExercise(exerciseId));
+    const days = requestedDays.filter((d) => !taken.has(d));
+    if (days.length === 0) return [];
 
     const current = new Map((await this.store.getDays()).map((d) => [d.day, d]));
     for (const day of days) {

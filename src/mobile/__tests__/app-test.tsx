@@ -88,6 +88,39 @@ describe('Asignar ejercicios (SPEC-mobile-002)', () => {
     expect(screen.getByTestId('add-to-plan')).toBeDisabled();
   });
 
+  const taken = (id: string) => ({ id, exerciseId: 'press-plano-con-barra', order: 0, machineStepKg: null });
+
+  it('AC-mobile-002-11: los días donde el ejercicio ya está salen atenuados y no se pueden elegir', async () => {
+    await fakes.seedServer('martes', [taken('x1')]);
+    await openDetail();
+
+    expect(screen.getByTestId('day-martes')).toBeDisabled();
+    expect(screen.getByTestId('day-jueves')).not.toBeDisabled();
+    expect(await screen.findByText('Los días atenuados ya tienen este ejercicio.')).toBeOnTheScreen();
+
+    await press(screen.getByTestId('day-martes'));
+    expect(screen.getByTestId('add-to-plan')).toBeDisabled();
+  });
+
+  it('AC-mobile-002-11: tras añadirlo a un día, ese día deja de poder elegirse', async () => {
+    await openDetail();
+    await press(screen.getByTestId('day-martes'));
+    await press(screen.getByTestId('add-to-plan'));
+    await screen.findByText('Martes: añadido');
+
+    await waitFor(() => expect(screen.getByTestId('day-martes')).toBeDisabled());
+    expect(screen.getByTestId('day-jueves')).not.toBeDisabled();
+    expect(screen.getByTestId('add-to-plan')).toBeDisabled();
+  });
+
+  it('AC-mobile-002-11: si ya está en todos los días lo indica y no deja añadir', async () => {
+    for (const [i, day] of DAYS.entries()) await fakes.seedServer(day, [taken(`x${i}`)]);
+    await openDetail();
+
+    expect(await screen.findByText('Este ejercicio ya está en todos los días de tu rutina.')).toBeOnTheScreen();
+    expect(screen.getByTestId('add-to-plan')).toBeDisabled();
+  });
+
   it('AC-mobile-002-03: añade a varios días y aparece en Mi rutina', async () => {
     await openDetail();
     await press(screen.getByTestId('day-martes'));
