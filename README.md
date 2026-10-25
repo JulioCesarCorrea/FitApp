@@ -28,6 +28,8 @@ dotnet test FitnessApp.slnx                   # tests (Testcontainers si hay Doc
 # Sin Docker: apuntar a un Postgres local con permiso CREATEDB; cada ejecución crea y borra su propia base
 $env:FITNESS_TEST_PG='Host=localhost;Username=fitness;Password=fitness_dev;Database=postgres'
 cd src/mobile && pnpm install && pnpm start   # app móvil
+# Imágenes del catálogo: carpeta con <ejercicio>-0.jpg y -1.jpg (fuera del repo)
+$env:Exercises__ImagesPath='C:\ruta\a\ejercicios'
 ```
 
 ## Cómo trabajamos (SDD ligero)

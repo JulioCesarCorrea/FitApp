@@ -25,6 +25,21 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
     private string _dbName = "";
     private string _connectionString = "";
 
+    /// <summary>Carpeta temporal con una imagen de ejemplo del catálogo (AC-training-002-02).</summary>
+    public string ImagesDir { get; } = Path.Combine(Path.GetTempPath(), $"fitness-images-{Guid.NewGuid():N}");
+
+    public async Task AddRestrictionAsync(
+        Guid userId, string zone, FitnessApp.Api.Domain.Training.RestrictionLevel level, params string[] movements)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Restrictions.Add(new FitnessApp.Api.Domain.Training.UserRestriction
+        {
+            Id = Guid.NewGuid(), UserId = userId, Zone = zone, AvoidedMovements = movements, Level = level,
+        });
+        await db.SaveChangesAsync();
+    }
+
     public async Task InitializeAsync()
     {
         if (_container is not null)
@@ -44,6 +59,9 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 
         using var scope = Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+
+        Directory.CreateDirectory(ImagesDir);
+        await File.WriteAllBytesAsync(Path.Combine(ImagesDir, "press-plano-con-barra-0.jpg"), [0xFF, 0xD8, 0xFF, 0xD9]);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -53,6 +71,7 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         {
             ["ConnectionStrings:Default"] = _connectionString,
             ["Auth:DevHeader"] = "true",
+            ["Exercises:ImagesPath"] = ImagesDir,
         }));
     }
 

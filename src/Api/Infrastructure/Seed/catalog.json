@@ -1,0 +1,1590 @@
+[
+  {
+    "id": "press-plano-con-barra",
+    "name": "Press plano con barra",
+    "section": "Pecho",
+    "sortOrder": 1,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal",
+      "triceps"
+    ],
+    "movements": [
+      "empuje_horizontal",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "press-plano-con-mancuernas",
+    "name": "Press plano con mancuernas",
+    "section": "Pecho",
+    "sortOrder": 2,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal",
+      "triceps"
+    ],
+    "movements": [
+      "empuje_horizontal"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "press-inclinado-con-barra",
+    "name": "Press inclinado con barra",
+    "section": "Pecho",
+    "sortOrder": 3,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal",
+      "triceps"
+    ],
+    "movements": [
+      "empuje_inclinado",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "press-inclinado-con-mancuernas",
+    "name": "Press inclinado con mancuernas",
+    "section": "Pecho",
+    "sortOrder": 4,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal",
+      "triceps"
+    ],
+    "movements": [
+      "empuje_inclinado"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "press-declinado-con-barra",
+    "name": "Press declinado con barra",
+    "section": "Pecho",
+    "sortOrder": 5,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "triceps"
+    ],
+    "movements": [
+      "empuje_declinado",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "press-declinado-con-mancuernas",
+    "name": "Press declinado con mancuernas",
+    "section": "Pecho",
+    "sortOrder": 6,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "triceps"
+    ],
+    "movements": [
+      "empuje_declinado"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "press-inclinado-en-maquina",
+    "name": "Press inclinado en máquina",
+    "section": "Pecho",
+    "sortOrder": 7,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal",
+      "triceps"
+    ],
+    "movements": [
+      "empuje_inclinado"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "press-de-pecho-en-maquina",
+    "name": "Press de pecho en máquina",
+    "section": "Pecho",
+    "sortOrder": 8,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal",
+      "triceps"
+    ],
+    "movements": [
+      "empuje_horizontal"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "aperturas-con-mancuernas",
+    "name": "Aperturas con mancuernas",
+    "section": "Pecho",
+    "sortOrder": 9,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "apertura_de_hombro"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "aperturas-en-maquina-contractora",
+    "name": "Aperturas en máquina (contractora)",
+    "section": "Pecho",
+    "sortOrder": 10,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "apertura_de_hombro"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "cruce-de-poleas-polea-alta",
+    "name": "Cruce de poleas, polea alta",
+    "section": "Pecho",
+    "sortOrder": 11,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "apertura_de_hombro"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "cruce-de-poleas-polea-baja",
+    "name": "Cruce de poleas, polea baja",
+    "section": "Pecho",
+    "sortOrder": 12,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "apertura_de_hombro"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "fondos-en-paralelas-para-pecho",
+    "name": "Fondos en paralelas para pecho",
+    "section": "Pecho",
+    "sortOrder": 13,
+    "primaryZone": "pecho",
+    "secondaryZones": [
+      "triceps",
+      "hombro_frontal"
+    ],
+    "movements": [
+      "fondos"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "dominadas-agarre-prono",
+    "name": "Dominadas (agarre prono)",
+    "section": "Espalda",
+    "sortOrder": 14,
+    "primaryZone": "espalda",
+    "secondaryZones": [
+      "biceps",
+      "antebrazos"
+    ],
+    "movements": [
+      "traccion_vertical"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "jalon-al-pecho-polea-alta-agarre-ancho",
+    "name": "Jalón al pecho (polea alta, agarre ancho)",
+    "section": "Espalda",
+    "sortOrder": 15,
+    "primaryZone": "espalda",
+    "secondaryZones": [
+      "biceps",
+      "antebrazos"
+    ],
+    "movements": [
+      "traccion_vertical"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "jalon-al-pecho-con-agarre-cerrado-o-neutro",
+    "name": "Jalón al pecho con agarre cerrado o neutro",
+    "section": "Espalda",
+    "sortOrder": 16,
+    "primaryZone": "espalda",
+    "secondaryZones": [
+      "biceps",
+      "antebrazos"
+    ],
+    "movements": [
+      "traccion_vertical"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "remo-con-barra",
+    "name": "Remo con barra",
+    "section": "Espalda",
+    "sortOrder": 17,
+    "primaryZone": "espalda",
+    "secondaryZones": [
+      "biceps",
+      "espalda_baja"
+    ],
+    "movements": [
+      "traccion_horizontal",
+      "tronco_inclinado",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "remo-con-mancuerna-a-una-mano",
+    "name": "Remo con mancuerna a una mano",
+    "section": "Espalda",
+    "sortOrder": 18,
+    "primaryZone": "espalda",
+    "secondaryZones": [
+      "biceps"
+    ],
+    "movements": [
+      "traccion_horizontal"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "remo-en-polea-baja-sentado",
+    "name": "Remo en polea baja (sentado)",
+    "section": "Espalda",
+    "sortOrder": 19,
+    "primaryZone": "espalda",
+    "secondaryZones": [
+      "biceps"
+    ],
+    "movements": [
+      "traccion_horizontal"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "remo-en-maquina",
+    "name": "Remo en máquina",
+    "section": "Espalda",
+    "sortOrder": 20,
+    "primaryZone": "espalda",
+    "secondaryZones": [
+      "biceps"
+    ],
+    "movements": [
+      "traccion_horizontal"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "remo-en-t",
+    "name": "Remo en T",
+    "section": "Espalda",
+    "sortOrder": 21,
+    "primaryZone": "espalda",
+    "secondaryZones": [
+      "biceps",
+      "espalda_baja"
+    ],
+    "movements": [
+      "traccion_horizontal",
+      "tronco_inclinado"
+    ],
+    "equipment": "Barra",
+    "bar": "RemoEnT"
+  },
+  {
+    "id": "pullover-en-polea-o-con-mancuerna",
+    "name": "Pullover en polea o con mancuerna",
+    "section": "Espalda",
+    "sortOrder": 22,
+    "primaryZone": "espalda",
+    "secondaryZones": [
+      "pecho",
+      "triceps"
+    ],
+    "movements": [
+      "extension_de_hombro"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "encogimientos-para-trapecio",
+    "name": "Encogimientos para trapecio",
+    "section": "Espalda",
+    "sortOrder": 23,
+    "primaryZone": "trapecio",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "carga_axial"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "press-militar-con-barra",
+    "name": "Press militar con barra",
+    "section": "Hombros",
+    "sortOrder": 24,
+    "primaryZone": "hombro_frontal",
+    "secondaryZones": [
+      "triceps",
+      "trapecio"
+    ],
+    "movements": [
+      "empuje_sobre_la_cabeza",
+      "carga_axial",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "press-de-hombros-con-mancuernas",
+    "name": "Press de hombros con mancuernas",
+    "section": "Hombros",
+    "sortOrder": 25,
+    "primaryZone": "hombro_frontal",
+    "secondaryZones": [
+      "triceps",
+      "trapecio"
+    ],
+    "movements": [
+      "empuje_sobre_la_cabeza"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "press-de-hombros-en-maquina",
+    "name": "Press de hombros en máquina",
+    "section": "Hombros",
+    "sortOrder": 26,
+    "primaryZone": "hombro_frontal",
+    "secondaryZones": [
+      "triceps"
+    ],
+    "movements": [
+      "empuje_sobre_la_cabeza"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "elevaciones-frontales-con-mancuernas",
+    "name": "Elevaciones frontales con mancuernas",
+    "section": "Hombros",
+    "sortOrder": 27,
+    "primaryZone": "hombro_frontal",
+    "secondaryZones": [
+      "pecho"
+    ],
+    "movements": [
+      "elevacion_de_hombro"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "elevaciones-laterales-con-mancuernas",
+    "name": "Elevaciones laterales con mancuernas",
+    "section": "Hombros",
+    "sortOrder": 28,
+    "primaryZone": "hombro_lateral",
+    "secondaryZones": [
+      "trapecio"
+    ],
+    "movements": [
+      "elevacion_de_hombro"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "elevaciones-laterales-en-polea",
+    "name": "Elevaciones laterales en polea",
+    "section": "Hombros",
+    "sortOrder": 29,
+    "primaryZone": "hombro_lateral",
+    "secondaryZones": [
+      "trapecio"
+    ],
+    "movements": [
+      "elevacion_de_hombro"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "elevaciones-laterales-en-maquina",
+    "name": "Elevaciones laterales en máquina",
+    "section": "Hombros",
+    "sortOrder": 30,
+    "primaryZone": "hombro_lateral",
+    "secondaryZones": [
+      "trapecio"
+    ],
+    "movements": [
+      "elevacion_de_hombro"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "pajaros-con-mancuernas-vuelos-posteriores",
+    "name": "Pájaros con mancuernas (vuelos posteriores)",
+    "section": "Hombros",
+    "sortOrder": 31,
+    "primaryZone": "hombro_posterior",
+    "secondaryZones": [
+      "espalda",
+      "trapecio"
+    ],
+    "movements": [
+      "apertura_posterior",
+      "tronco_inclinado"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "aperturas-posteriores-en-maquina-contractora-inversa",
+    "name": "Aperturas posteriores en máquina (contractora inversa)",
+    "section": "Hombros",
+    "sortOrder": 32,
+    "primaryZone": "hombro_posterior",
+    "secondaryZones": [
+      "espalda",
+      "trapecio"
+    ],
+    "movements": [
+      "apertura_posterior"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "face-pull-en-polea",
+    "name": "Face pull en polea",
+    "section": "Hombros",
+    "sortOrder": 33,
+    "primaryZone": "hombro_posterior",
+    "secondaryZones": [
+      "espalda",
+      "trapecio"
+    ],
+    "movements": [
+      "apertura_posterior"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "sentadilla-con-barra",
+    "name": "Sentadilla con barra",
+    "section": "Cuádriceps",
+    "sortOrder": 34,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [
+      "gluteo",
+      "isquiotibiales",
+      "espalda_baja"
+    ],
+    "movements": [
+      "flexion_profunda_de_rodilla",
+      "flexion_profunda_de_cadera",
+      "carga_axial",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "sentadilla-frontal-con-barra",
+    "name": "Sentadilla frontal con barra",
+    "section": "Cuádriceps",
+    "sortOrder": 35,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [
+      "gluteo",
+      "abdomen"
+    ],
+    "movements": [
+      "flexion_profunda_de_rodilla",
+      "flexion_profunda_de_cadera",
+      "carga_axial",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "sentadilla-en-maquina-smith",
+    "name": "Sentadilla en máquina Smith",
+    "section": "Cuádriceps",
+    "sortOrder": 36,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [
+      "gluteo"
+    ],
+    "movements": [
+      "flexion_profunda_de_rodilla",
+      "flexion_profunda_de_cadera",
+      "carga_axial"
+    ],
+    "equipment": "Barra",
+    "bar": "Smith"
+  },
+  {
+    "id": "sentadilla-hack-en-maquina",
+    "name": "Sentadilla hack en máquina",
+    "section": "Cuádriceps",
+    "sortOrder": 37,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [
+      "gluteo"
+    ],
+    "movements": [
+      "flexion_profunda_de_rodilla",
+      "flexion_profunda_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "prensa-de-piernas-45",
+    "name": "Prensa de piernas (45°)",
+    "section": "Cuádriceps",
+    "sortOrder": 38,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [
+      "gluteo",
+      "isquiotibiales"
+    ],
+    "movements": [
+      "flexion_profunda_de_rodilla",
+      "flexion_profunda_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "prensa-de-piernas-90",
+    "name": "Prensa de piernas (90°)",
+    "section": "Cuádriceps",
+    "sortOrder": 39,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [
+      "gluteo",
+      "isquiotibiales"
+    ],
+    "movements": [
+      "flexion_profunda_de_rodilla",
+      "flexion_profunda_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "extension-de-cuadriceps-en-maquina",
+    "name": "Extensión de cuádriceps en máquina",
+    "section": "Cuádriceps",
+    "sortOrder": 40,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [],
+    "movements": [
+      "extension_de_rodilla"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "zancadas-con-mancuernas",
+    "name": "Zancadas con mancuernas",
+    "section": "Cuádriceps",
+    "sortOrder": 41,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [
+      "gluteo",
+      "isquiotibiales"
+    ],
+    "movements": [
+      "flexion_profunda_de_rodilla",
+      "flexion_profunda_de_cadera"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "sentadilla-bulgara-con-mancuernas",
+    "name": "Sentadilla búlgara con mancuernas",
+    "section": "Cuádriceps",
+    "sortOrder": 42,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [
+      "gluteo"
+    ],
+    "movements": [
+      "flexion_profunda_de_rodilla",
+      "flexion_profunda_de_cadera"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "sissy-squat",
+    "name": "Sissy squat",
+    "section": "Cuádriceps",
+    "sortOrder": 43,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_profunda_de_rodilla"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "hip-thrust-con-barra",
+    "name": "Hip thrust con barra",
+    "section": "Glúteo",
+    "sortOrder": 44,
+    "primaryZone": "gluteo",
+    "secondaryZones": [
+      "isquiotibiales"
+    ],
+    "movements": [
+      "extension_de_cadera",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "hip-thrust-en-maquina",
+    "name": "Hip thrust en máquina",
+    "section": "Glúteo",
+    "sortOrder": 45,
+    "primaryZone": "gluteo",
+    "secondaryZones": [
+      "isquiotibiales"
+    ],
+    "movements": [
+      "extension_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "puente-de-gluteo-con-barra",
+    "name": "Puente de glúteo con barra",
+    "section": "Glúteo",
+    "sortOrder": 46,
+    "primaryZone": "gluteo",
+    "secondaryZones": [
+      "isquiotibiales"
+    ],
+    "movements": [
+      "extension_de_cadera",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "patada-de-gluteo-en-polea",
+    "name": "Patada de glúteo en polea",
+    "section": "Glúteo",
+    "sortOrder": 47,
+    "primaryZone": "gluteo",
+    "secondaryZones": [
+      "isquiotibiales"
+    ],
+    "movements": [
+      "extension_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "patada-de-gluteo-en-maquina",
+    "name": "Patada de glúteo en máquina",
+    "section": "Glúteo",
+    "sortOrder": 48,
+    "primaryZone": "gluteo",
+    "secondaryZones": [
+      "isquiotibiales"
+    ],
+    "movements": [
+      "extension_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "abduccion-de-cadera-en-maquina",
+    "name": "Abducción de cadera en máquina",
+    "section": "Glúteo",
+    "sortOrder": 49,
+    "primaryZone": "gluteo",
+    "secondaryZones": [],
+    "movements": [
+      "abduccion_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "peso-muerto-rumano-con-barra",
+    "name": "Peso muerto rumano con barra",
+    "section": "Glúteo",
+    "sortOrder": 50,
+    "primaryZone": "gluteo",
+    "secondaryZones": [
+      "isquiotibiales",
+      "espalda_baja"
+    ],
+    "movements": [
+      "extension_de_cadera",
+      "tronco_inclinado",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "sentadilla-sumo-con-mancuerna",
+    "name": "Sentadilla sumo con mancuerna",
+    "section": "Glúteo",
+    "sortOrder": 51,
+    "primaryZone": "gluteo",
+    "secondaryZones": [
+      "cuadriceps",
+      "aductores"
+    ],
+    "movements": [
+      "flexion_profunda_de_cadera",
+      "flexion_profunda_de_rodilla"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "zancada-caminando-con-mancuernas",
+    "name": "Zancada caminando con mancuernas",
+    "section": "Glúteo",
+    "sortOrder": 52,
+    "primaryZone": "gluteo",
+    "secondaryZones": [
+      "cuadriceps",
+      "isquiotibiales"
+    ],
+    "movements": [
+      "flexion_profunda_de_cadera",
+      "flexion_profunda_de_rodilla"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "extension-de-cadera-en-maquina",
+    "name": "Extensión de cadera en máquina",
+    "section": "Glúteo",
+    "sortOrder": 53,
+    "primaryZone": "gluteo",
+    "secondaryZones": [
+      "isquiotibiales",
+      "espalda_baja"
+    ],
+    "movements": [
+      "extension_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "curl-femoral-acostado-en-maquina",
+    "name": "Curl femoral acostado en máquina",
+    "section": "Isquiotibiales",
+    "sortOrder": 54,
+    "primaryZone": "isquiotibiales",
+    "secondaryZones": [
+      "pantorrillas"
+    ],
+    "movements": [
+      "flexion_de_rodilla"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "curl-femoral-sentado-en-maquina",
+    "name": "Curl femoral sentado en máquina",
+    "section": "Isquiotibiales",
+    "sortOrder": 55,
+    "primaryZone": "isquiotibiales",
+    "secondaryZones": [
+      "pantorrillas"
+    ],
+    "movements": [
+      "flexion_de_rodilla"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "curl-femoral-de-pie-en-maquina",
+    "name": "Curl femoral de pie en máquina",
+    "section": "Isquiotibiales",
+    "sortOrder": 56,
+    "primaryZone": "isquiotibiales",
+    "secondaryZones": [
+      "pantorrillas"
+    ],
+    "movements": [
+      "flexion_de_rodilla"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "peso-muerto-rumano-con-mancuernas",
+    "name": "Peso muerto rumano con mancuernas",
+    "section": "Isquiotibiales",
+    "sortOrder": 57,
+    "primaryZone": "isquiotibiales",
+    "secondaryZones": [
+      "gluteo",
+      "espalda_baja"
+    ],
+    "movements": [
+      "extension_de_cadera",
+      "tronco_inclinado"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "peso-muerto-con-piernas-rigidas",
+    "name": "Peso muerto con piernas rígidas",
+    "section": "Isquiotibiales",
+    "sortOrder": 58,
+    "primaryZone": "isquiotibiales",
+    "secondaryZones": [
+      "gluteo",
+      "espalda_baja"
+    ],
+    "movements": [
+      "extension_de_cadera",
+      "tronco_inclinado",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "buenos-dias-con-barra",
+    "name": "Buenos días con barra",
+    "section": "Isquiotibiales",
+    "sortOrder": 59,
+    "primaryZone": "isquiotibiales",
+    "secondaryZones": [
+      "gluteo",
+      "espalda_baja"
+    ],
+    "movements": [
+      "extension_de_cadera",
+      "tronco_inclinado",
+      "carga_axial",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "curl-nordico",
+    "name": "Curl nórdico",
+    "section": "Isquiotibiales",
+    "sortOrder": 60,
+    "primaryZone": "isquiotibiales",
+    "secondaryZones": [
+      "gluteo",
+      "pantorrillas"
+    ],
+    "movements": [
+      "flexion_de_rodilla"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "hiperextension-inversa-en-maquina",
+    "name": "Hiperextensión inversa en máquina",
+    "section": "Isquiotibiales",
+    "sortOrder": 61,
+    "primaryZone": "isquiotibiales",
+    "secondaryZones": [
+      "gluteo",
+      "espalda_baja"
+    ],
+    "movements": [
+      "extension_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "curl-con-barra-recta",
+    "name": "Curl con barra recta",
+    "section": "Bíceps",
+    "sortOrder": 62,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "curl-con-barra-z",
+    "name": "Curl con barra Z",
+    "section": "Bíceps",
+    "sortOrder": 63,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Z"
+  },
+  {
+    "id": "curl-con-mancuernas-alternado",
+    "name": "Curl con mancuernas alternado",
+    "section": "Bíceps",
+    "sortOrder": 64,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "curl-martillo-con-mancuernas",
+    "name": "Curl martillo con mancuernas",
+    "section": "Bíceps",
+    "sortOrder": 65,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "curl-martillo-en-banco-inclinado",
+    "name": "Curl martillo en banco inclinado",
+    "section": "Bíceps",
+    "sortOrder": 66,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo",
+      "extension_de_hombro"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "curl-inclinado-con-mancuernas",
+    "name": "Curl inclinado con mancuernas",
+    "section": "Bíceps",
+    "sortOrder": 67,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo",
+      "extension_de_hombro"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "curl-predicador-banco-scott-con-barra-z",
+    "name": "Curl predicador (banco Scott) con barra Z",
+    "section": "Bíceps",
+    "sortOrder": 68,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Z"
+  },
+  {
+    "id": "curl-predicador-en-maquina",
+    "name": "Curl predicador en máquina",
+    "section": "Bíceps",
+    "sortOrder": 69,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "curl-concentrado",
+    "name": "Curl concentrado",
+    "section": "Bíceps",
+    "sortOrder": 70,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "curl-en-polea-baja",
+    "name": "Curl en polea baja",
+    "section": "Bíceps",
+    "sortOrder": 71,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "curl-en-polea-alta-doble-biceps",
+    "name": "Curl en polea alta (doble bíceps)",
+    "section": "Bíceps",
+    "sortOrder": 72,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "curl-bayesian-en-polea",
+    "name": "Curl bayesian en polea",
+    "section": "Bíceps",
+    "sortOrder": 73,
+    "primaryZone": "biceps",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_codo",
+      "extension_de_hombro"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "extension-de-triceps-en-polea-hacia-abajo-barra-recta",
+    "name": "Extensión de tríceps en polea hacia abajo (barra recta)",
+    "section": "Tríceps",
+    "sortOrder": 74,
+    "primaryZone": "triceps",
+    "secondaryZones": [],
+    "movements": [
+      "extension_de_codo"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "extension-de-triceps-en-polea-con-cuerda",
+    "name": "Extensión de tríceps en polea con cuerda",
+    "section": "Tríceps",
+    "sortOrder": 75,
+    "primaryZone": "triceps",
+    "secondaryZones": [],
+    "movements": [
+      "extension_de_codo"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "extension-de-triceps-en-polea-a-una-mano",
+    "name": "Extensión de tríceps en polea a una mano",
+    "section": "Tríceps",
+    "sortOrder": 76,
+    "primaryZone": "triceps",
+    "secondaryZones": [],
+    "movements": [
+      "extension_de_codo"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "press-frances-con-barra-z",
+    "name": "Press francés con barra Z",
+    "section": "Tríceps",
+    "sortOrder": 77,
+    "primaryZone": "triceps",
+    "secondaryZones": [],
+    "movements": [
+      "extension_de_codo",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Z"
+  },
+  {
+    "id": "press-frances-con-mancuernas",
+    "name": "Press francés con mancuernas",
+    "section": "Tríceps",
+    "sortOrder": 78,
+    "primaryZone": "triceps",
+    "secondaryZones": [],
+    "movements": [
+      "extension_de_codo"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "extension-de-triceps-sobre-la-cabeza-con-mancuerna",
+    "name": "Extensión de tríceps sobre la cabeza con mancuerna",
+    "section": "Tríceps",
+    "sortOrder": 79,
+    "primaryZone": "triceps",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "extension_de_codo",
+      "brazo_sobre_la_cabeza"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "extension-de-triceps-sobre-la-cabeza-en-polea",
+    "name": "Extensión de tríceps sobre la cabeza en polea",
+    "section": "Tríceps",
+    "sortOrder": 80,
+    "primaryZone": "triceps",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "extension_de_codo",
+      "brazo_sobre_la_cabeza"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "fondos-en-paralelas-para-triceps",
+    "name": "Fondos en paralelas para tríceps",
+    "section": "Tríceps",
+    "sortOrder": 81,
+    "primaryZone": "triceps",
+    "secondaryZones": [
+      "pecho",
+      "hombro_frontal"
+    ],
+    "movements": [
+      "fondos",
+      "extension_de_codo"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "fondos-en-banco",
+    "name": "Fondos en banco",
+    "section": "Tríceps",
+    "sortOrder": 82,
+    "primaryZone": "triceps",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "fondos",
+      "extension_de_codo"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "press-cerrado-con-barra",
+    "name": "Press cerrado con barra",
+    "section": "Tríceps",
+    "sortOrder": 83,
+    "primaryZone": "triceps",
+    "secondaryZones": [
+      "pecho",
+      "hombro_frontal"
+    ],
+    "movements": [
+      "empuje_horizontal",
+      "extension_de_codo",
+      "carga_con_barra_libre"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "extension-de-triceps-en-maquina",
+    "name": "Extensión de tríceps en máquina",
+    "section": "Tríceps",
+    "sortOrder": 84,
+    "primaryZone": "triceps",
+    "secondaryZones": [],
+    "movements": [
+      "extension_de_codo"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "patada-de-triceps-con-mancuerna",
+    "name": "Patada de tríceps con mancuerna",
+    "section": "Tríceps",
+    "sortOrder": 85,
+    "primaryZone": "triceps",
+    "secondaryZones": [],
+    "movements": [
+      "extension_de_codo",
+      "tronco_inclinado"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "elevacion-de-talones-de-pie-en-maquina",
+    "name": "Elevación de talones de pie en máquina",
+    "section": "Pantorrillas",
+    "sortOrder": 86,
+    "primaryZone": "pantorrillas",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_plantar",
+      "carga_axial"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "elevacion-de-talones-sentado-en-maquina",
+    "name": "Elevación de talones sentado en máquina",
+    "section": "Pantorrillas",
+    "sortOrder": 87,
+    "primaryZone": "pantorrillas",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_plantar"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "elevacion-de-talones-en-prensa-de-piernas",
+    "name": "Elevación de talones en prensa de piernas",
+    "section": "Pantorrillas",
+    "sortOrder": 88,
+    "primaryZone": "pantorrillas",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_plantar"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "elevacion-de-talones-de-pie-con-mancuerna",
+    "name": "Elevación de talones de pie con mancuerna",
+    "section": "Pantorrillas",
+    "sortOrder": 89,
+    "primaryZone": "pantorrillas",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_plantar"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "elevacion-de-talones-en-maquina-smith",
+    "name": "Elevación de talones en máquina Smith",
+    "section": "Pantorrillas",
+    "sortOrder": 90,
+    "primaryZone": "pantorrillas",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_plantar",
+      "carga_axial"
+    ],
+    "equipment": "Barra",
+    "bar": "Smith"
+  },
+  {
+    "id": "elevacion-de-talones-a-una-pierna",
+    "name": "Elevación de talones a una pierna",
+    "section": "Pantorrillas",
+    "sortOrder": 91,
+    "primaryZone": "pantorrillas",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_plantar"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "crunch-en-suelo",
+    "name": "Crunch en suelo",
+    "section": "Abdomen",
+    "sortOrder": 92,
+    "primaryZone": "abdomen",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_de_tronco"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "crunch-en-maquina",
+    "name": "Crunch en máquina",
+    "section": "Abdomen",
+    "sortOrder": 93,
+    "primaryZone": "abdomen",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_de_tronco"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "crunch-en-polea-alta-de-rodillas",
+    "name": "Crunch en polea alta (de rodillas)",
+    "section": "Abdomen",
+    "sortOrder": 94,
+    "primaryZone": "abdomen",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_de_tronco"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "elevacion-de-piernas-colgado",
+    "name": "Elevación de piernas colgado",
+    "section": "Abdomen",
+    "sortOrder": 95,
+    "primaryZone": "abdomen",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_cadera"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "elevacion-de-rodillas-en-silla-romana",
+    "name": "Elevación de rodillas en silla romana",
+    "section": "Abdomen",
+    "sortOrder": 96,
+    "primaryZone": "abdomen",
+    "secondaryZones": [
+      "antebrazos"
+    ],
+    "movements": [
+      "flexion_de_cadera"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "elevacion-de-piernas-en-banco",
+    "name": "Elevación de piernas en banco",
+    "section": "Abdomen",
+    "sortOrder": 97,
+    "primaryZone": "abdomen",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_de_cadera"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "plancha",
+    "name": "Plancha",
+    "section": "Abdomen",
+    "sortOrder": 98,
+    "primaryZone": "abdomen",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "isometrico_de_core"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "plancha-lateral",
+    "name": "Plancha lateral",
+    "section": "Abdomen",
+    "sortOrder": 99,
+    "primaryZone": "abdomen",
+    "secondaryZones": [
+      "hombro_lateral"
+    ],
+    "movements": [
+      "isometrico_de_core"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "rueda-abdominal",
+    "name": "Rueda abdominal",
+    "section": "Abdomen",
+    "sortOrder": 100,
+    "primaryZone": "abdomen",
+    "secondaryZones": [
+      "espalda_baja",
+      "hombro_frontal"
+    ],
+    "movements": [
+      "isometrico_de_core",
+      "extension_de_hombro"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "giros-rusos-con-mancuerna-o-disco",
+    "name": "Giros rusos con mancuerna o disco",
+    "section": "Abdomen",
+    "sortOrder": 101,
+    "primaryZone": "abdomen",
+    "secondaryZones": [],
+    "movements": [
+      "rotacion_de_tronco"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "lenador-en-polea-rotacion",
+    "name": "Leñador en polea (rotación)",
+    "section": "Abdomen",
+    "sortOrder": 102,
+    "primaryZone": "abdomen",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "rotacion_de_tronco"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "abdominales-en-banco-declinado",
+    "name": "Abdominales en banco declinado",
+    "section": "Abdomen",
+    "sortOrder": 103,
+    "primaryZone": "abdomen",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_de_tronco"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  }
+]
