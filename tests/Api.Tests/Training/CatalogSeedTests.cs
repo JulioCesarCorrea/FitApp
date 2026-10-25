@@ -15,15 +15,15 @@ public sealed class CatalogSeedTests
 
     private static readonly string[] Secciones =
     [
-        "Pecho", "Espalda", "Hombros", "Cuádriceps", "Glúteo", "Isquiotibiales", "Bíceps", "Tríceps", "Pantorrillas", "Abdomen",
+        "Pecho", "Espalda", "Hombros", "Cuádriceps", "Glúteo", "Isquiotibiales", "Bíceps", "Tríceps", "Antebrazos", "Pantorrillas", "Abdomen",
     ];
 
     [Fact]
-    public void AC_training_002_01_el_catalogo_base_tiene_103_ejercicios_en_10_secciones()
+    public void AC_training_002_01_el_catalogo_base_tiene_114_ejercicios_en_11_secciones()
     {
         var catalog = CatalogSeed.Load();
 
-        Assert.Equal(103, catalog.Count);
+        Assert.Equal(114, catalog.Count);
         Assert.Equal(Secciones, catalog.Select(e => e.Section).Distinct().ToArray());
     }
 

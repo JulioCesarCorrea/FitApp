@@ -594,10 +594,26 @@
     "bar": null
   },
   {
+    "id": "sentadilla-pendulo-en-maquina",
+    "name": "Sentadilla péndulo en máquina",
+    "section": "Cuádriceps",
+    "sortOrder": 38,
+    "primaryZone": "cuadriceps",
+    "secondaryZones": [
+      "gluteo"
+    ],
+    "movements": [
+      "flexion_profunda_de_rodilla",
+      "flexion_profunda_de_cadera"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
     "id": "prensa-de-piernas-45",
     "name": "Prensa de piernas (45°)",
     "section": "Cuádriceps",
-    "sortOrder": 38,
+    "sortOrder": 39,
     "primaryZone": "cuadriceps",
     "secondaryZones": [
       "gluteo",
@@ -614,7 +630,7 @@
     "id": "prensa-de-piernas-90",
     "name": "Prensa de piernas (90°)",
     "section": "Cuádriceps",
-    "sortOrder": 39,
+    "sortOrder": 40,
     "primaryZone": "cuadriceps",
     "secondaryZones": [
       "gluteo",
@@ -631,7 +647,7 @@
     "id": "extension-de-cuadriceps-en-maquina",
     "name": "Extensión de cuádriceps en máquina",
     "section": "Cuádriceps",
-    "sortOrder": 40,
+    "sortOrder": 41,
     "primaryZone": "cuadriceps",
     "secondaryZones": [],
     "movements": [
@@ -644,7 +660,7 @@
     "id": "zancadas-con-mancuernas",
     "name": "Zancadas con mancuernas",
     "section": "Cuádriceps",
-    "sortOrder": 41,
+    "sortOrder": 42,
     "primaryZone": "cuadriceps",
     "secondaryZones": [
       "gluteo",
@@ -661,7 +677,7 @@
     "id": "sentadilla-bulgara-con-mancuernas",
     "name": "Sentadilla búlgara con mancuernas",
     "section": "Cuádriceps",
-    "sortOrder": 42,
+    "sortOrder": 43,
     "primaryZone": "cuadriceps",
     "secondaryZones": [
       "gluteo"
@@ -677,7 +693,7 @@
     "id": "sissy-squat",
     "name": "Sissy squat",
     "section": "Cuádriceps",
-    "sortOrder": 43,
+    "sortOrder": 44,
     "primaryZone": "cuadriceps",
     "secondaryZones": [],
     "movements": [
@@ -690,7 +706,7 @@
     "id": "hip-thrust-con-barra",
     "name": "Hip thrust con barra",
     "section": "Glúteo",
-    "sortOrder": 44,
+    "sortOrder": 45,
     "primaryZone": "gluteo",
     "secondaryZones": [
       "isquiotibiales"
@@ -706,7 +722,7 @@
     "id": "hip-thrust-en-maquina",
     "name": "Hip thrust en máquina",
     "section": "Glúteo",
-    "sortOrder": 45,
+    "sortOrder": 46,
     "primaryZone": "gluteo",
     "secondaryZones": [
       "isquiotibiales"
@@ -721,7 +737,7 @@
     "id": "puente-de-gluteo-con-barra",
     "name": "Puente de glúteo con barra",
     "section": "Glúteo",
-    "sortOrder": 46,
+    "sortOrder": 47,
     "primaryZone": "gluteo",
     "secondaryZones": [
       "isquiotibiales"
@@ -737,7 +753,7 @@
     "id": "patada-de-gluteo-en-polea",
     "name": "Patada de glúteo en polea",
     "section": "Glúteo",
-    "sortOrder": 47,
+    "sortOrder": 48,
     "primaryZone": "gluteo",
     "secondaryZones": [
       "isquiotibiales"
@@ -752,7 +768,7 @@
     "id": "patada-de-gluteo-en-maquina",
     "name": "Patada de glúteo en máquina",
     "section": "Glúteo",
-    "sortOrder": 48,
+    "sortOrder": 49,
     "primaryZone": "gluteo",
     "secondaryZones": [
       "isquiotibiales"
@@ -767,7 +783,7 @@
     "id": "abduccion-de-cadera-en-maquina",
     "name": "Abducción de cadera en máquina",
     "section": "Glúteo",
-    "sortOrder": 49,
+    "sortOrder": 50,
     "primaryZone": "gluteo",
     "secondaryZones": [],
     "movements": [
@@ -780,7 +796,7 @@
     "id": "peso-muerto-rumano-con-barra",
     "name": "Peso muerto rumano con barra",
     "section": "Glúteo",
-    "sortOrder": 50,
+    "sortOrder": 51,
     "primaryZone": "gluteo",
     "secondaryZones": [
       "isquiotibiales",
@@ -798,7 +814,7 @@
     "id": "sentadilla-sumo-con-mancuerna",
     "name": "Sentadilla sumo con mancuerna",
     "section": "Glúteo",
-    "sortOrder": 51,
+    "sortOrder": 52,
     "primaryZone": "gluteo",
     "secondaryZones": [
       "cuadriceps",
@@ -815,7 +831,7 @@
     "id": "zancada-caminando-con-mancuernas",
     "name": "Zancada caminando con mancuernas",
     "section": "Glúteo",
-    "sortOrder": 52,
+    "sortOrder": 53,
     "primaryZone": "gluteo",
     "secondaryZones": [
       "cuadriceps",
@@ -832,7 +848,7 @@
     "id": "extension-de-cadera-en-maquina",
     "name": "Extensión de cadera en máquina",
     "section": "Glúteo",
-    "sortOrder": 53,
+    "sortOrder": 54,
     "primaryZone": "gluteo",
     "secondaryZones": [
       "isquiotibiales",
@@ -848,7 +864,7 @@
     "id": "curl-femoral-acostado-en-maquina",
     "name": "Curl femoral acostado en máquina",
     "section": "Isquiotibiales",
-    "sortOrder": 54,
+    "sortOrder": 55,
     "primaryZone": "isquiotibiales",
     "secondaryZones": [
       "pantorrillas"
@@ -863,7 +879,7 @@
     "id": "curl-femoral-sentado-en-maquina",
     "name": "Curl femoral sentado en máquina",
     "section": "Isquiotibiales",
-    "sortOrder": 55,
+    "sortOrder": 56,
     "primaryZone": "isquiotibiales",
     "secondaryZones": [
       "pantorrillas"
@@ -878,7 +894,7 @@
     "id": "curl-femoral-de-pie-en-maquina",
     "name": "Curl femoral de pie en máquina",
     "section": "Isquiotibiales",
-    "sortOrder": 56,
+    "sortOrder": 57,
     "primaryZone": "isquiotibiales",
     "secondaryZones": [
       "pantorrillas"
@@ -893,7 +909,7 @@
     "id": "peso-muerto-rumano-con-mancuernas",
     "name": "Peso muerto rumano con mancuernas",
     "section": "Isquiotibiales",
-    "sortOrder": 57,
+    "sortOrder": 58,
     "primaryZone": "isquiotibiales",
     "secondaryZones": [
       "gluteo",
@@ -910,7 +926,7 @@
     "id": "peso-muerto-con-piernas-rigidas",
     "name": "Peso muerto con piernas rígidas",
     "section": "Isquiotibiales",
-    "sortOrder": 58,
+    "sortOrder": 59,
     "primaryZone": "isquiotibiales",
     "secondaryZones": [
       "gluteo",
@@ -928,7 +944,7 @@
     "id": "buenos-dias-con-barra",
     "name": "Buenos días con barra",
     "section": "Isquiotibiales",
-    "sortOrder": 59,
+    "sortOrder": 60,
     "primaryZone": "isquiotibiales",
     "secondaryZones": [
       "gluteo",
@@ -947,7 +963,7 @@
     "id": "curl-nordico",
     "name": "Curl nórdico",
     "section": "Isquiotibiales",
-    "sortOrder": 60,
+    "sortOrder": 61,
     "primaryZone": "isquiotibiales",
     "secondaryZones": [
       "gluteo",
@@ -963,7 +979,7 @@
     "id": "hiperextension-inversa-en-maquina",
     "name": "Hiperextensión inversa en máquina",
     "section": "Isquiotibiales",
-    "sortOrder": 61,
+    "sortOrder": 62,
     "primaryZone": "isquiotibiales",
     "secondaryZones": [
       "gluteo",
@@ -979,7 +995,7 @@
     "id": "curl-con-barra-recta",
     "name": "Curl con barra recta",
     "section": "Bíceps",
-    "sortOrder": 62,
+    "sortOrder": 63,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -995,7 +1011,7 @@
     "id": "curl-con-barra-z",
     "name": "Curl con barra Z",
     "section": "Bíceps",
-    "sortOrder": 63,
+    "sortOrder": 64,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1011,7 +1027,7 @@
     "id": "curl-con-mancuernas-alternado",
     "name": "Curl con mancuernas alternado",
     "section": "Bíceps",
-    "sortOrder": 64,
+    "sortOrder": 65,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1026,7 +1042,7 @@
     "id": "curl-martillo-con-mancuernas",
     "name": "Curl martillo con mancuernas",
     "section": "Bíceps",
-    "sortOrder": 65,
+    "sortOrder": 66,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1041,7 +1057,7 @@
     "id": "curl-martillo-en-banco-inclinado",
     "name": "Curl martillo en banco inclinado",
     "section": "Bíceps",
-    "sortOrder": 66,
+    "sortOrder": 67,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1057,7 +1073,7 @@
     "id": "curl-inclinado-con-mancuernas",
     "name": "Curl inclinado con mancuernas",
     "section": "Bíceps",
-    "sortOrder": 67,
+    "sortOrder": 68,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1073,7 +1089,7 @@
     "id": "curl-predicador-banco-scott-con-barra-z",
     "name": "Curl predicador (banco Scott) con barra Z",
     "section": "Bíceps",
-    "sortOrder": 68,
+    "sortOrder": 69,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1089,7 +1105,7 @@
     "id": "curl-predicador-en-maquina",
     "name": "Curl predicador en máquina",
     "section": "Bíceps",
-    "sortOrder": 69,
+    "sortOrder": 70,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1104,7 +1120,7 @@
     "id": "curl-concentrado",
     "name": "Curl concentrado",
     "section": "Bíceps",
-    "sortOrder": 70,
+    "sortOrder": 71,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1119,7 +1135,7 @@
     "id": "curl-en-polea-baja",
     "name": "Curl en polea baja",
     "section": "Bíceps",
-    "sortOrder": 71,
+    "sortOrder": 72,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1134,7 +1150,7 @@
     "id": "curl-en-polea-alta-doble-biceps",
     "name": "Curl en polea alta (doble bíceps)",
     "section": "Bíceps",
-    "sortOrder": 72,
+    "sortOrder": 73,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1149,7 +1165,7 @@
     "id": "curl-bayesian-en-polea",
     "name": "Curl bayesian en polea",
     "section": "Bíceps",
-    "sortOrder": 73,
+    "sortOrder": 74,
     "primaryZone": "biceps",
     "secondaryZones": [
       "antebrazos"
@@ -1165,7 +1181,7 @@
     "id": "extension-de-triceps-en-polea-hacia-abajo-barra-recta",
     "name": "Extensión de tríceps en polea hacia abajo (barra recta)",
     "section": "Tríceps",
-    "sortOrder": 74,
+    "sortOrder": 75,
     "primaryZone": "triceps",
     "secondaryZones": [],
     "movements": [
@@ -1178,7 +1194,7 @@
     "id": "extension-de-triceps-en-polea-con-cuerda",
     "name": "Extensión de tríceps en polea con cuerda",
     "section": "Tríceps",
-    "sortOrder": 75,
+    "sortOrder": 76,
     "primaryZone": "triceps",
     "secondaryZones": [],
     "movements": [
@@ -1191,7 +1207,7 @@
     "id": "extension-de-triceps-en-polea-a-una-mano",
     "name": "Extensión de tríceps en polea a una mano",
     "section": "Tríceps",
-    "sortOrder": 76,
+    "sortOrder": 77,
     "primaryZone": "triceps",
     "secondaryZones": [],
     "movements": [
@@ -1204,7 +1220,7 @@
     "id": "press-frances-con-barra-z",
     "name": "Press francés con barra Z",
     "section": "Tríceps",
-    "sortOrder": 77,
+    "sortOrder": 78,
     "primaryZone": "triceps",
     "secondaryZones": [],
     "movements": [
@@ -1218,7 +1234,7 @@
     "id": "press-frances-con-mancuernas",
     "name": "Press francés con mancuernas",
     "section": "Tríceps",
-    "sortOrder": 78,
+    "sortOrder": 79,
     "primaryZone": "triceps",
     "secondaryZones": [],
     "movements": [
@@ -1231,7 +1247,7 @@
     "id": "extension-de-triceps-sobre-la-cabeza-con-mancuerna",
     "name": "Extensión de tríceps sobre la cabeza con mancuerna",
     "section": "Tríceps",
-    "sortOrder": 79,
+    "sortOrder": 80,
     "primaryZone": "triceps",
     "secondaryZones": [
       "hombro_frontal"
@@ -1247,7 +1263,7 @@
     "id": "extension-de-triceps-sobre-la-cabeza-en-polea",
     "name": "Extensión de tríceps sobre la cabeza en polea",
     "section": "Tríceps",
-    "sortOrder": 80,
+    "sortOrder": 81,
     "primaryZone": "triceps",
     "secondaryZones": [
       "hombro_frontal"
@@ -1263,7 +1279,7 @@
     "id": "fondos-en-paralelas-para-triceps",
     "name": "Fondos en paralelas para tríceps",
     "section": "Tríceps",
-    "sortOrder": 81,
+    "sortOrder": 82,
     "primaryZone": "triceps",
     "secondaryZones": [
       "pecho",
@@ -1280,7 +1296,7 @@
     "id": "fondos-en-banco",
     "name": "Fondos en banco",
     "section": "Tríceps",
-    "sortOrder": 82,
+    "sortOrder": 83,
     "primaryZone": "triceps",
     "secondaryZones": [
       "hombro_frontal"
@@ -1296,7 +1312,7 @@
     "id": "press-cerrado-con-barra",
     "name": "Press cerrado con barra",
     "section": "Tríceps",
-    "sortOrder": 83,
+    "sortOrder": 84,
     "primaryZone": "triceps",
     "secondaryZones": [
       "pecho",
@@ -1314,7 +1330,7 @@
     "id": "extension-de-triceps-en-maquina",
     "name": "Extensión de tríceps en máquina",
     "section": "Tríceps",
-    "sortOrder": 84,
+    "sortOrder": 85,
     "primaryZone": "triceps",
     "secondaryZones": [],
     "movements": [
@@ -1327,7 +1343,7 @@
     "id": "patada-de-triceps-con-mancuerna",
     "name": "Patada de tríceps con mancuerna",
     "section": "Tríceps",
-    "sortOrder": 85,
+    "sortOrder": 86,
     "primaryZone": "triceps",
     "secondaryZones": [],
     "movements": [
@@ -1338,10 +1354,152 @@
     "bar": null
   },
   {
+    "id": "curl-de-muneca-con-barra-palmas-arriba",
+    "name": "Curl de muñeca con barra (palmas arriba)",
+    "section": "Antebrazos",
+    "sortOrder": 87,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_de_muneca"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "curl-de-muneca-inverso-con-barra-palmas-abajo",
+    "name": "Curl de muñeca inverso con barra (palmas abajo)",
+    "section": "Antebrazos",
+    "sortOrder": 88,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [],
+    "movements": [
+      "extension_de_muneca"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "curl-de-muneca-con-mancuerna",
+    "name": "Curl de muñeca con mancuerna",
+    "section": "Antebrazos",
+    "sortOrder": 89,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_de_muneca"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "curl-inverso-con-barra",
+    "name": "Curl inverso con barra",
+    "section": "Antebrazos",
+    "sortOrder": 90,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [
+      "biceps"
+    ],
+    "movements": [
+      "flexion_de_codo"
+    ],
+    "equipment": "Barra",
+    "bar": "Recta"
+  },
+  {
+    "id": "curl-zottman",
+    "name": "Curl Zottman",
+    "section": "Antebrazos",
+    "sortOrder": 91,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [
+      "biceps"
+    ],
+    "movements": [
+      "flexion_de_codo"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "paseo-del-granjero",
+    "name": "Paseo del granjero",
+    "section": "Antebrazos",
+    "sortOrder": 92,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [
+      "trapecio",
+      "espalda_baja"
+    ],
+    "movements": [
+      "acarreo"
+    ],
+    "equipment": "Mancuernas",
+    "bar": null
+  },
+  {
+    "id": "rodillo-de-muneca",
+    "name": "Rodillo de muñeca",
+    "section": "Antebrazos",
+    "sortOrder": 93,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [
+      "hombro_frontal"
+    ],
+    "movements": [
+      "flexion_de_muneca",
+      "extension_de_muneca"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "curl-de-muneca-en-polea-baja",
+    "name": "Curl de muñeca en polea baja",
+    "section": "Antebrazos",
+    "sortOrder": 94,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [],
+    "movements": [
+      "flexion_de_muneca"
+    ],
+    "equipment": "Maquina",
+    "bar": null
+  },
+  {
+    "id": "agarre-de-discos-plate-pinch",
+    "name": "Agarre de discos (plate pinch)",
+    "section": "Antebrazos",
+    "sortOrder": 95,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [],
+    "movements": [
+      "agarre_de_pellizco"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
+    "id": "colgarse-de-la-barra",
+    "name": "Colgarse de la barra",
+    "section": "Antebrazos",
+    "sortOrder": 96,
+    "primaryZone": "antebrazos",
+    "secondaryZones": [
+      "espalda"
+    ],
+    "movements": [
+      "suspension"
+    ],
+    "equipment": "PesoCorporal",
+    "bar": null
+  },
+  {
     "id": "elevacion-de-talones-de-pie-en-maquina",
     "name": "Elevación de talones de pie en máquina",
     "section": "Pantorrillas",
-    "sortOrder": 86,
+    "sortOrder": 97,
     "primaryZone": "pantorrillas",
     "secondaryZones": [],
     "movements": [
@@ -1355,7 +1513,7 @@
     "id": "elevacion-de-talones-sentado-en-maquina",
     "name": "Elevación de talones sentado en máquina",
     "section": "Pantorrillas",
-    "sortOrder": 87,
+    "sortOrder": 98,
     "primaryZone": "pantorrillas",
     "secondaryZones": [],
     "movements": [
@@ -1368,7 +1526,7 @@
     "id": "elevacion-de-talones-en-prensa-de-piernas",
     "name": "Elevación de talones en prensa de piernas",
     "section": "Pantorrillas",
-    "sortOrder": 88,
+    "sortOrder": 99,
     "primaryZone": "pantorrillas",
     "secondaryZones": [],
     "movements": [
@@ -1381,7 +1539,7 @@
     "id": "elevacion-de-talones-de-pie-con-mancuerna",
     "name": "Elevación de talones de pie con mancuerna",
     "section": "Pantorrillas",
-    "sortOrder": 89,
+    "sortOrder": 100,
     "primaryZone": "pantorrillas",
     "secondaryZones": [],
     "movements": [
@@ -1394,7 +1552,7 @@
     "id": "elevacion-de-talones-en-maquina-smith",
     "name": "Elevación de talones en máquina Smith",
     "section": "Pantorrillas",
-    "sortOrder": 90,
+    "sortOrder": 101,
     "primaryZone": "pantorrillas",
     "secondaryZones": [],
     "movements": [
@@ -1408,7 +1566,7 @@
     "id": "elevacion-de-talones-a-una-pierna",
     "name": "Elevación de talones a una pierna",
     "section": "Pantorrillas",
-    "sortOrder": 91,
+    "sortOrder": 102,
     "primaryZone": "pantorrillas",
     "secondaryZones": [],
     "movements": [
@@ -1421,7 +1579,7 @@
     "id": "crunch-en-suelo",
     "name": "Crunch en suelo",
     "section": "Abdomen",
-    "sortOrder": 92,
+    "sortOrder": 103,
     "primaryZone": "abdomen",
     "secondaryZones": [],
     "movements": [
@@ -1434,7 +1592,7 @@
     "id": "crunch-en-maquina",
     "name": "Crunch en máquina",
     "section": "Abdomen",
-    "sortOrder": 93,
+    "sortOrder": 104,
     "primaryZone": "abdomen",
     "secondaryZones": [],
     "movements": [
@@ -1447,7 +1605,7 @@
     "id": "crunch-en-polea-alta-de-rodillas",
     "name": "Crunch en polea alta (de rodillas)",
     "section": "Abdomen",
-    "sortOrder": 94,
+    "sortOrder": 105,
     "primaryZone": "abdomen",
     "secondaryZones": [],
     "movements": [
@@ -1460,7 +1618,7 @@
     "id": "elevacion-de-piernas-colgado",
     "name": "Elevación de piernas colgado",
     "section": "Abdomen",
-    "sortOrder": 95,
+    "sortOrder": 106,
     "primaryZone": "abdomen",
     "secondaryZones": [
       "antebrazos"
@@ -1475,7 +1633,7 @@
     "id": "elevacion-de-rodillas-en-silla-romana",
     "name": "Elevación de rodillas en silla romana",
     "section": "Abdomen",
-    "sortOrder": 96,
+    "sortOrder": 107,
     "primaryZone": "abdomen",
     "secondaryZones": [
       "antebrazos"
@@ -1490,7 +1648,7 @@
     "id": "elevacion-de-piernas-en-banco",
     "name": "Elevación de piernas en banco",
     "section": "Abdomen",
-    "sortOrder": 97,
+    "sortOrder": 108,
     "primaryZone": "abdomen",
     "secondaryZones": [],
     "movements": [
@@ -1503,7 +1661,7 @@
     "id": "plancha",
     "name": "Plancha",
     "section": "Abdomen",
-    "sortOrder": 98,
+    "sortOrder": 109,
     "primaryZone": "abdomen",
     "secondaryZones": [
       "hombro_frontal"
@@ -1518,7 +1676,7 @@
     "id": "plancha-lateral",
     "name": "Plancha lateral",
     "section": "Abdomen",
-    "sortOrder": 99,
+    "sortOrder": 110,
     "primaryZone": "abdomen",
     "secondaryZones": [
       "hombro_lateral"
@@ -1533,7 +1691,7 @@
     "id": "rueda-abdominal",
     "name": "Rueda abdominal",
     "section": "Abdomen",
-    "sortOrder": 100,
+    "sortOrder": 111,
     "primaryZone": "abdomen",
     "secondaryZones": [
       "espalda_baja",
@@ -1550,7 +1708,7 @@
     "id": "giros-rusos-con-mancuerna-o-disco",
     "name": "Giros rusos con mancuerna o disco",
     "section": "Abdomen",
-    "sortOrder": 101,
+    "sortOrder": 112,
     "primaryZone": "abdomen",
     "secondaryZones": [],
     "movements": [
@@ -1563,7 +1721,7 @@
     "id": "lenador-en-polea-rotacion",
     "name": "Leñador en polea (rotación)",
     "section": "Abdomen",
-    "sortOrder": 102,
+    "sortOrder": 113,
     "primaryZone": "abdomen",
     "secondaryZones": [
       "hombro_frontal"
@@ -1578,7 +1736,7 @@
     "id": "abdominales-en-banco-declinado",
     "name": "Abdominales en banco declinado",
     "section": "Abdomen",
-    "sortOrder": 103,
+    "sortOrder": 114,
     "primaryZone": "abdomen",
     "secondaryZones": [],
     "movements": [
