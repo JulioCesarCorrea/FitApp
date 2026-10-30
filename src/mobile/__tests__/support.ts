@@ -1,9 +1,12 @@
 import { AuthService, MemoryTokenStore, type AuthRemote, type AuthResult, type StoredSession } from '../src/data/authService';
 import { MemoryStore } from '../src/data/memoryStore';
+import { ProfileService } from '../src/data/profileService';
+import { RestrictionService } from '../src/data/restrictionService';
 import { PlanService } from '../src/data/planService';
 import { SessionService } from '../src/data/sessionService';
 import type {
-  CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, PutDayResult, PutEquipmentResult, RemoteApi,
+  CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
+  RemoteApi, RestrictionItem,
 } from '../src/data/types';
 
 export const CATALOG: CatalogSection[] = [
@@ -31,6 +34,11 @@ export interface FakeRemote extends RemoteApi {
   sent: { day: DayKey; entries: LocalPlanEntry[]; confirm: boolean }[];
   dayResult: (day: DayKey, confirm: boolean) => PutDayResult;
   equipmentResult: PutEquipmentResult;
+  /** Perfil que «tiene el servidor»; null = la cuenta aún no tiene perfil (verá el asistente). */
+  serverProfile: LocalProfile | null;
+  putProfileResult: PutLogResult | null;
+  serverRestrictions: RestrictionItem[];
+  restrictionResult: PutLogResult | null;
 }
 
 export interface FakeAuthRemote extends AuthRemote {
@@ -98,13 +106,20 @@ function createAuthRemote(): FakeAuthRemote {
   return r;
 }
 
+export const PROFILE_DATA: LocalProfile = {
+  displayName: 'Julio', sex: 'masculino', birthDate: '1995-05-20', heightCm: 178, goal: 'ganar_musculo',
+  activityLevel: 'ligero', experienceLevel: null, daysPerWeek: null, methodology: 'heavy_duty_personalizado', allergies: [],
+};
+
 export const SESSION: StoredSession = {
   accessToken: 'access-0', refreshToken: 'refresh-0', expiresAt: Date.now() + 3600 * 1000,
   user: { id: 'user-1', username: 'julio', mustChangePassword: false },
 };
 
 /** `signedIn: false` deja el teléfono sin sesión; por defecto las pruebas arrancan con la sesión de «julio» ya iniciada. */
-export function createFakes(options: { signedIn?: boolean; session?: StoredSession } = {}) {
+export function createFakes(
+  options: { signedIn?: boolean; session?: StoredSession; withProfile?: boolean; serverProfile?: 'none' } = {},
+) {
   let n = 0;
   const store = new MemoryStore();
   // Lo que «tiene el servidor»: las pruebas lo siembran con seedServer y putDay lo actualiza.
@@ -114,6 +129,29 @@ export function createFakes(options: { signedIn?: boolean; session?: StoredSessi
     sent: [],
     equipmentResult: { kind: 'ok' },
     dayResult: () => ({ kind: 'ok', entries: [] }),
+    serverProfile: options.serverProfile === 'none' ? null : PROFILE_DATA,
+    putProfileResult: null,
+    serverRestrictions: [],
+    restrictionResult: null,
+    fetchProfile: async () => (remote.online ? (remote.serverProfile ?? 'none') : null),
+    putProfile: async (p) => {
+      if (!remote.online) return { kind: 'retry' };
+      if (remote.putProfileResult) return remote.putProfileResult;
+      remote.serverProfile = p;
+      return { kind: 'ok' };
+    },
+    fetchRestrictions: async () => (remote.online ? [...remote.serverRestrictions] : null),
+    putRestriction: async (item) => {
+      if (!remote.online) return { kind: 'retry' };
+      if (remote.restrictionResult) return remote.restrictionResult;
+      remote.serverRestrictions = [...remote.serverRestrictions.filter((r) => r.id !== item.id), item];
+      return { kind: 'ok' };
+    },
+    deleteRestriction: async (id) => {
+      if (!remote.online) return 'retry';
+      remote.serverRestrictions = remote.serverRestrictions.filter((r) => r.id !== id);
+      return 'ok';
+    },
     putLog: async () => ({ kind: 'retry' }),
     deleteLog: async () => 'retry',
     fetchHistory: async () => null,
@@ -135,6 +173,11 @@ export function createFakes(options: { signedIn?: boolean; session?: StoredSessi
   };
   const service = new PlanService(store, remote, () => `id-${++n}`);
   const sessions = new SessionService(store, remote, () => `log-${++n}`, () => '2026-10-30');
+  const weightsAdded: number[] = [];
+  const profile = new ProfileService(store, remote, async (kg) => {
+    weightsAdded.push(kg);
+  });
+  const restrictions = new RestrictionService(remote, () => `restriction-${++n}`, () => '2026-10-30');
   const authRemote = createAuthRemote();
   const tokens = new MemoryTokenStore(options.signedIn === false ? null : (options.session ?? SESSION));
   const auth = new AuthService(tokens, authRemote, store);
@@ -143,5 +186,12 @@ export function createFakes(options: { signedIn?: boolean; session?: StoredSessi
     server.set(day, entries);
     await store.replaceDaySynced(day, entries);
   };
-  return { store, remote, service, sessions, auth, authRemote, tokens, seedServer, deps: { store, remote, service, sessions, auth } };
+  // Las pruebas que no son del asistente arrancan con un perfil ya hecho en el teléfono (sin él se vería el asistente).
+  if (options.signedIn !== false && options.withProfile !== false) {
+    void store.saveProfile(PROFILE_DATA).then(() => store.setProfileStatus('synced', null));
+  }
+  return {
+    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, weightsAdded, seedServer,
+    deps: { store, remote, service, sessions, auth, profile, restrictions },
+  };
 }

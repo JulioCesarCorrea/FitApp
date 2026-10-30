@@ -1,8 +1,8 @@
 import { reasonFrom } from '../api';
 import { authedFetch, type Authorizer } from './authedFetch';
 import type {
-  CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, PutDayResult, PutEquipmentResult, PutLogResult, RemoteApi,
-  RestrictionHit, ServerExerciseLog,
+  CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
+  RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog,
 } from './types';
 
 /** Cliente HTTP de la API (SPEC-training-002). Traduce las respuestas al contrato de RemoteApi. */
@@ -88,6 +88,33 @@ export class HttpRemote implements RemoteApi {
 
   async putTrainingSettings(stagnationThreshold: number): Promise<PutLogResult> {
     return this.putResult(await this.request('PUT', '/training-settings', { stagnationThreshold }));
+  }
+
+  /** GET /profile (SPEC-profile-001): null sin conexión; 'none' si la cuenta aún no tiene perfil. */
+  async fetchProfile(): Promise<LocalProfile | null | 'none'> {
+    const res = await this.request('GET', '/profile');
+    if (!res?.ok) return null;
+    const { configured, ...profile } = (await res.json()) as LocalProfile & { configured: boolean };
+    return configured ? { ...profile, allergies: profile.allergies ?? [] } : 'none';
+  }
+
+  async putProfile(profile: LocalProfile): Promise<PutLogResult> {
+    return this.putResult(await this.request('PUT', '/profile', profile));
+  }
+
+  async fetchRestrictions(): Promise<RestrictionItem[] | null> {
+    const res = await this.request('GET', '/restrictions');
+    return res?.ok ? ((await res.json()) as RestrictionItem[]) : null;
+  }
+
+  async putRestriction(item: RestrictionItem): Promise<PutLogResult> {
+    const { id, ...body } = item;
+    return this.putResult(await this.request('PUT', `/restrictions/${id}`, body));
+  }
+
+  async deleteRestriction(id: string): Promise<'ok' | 'retry'> {
+    const res = await this.request('DELETE', `/restrictions/${id}`);
+    return res?.ok ? 'ok' : 'retry';
   }
 
   private async putResult(res: Response | null): Promise<PutLogResult> {

@@ -8,7 +8,9 @@ import {
   type EquipmentState,
   type LocalExerciseLog,
   type LocalPlanEntry,
+  type LocalProfile,
   type LocalStore,
+  type ProfileState,
   type ServerExerciseLog,
   type SyncStatus,
 } from './types';
@@ -141,10 +143,33 @@ export class SqliteStore implements LocalStore {
     });
   }
 
+  async getProfile(): Promise<ProfileState> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ json: string; status: SyncStatus; message: string | null }>(
+      'SELECT json, status, message FROM profile_local WHERE id = 1',
+    );
+    return row
+      ? { profile: JSON.parse(row.json) as LocalProfile, status: row.status, message: row.message }
+      : { profile: null, status: 'synced', message: null };
+  }
+
+  async saveProfile(profile: LocalProfile): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO profile_local (id, json, status, message) VALUES (1, ?, 'pending', NULL)`,
+      JSON.stringify(profile),
+    );
+  }
+
+  async setProfileStatus(status: SyncStatus, message: string | null): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('UPDATE profile_local SET status = ?, message = ? WHERE id = 1', status, message);
+  }
+
   async clearUserData(): Promise<void> {
     const db = await getDb();
     await db.withTransactionAsync(async () => {
-      for (const table of ['plan_entries_local', 'plan_day_state', 'equipment_local', 'exercise_logs_local', 'weight_queue']) {
+      for (const table of ['plan_entries_local', 'plan_day_state', 'equipment_local', 'exercise_logs_local', 'profile_local', 'weight_queue']) {
         await db.runAsync(`DELETE FROM ${table}`);
       }
       await db.runAsync(`DELETE FROM settings WHERE key LIKE 'stagnation%' OR key = 'localUserId'`);
@@ -157,6 +182,7 @@ export class SqliteStore implements LocalStore {
     return (
       (await count(`SELECT COUNT(*) AS n FROM plan_day_state WHERE status IN ('pending', 'needs_confirmation')`)) +
       (await count(`SELECT COUNT(*) AS n FROM equipment_local WHERE status = 'pending'`)) +
+      (await count(`SELECT COUNT(*) AS n FROM profile_local WHERE status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM exercise_logs_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM settings WHERE key = 'stagnationThresholdStatus' AND value = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM weight_queue WHERE status = 'pending'`))

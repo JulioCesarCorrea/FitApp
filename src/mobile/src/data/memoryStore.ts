@@ -7,7 +7,9 @@ import {
   type EquipmentState,
   type LocalExerciseLog,
   type LocalPlanEntry,
+  type LocalProfile,
   type LocalStore,
+  type ProfileState,
   type ServerExerciseLog,
   type SyncStatus,
 } from './types';
@@ -19,6 +21,7 @@ export class MemoryStore implements LocalStore {
   private equipment: EquipmentState = { profile: null, status: 'synced', message: null };
   private settings = new Map<string, string>();
   private logs = new Map<string, LocalExerciseLog>();
+  private profile: ProfileState = { profile: null, status: 'synced', message: null };
 
   /** Los pesos viven en otra tabla (db.ts); las pruebas fijan aquí cuántos hay pendientes. */
   pendingWeights = 0;
@@ -92,7 +95,20 @@ export class MemoryStore implements LocalStore {
     }
   }
 
+  async getProfile() {
+    return this.profile;
+  }
+
+  async saveProfile(profile: LocalProfile) {
+    this.profile = { profile, status: 'pending', message: null };
+  }
+
+  async setProfileStatus(status: SyncStatus, message: string | null) {
+    this.profile = { ...this.profile, status, message };
+  }
+
   async clearUserData() {
+    this.profile = { profile: null, status: 'synced', message: null };
     this.days.clear();
     this.equipment = { profile: null, status: 'synced', message: null };
     this.logs.clear();
@@ -107,7 +123,8 @@ export class MemoryStore implements LocalStore {
     const equipment = this.equipment.profile !== null && this.equipment.status === 'pending' ? 1 : 0;
     const logs = [...this.logs.values()].filter((l) => l.pendingOp !== null && l.status === 'pending').length;
     const threshold = this.settings.get('stagnationThresholdStatus') === 'pending' ? 1 : 0;
-    return days + equipment + logs + threshold + this.pendingWeights;
+    const profile = this.profile.profile !== null && this.profile.status === 'pending' ? 1 : 0;
+    return days + equipment + logs + threshold + profile + this.pendingWeights;
   }
 
   async getSetting(key: string) {

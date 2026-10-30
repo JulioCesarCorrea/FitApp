@@ -1,6 +1,6 @@
 // Migraciones de fitness.db. Sin dependencias de React Native: se prueban en Node con una base simulada.
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Lo mínimo que necesitamos de expo-sqlite para migrar. */
 export interface MigrationDb {
@@ -70,12 +70,23 @@ const V3 = `
   CREATE INDEX IF NOT EXISTS idx_exercise_logs_local_exercise ON exercise_logs_local (exercise_id, date);
 `;
 
+// SPEC-profile-001: perfil de la persona (JSON) con su estado de envío.
+const V4 = `
+  CREATE TABLE IF NOT EXISTS profile_local (
+    id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+    json TEXT NOT NULL,
+    status TEXT NOT NULL,
+    message TEXT
+  );
+`;
+
 export async function migrate(db: MigrationDb): Promise<void> {
   const current = (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version ?? 0;
 
   if (current < 1) await db.execAsync(V1);
   if (current < 2) await db.execAsync(V2);
   if (current < 3) await db.execAsync(V3);
+  if (current < 4) await db.execAsync(V4);
 
   // Nunca se baja la versión: solo se sube cuando se aplicó algo.
   if (current < SCHEMA_VERSION) await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);
