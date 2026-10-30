@@ -37,6 +37,6 @@ public static class RestrictionRules
     }
 
     private static bool Affects(Restriction r, Exercise e) =>
-        e.Zones.Contains(r.Zone, StringComparer.OrdinalIgnoreCase)
+        e.Zones.Any(z => Zones.Covers(r.Zone, z))
         || r.AvoidedMovements.Any(m => e.Movements.Contains(m, StringComparer.OrdinalIgnoreCase));
 }

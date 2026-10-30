@@ -149,14 +149,31 @@ public sealed class TrainingDomainTests
         Assert.Equal(RestrictionOutcome.Bloqueado, RestrictionRules.Check(Sentadilla, [aviso, bloqueo]).Outcome);
     }
 
-    // AC-07
-    [Fact]
-    public void AC_training_001_07_sube_la_carga_con_12_en_la_serie_1_y_8_propias_en_la_serie_2()
+    [Theory]
+    [InlineData("hombros", "hombro_lateral", RestrictionOutcome.Aviso)]
+    [InlineData("hombros", "hombro_frontal", RestrictionOutcome.Aviso)]
+    [InlineData("hombro_lateral", "hombro_lateral", RestrictionOutcome.Aviso)]
+    [InlineData("hombro_lateral", "hombro_frontal", RestrictionOutcome.Permitido)]
+    public void AC_training_001_06_una_restriccion_sobre_el_grupo_cubre_las_cabezas_y_sobre_una_cabeza_solo_esa(
+        string restrictionZone, string exerciseZone, RestrictionOutcome expected)
     {
-        var advice = LoadProgression.Advise(Log(12, 8, load: 100m), incrementKg: 5m);
+        var restriction = new Restriction(restrictionZone, Set(), RestrictionLevel.Aviso);
+        var exercise = new Exercise("Elevación", Set(exerciseZone), Set("elevacion_de_hombro"));
+
+        Assert.Equal(expected, RestrictionRules.Check(exercise, [restriction]).Outcome);
+    }
+
+    // AC-07
+    private static readonly decimal[] Loads = [95m, 100m, 105m, 110m];
+
+    [Fact]
+    public void AC_training_001_07_sube_a_la_siguiente_carga_disponible_con_12_en_la_serie_1_y_8_propias_en_la_serie_2()
+    {
+        var advice = LoadProgression.Advise(Log(12, 8, load: 100m), Loads);
 
         Assert.Equal(LoadAction.Subir, advice.Action);
         Assert.Equal(105m, advice.NextLoadKg);
+        Assert.False(advice.MissingLoadData);
     }
 
     [Theory]
@@ -165,10 +182,20 @@ public sealed class TrainingDomainTests
     [InlineData(9, 5)]
     public void AC_training_001_07_mantiene_la_carga_si_no_se_cumplen_ambas_condiciones(int set1, int set2Own)
     {
-        var advice = LoadProgression.Advise(Log(set1, set2Own, load: 100m), incrementKg: 5m);
+        var advice = LoadProgression.Advise(Log(set1, set2Own, load: 100m), Loads);
 
         Assert.Equal(LoadAction.Mantener, advice.Action);
         Assert.Equal(100m, advice.NextLoadKg);
+    }
+
+    [Fact]
+    public void AC_training_001_07_sin_carga_superior_mantiene_y_avisa_que_falta_el_dato()
+    {
+        var advice = LoadProgression.Advise(Log(12, 8, load: 110m), Loads);
+
+        Assert.Equal(LoadAction.Mantener, advice.Action);
+        Assert.Equal(110m, advice.NextLoadKg);
+        Assert.True(advice.MissingLoadData);
     }
 
     // AC-08

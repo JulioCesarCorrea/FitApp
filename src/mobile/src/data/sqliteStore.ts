@@ -1,0 +1,120 @@
+import { getDb } from '../database';
+import {
+  DAYS,
+  type CatalogSection,
+  type DayKey,
+  type DayState,
+  type EquipmentProfile,
+  type EquipmentState,
+  type LocalPlanEntry,
+  type LocalStore,
+  type SyncStatus,
+} from './types';
+
+interface StateRow { day: DayKey; status: SyncStatus; message: string | null }
+interface EntryRow { id: string; day: DayKey; exercise_id: string; position: number; machine_step_kg: number | null }
+
+/** Almacén local de la rutina, el catálogo y los ajustes en SQLite (P2: funciona sin conexión). */
+export class SqliteStore implements LocalStore {
+  async getCatalog(): Promise<CatalogSection[] | null> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ json: string }>('SELECT json FROM catalog_cache WHERE id = 1');
+    return row ? (JSON.parse(row.json) as CatalogSection[]) : null;
+  }
+
+  async saveCatalog(sections: CatalogSection[]): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('INSERT OR REPLACE INTO catalog_cache (id, json) VALUES (1, ?)', JSON.stringify(sections));
+  }
+
+  async getDays(): Promise<DayState[]> {
+    const db = await getDb();
+    const states = await db.getAllAsync<StateRow>('SELECT day, status, message FROM plan_day_state');
+    const entries = await db.getAllAsync<EntryRow>('SELECT * FROM plan_entries_local ORDER BY position ASC');
+
+    return DAYS.flatMap((day) => {
+      const state = states.find((s) => s.day === day);
+      if (!state) return [];
+      const own = entries.filter((e) => e.day === day).map(toEntry);
+      return [{ day, status: state.status, message: state.message, entries: own }];
+    });
+  }
+
+  async saveDay(day: DayKey, entries: LocalPlanEntry[]): Promise<void> {
+    await this.writeDay(day, entries, 'pending');
+  }
+
+  async replaceDaySynced(day: DayKey, entries: LocalPlanEntry[]): Promise<void> {
+    if (entries.length === 0) {
+      const db = await getDb();
+      await db.withTransactionAsync(async () => {
+        await db.runAsync('DELETE FROM plan_entries_local WHERE day = ?', day);
+        await db.runAsync('DELETE FROM plan_day_state WHERE day = ?', day);
+      });
+      return;
+    }
+    await this.writeDay(day, entries, 'synced');
+  }
+
+  async setDayStatus(day: DayKey, status: SyncStatus, message: string | null): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('UPDATE plan_day_state SET status = ?, message = ? WHERE day = ?', status, message, day);
+  }
+
+  async getEquipment(): Promise<EquipmentState> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<{ json: string; status: SyncStatus; message: string | null }>(
+      'SELECT json, status, message FROM equipment_local WHERE id = 1',
+    );
+    return row
+      ? { profile: JSON.parse(row.json) as EquipmentProfile, status: row.status, message: row.message }
+      : { profile: null, status: 'synced', message: null };
+  }
+
+  async saveEquipment(profile: EquipmentProfile): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO equipment_local (id, json, status, message) VALUES (1, ?, 'pending', NULL)`,
+      JSON.stringify(profile),
+    );
+  }
+
+  async setEquipmentStatus(status: SyncStatus, message: string | null): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('UPDATE equipment_local SET status = ?, message = ? WHERE id = 1', status, message);
+  }
+
+  async getSetting(key: string): Promise<string | null> {
+    const db = await getDb();
+    return (await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', key))?.value ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', key, value);
+  }
+
+  private async writeDay(day: DayKey, entries: LocalPlanEntry[], status: SyncStatus): Promise<void> {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync('DELETE FROM plan_entries_local WHERE day = ?', day);
+      for (const e of entries) {
+        await db.runAsync(
+          'INSERT INTO plan_entries_local (id, day, exercise_id, position, machine_step_kg) VALUES (?, ?, ?, ?, ?)',
+          e.id, day, e.exerciseId, e.order, e.machineStepKg,
+        );
+      }
+      await db.runAsync(
+        'INSERT OR REPLACE INTO plan_day_state (day, status, message) VALUES (?, ?, NULL)',
+        day, status,
+      );
+    });
+  }
+}
+
+const toEntry = (r: EntryRow): LocalPlanEntry => ({
+  id: r.id,
+  exerciseId: r.exercise_id,
+  order: r.position,
+  machineStepKg: r.machine_step_kg,
+});
