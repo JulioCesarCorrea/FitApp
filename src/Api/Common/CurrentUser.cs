@@ -6,9 +6,16 @@ public interface ICurrentUser
     Guid? Id { get; }
 }
 
+/// <summary>Usuario del token de acceso (SPEC-auth-001): el id sale de la firma verificada, nunca de un dato del cliente.</summary>
+public sealed class JwtCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
+{
+    public Guid? Id =>
+        Guid.TryParse(accessor.HttpContext?.User.FindFirst("sub")?.Value, out var id) ? id : null;
+}
+
 /// <summary>
 /// Usuario de desarrollo: toma el id del encabezado X-User-Id. Solo se registra si
-/// Auth:DevHeader es true. El login real es otra spec; sin él, toda petición recibe 401.
+/// Auth:DevHeader es true (desarrollo y pruebas). Con un token válido manda el token.
 /// </summary>
 public sealed class DevHeaderCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
 {
