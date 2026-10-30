@@ -1,6 +1,9 @@
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Body, Button, Muted, Title } from '../../components/ui';
 import { useDeps } from '../../data/DataContext';
+import { describeSyncReport } from '../../data/format';
 import { findExercise, useCatalog, useDays } from '../../data/hooks';
 import { DAY_NAMES, type DayState, type SyncStatus } from '../../data/types';
 import { useTheme } from '../../theme';
@@ -15,9 +18,17 @@ const STATUS_LABEL: Record<SyncStatus, string> = {
 /** Mi rutina: ejercicios por día; se pueden reordenar y quitar (AC-mobile-002-06). */
 export default function RoutineScreen() {
   const { colors } = useTheme();
-  const { service } = useDeps();
+  const router = useRouter();
+  const { service, sessions } = useDeps();
   const { sections } = useCatalog();
   const { days, reload, refresh } = useDays();
+  const [report, setReport] = useState<string | null>(null);
+
+  // AC-mobile-003-16: envía también los registros de sesiones y dice cuántos se enviaron o quedan pendientes.
+  const syncNow = async () => {
+    setReport(describeSyncReport(await sessions.syncReport()));
+    await refresh();
+  };
 
   const act = (run: () => Promise<unknown>) => () => void run().then(reload);
 
@@ -41,6 +52,15 @@ export default function RoutineScreen() {
             return (
               <View key={e.id} style={styles.entry}>
                 <Body style={styles.name}>{`${i + 1}. ${name}`}</Body>
+                <Pressable
+                  testID={`log-${e.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Registrar ${name}`}
+                  onPress={() => router.push(`/session/${e.exerciseId}`)}
+                  style={[styles.register, { borderColor: colors.primary }]}
+                >
+                  <Text style={{ color: colors.primary, fontWeight: '600' }}>Registrar</Text>
+                </Pressable>
                 <IconButton label={`Subir ${name}`} glyph="↑" testID={`up-${e.id}`} onPress={act(() => service.move(d.day, e.id, -1))} />
                 <IconButton label={`Bajar ${name}`} glyph="↓" testID={`down-${e.id}`} onPress={act(() => service.move(d.day, e.id, 1))} />
                 <IconButton label={`Quitar ${name}`} glyph="✕" testID={`remove-${e.id}`} onPress={act(() => service.remove(d.day, e.id))} />
@@ -54,7 +74,8 @@ export default function RoutineScreen() {
         </View>
       ))}
 
-      <Button title="Sincronizar ahora" variant="secondary" onPress={() => void refresh()} />
+      <Button title="Sincronizar ahora" variant="secondary" onPress={() => void syncNow()} />
+      {report && <Muted testID="sync-report">{report}</Muted>}
     </ScrollView>
   );
 }
@@ -79,5 +100,6 @@ const styles = StyleSheet.create({
   day: { borderWidth: 1, borderRadius: 12, padding: 12, gap: 8 },
   entry: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: { flex: 1 },
+  register: { height: 40, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   icon: { width: 40, height: 40, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });

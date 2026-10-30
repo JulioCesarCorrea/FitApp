@@ -21,14 +21,15 @@ function fakeDb(version: number, tables: string[] = []) {
   return { db, state };
 }
 
-describe('migraciones de fitness.db (SPEC-mobile-002)', () => {
+describe('migraciones de fitness.db (SPEC-mobile-002 y SPEC-mobile-003)', () => {
   it('base nueva: crea todas las tablas y deja la versión actual', async () => {
     const { db, state } = fakeDb(0);
 
     await migrate(db);
 
     expect([...state.tables].sort()).toEqual([
-      'catalog_cache', 'equipment_local', 'plan_day_state', 'plan_entries_local', 'settings', 'weight_queue',
+      'catalog_cache', 'equipment_local', 'exercise_logs_local', 'plan_day_state', 'plan_entries_local', 'settings',
+      'weight_queue',
     ]);
     expect(state.version).toBe(SCHEMA_VERSION);
   });
@@ -44,6 +45,23 @@ describe('migraciones de fitness.db (SPEC-mobile-002)', () => {
 
   it('versión 1 con las tablas nuevas ya creadas (una rama antigua bajó la versión): no falla', async () => {
     const { db, state } = fakeDb(1, ['weight_queue', 'catalog_cache', 'plan_day_state', 'plan_entries_local', 'equipment_local', 'settings']);
+
+    await expect(migrate(db)).resolves.toBeUndefined();
+
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+
+  it('AC-mobile-003-03 base de la rutina (versión 2): añade solo la tabla de registros', async () => {
+    const { db, state } = fakeDb(2, ['weight_queue', 'catalog_cache', 'plan_day_state', 'plan_entries_local', 'equipment_local', 'settings']);
+
+    await migrate(db);
+
+    expect(state.tables.has('exercise_logs_local')).toBe(true);
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+
+  it('versión 2 con la tabla de registros ya creada (una rama antigua bajó la versión): no falla', async () => {
+    const { db, state } = fakeDb(2, ['exercise_logs_local']);
 
     await expect(migrate(db)).resolves.toBeUndefined();
 

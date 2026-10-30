@@ -32,6 +32,50 @@
       "expected": { "action": "mantener", "nextLoadKg": 22.5, "missingLoadData": false }
     }
   ],
+  "loads": [
+    {
+      "name": "mancuernas usan la lista ordenada y sin repetidos",
+      "profile": { "dumbbellsKg": [22.5, 20, 25, 20], "barsKg": { "recta": 20, "z": 8 }, "discsKg": [], "machineStepKg": 5, "machineBaseKg": 0 },
+      "kind": "Mancuernas", "bar": null, "stepOverride": null, "take": null,
+      "expected": [20, 22.5, 25]
+    },
+    {
+      "name": "barra suma la barra y las combinaciones de discos por ambos lados",
+      "profile": { "dumbbellsKg": [], "barsKg": { "recta": 20, "z": 8 }, "discsKg": [2.5, 5], "machineStepKg": 5, "machineBaseKg": 0 },
+      "kind": "Barra", "bar": "Recta", "stepOverride": null, "take": null,
+      "expected": [20, 25, 30, 35]
+    },
+    {
+      "name": "cada tipo de barra usa su propio peso",
+      "profile": { "dumbbellsKg": [], "barsKg": { "recta": 20, "z": 8 }, "discsKg": [5], "machineStepKg": 5, "machineBaseKg": 0 },
+      "kind": "Barra", "bar": "Z", "stepOverride": null, "take": null,
+      "expected": [8, 18]
+    },
+    {
+      "name": "una barra sin peso registrado no tiene cargas",
+      "profile": { "dumbbellsKg": [], "barsKg": { "recta": 20, "z": 8 }, "discsKg": [5], "machineStepKg": 5, "machineBaseKg": 0 },
+      "kind": "Barra", "bar": "Smith", "stepOverride": null, "take": null,
+      "expected": []
+    },
+    {
+      "name": "máquina usa el escalón del perfil y la carga base",
+      "profile": { "dumbbellsKg": [], "barsKg": {}, "discsKg": [], "machineStepKg": 5, "machineBaseKg": 10 },
+      "kind": "Maquina", "bar": null, "stepOverride": null, "take": 3,
+      "expected": [10, 15, 20]
+    },
+    {
+      "name": "máquina con escalón propio usa ese escalón",
+      "profile": { "dumbbellsKg": [], "barsKg": {}, "discsKg": [], "machineStepKg": 5, "machineBaseKg": 10 },
+      "kind": "Maquina", "bar": null, "stepOverride": 2.5, "take": 3,
+      "expected": [10, 12.5, 15]
+    },
+    {
+      "name": "peso corporal no tiene cargas",
+      "profile": { "dumbbellsKg": [], "barsKg": {}, "discsKg": [], "machineStepKg": 5, "machineBaseKg": 0 },
+      "kind": "PesoCorporal", "bar": null, "stepOverride": null, "take": null,
+      "expected": []
+    }
+  ],
   "stagnation": [
     {
       "name": "3 sesiones iguales avisan con umbral 3",

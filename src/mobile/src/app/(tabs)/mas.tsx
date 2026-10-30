@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Muted, Title } from '../../components/ui';
 import { Scanner } from '../../Scanner';
+import { StagnationSetting } from '../../components/StagnationSetting';
 import { WeightPanel } from '../../components/WeightPanel';
 import type { ThemeMode } from '../../themeColors';
 import { useTheme } from '../../theme';
@@ -11,7 +12,7 @@ const MODES: { mode: ThemeMode; label: string }[] = [
   { mode: 'dark', label: 'Oscuro' },
 ];
 
-/** Más: tema, registro de peso y escáner del spike de SPEC-mobile-001. */
+/** Más: tema, umbral de estancamiento (SPEC-mobile-003), registro de peso y escáner del spike de SPEC-mobile-001. */
 export default function MoreScreen() {
   const { mode, setMode } = useTheme();
 
@@ -32,6 +33,7 @@ export default function MoreScreen() {
         ))}
       </View>
 
+      <StagnationSetting />
       <WeightPanel />
       <Scanner />
     </ScrollView>
