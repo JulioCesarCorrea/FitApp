@@ -1,4 +1,4 @@
-import type { SessionAdvice } from './sessionService';
+import type { SessionAdvice, SyncReport } from './sessionService';
 import type { LocalExerciseLog } from './types';
 
 /** Convierte «20, 22,5; 25» en [20, 22.5, 25]. `invalid` lista los fragmentos que no son números. */
@@ -58,4 +58,18 @@ export function describeAdvice(a: SessionAdvice): string[] {
   }
   lines.push(EVALUATION_HINT[a.firstSetEvaluation]);
   return lines;
+}
+
+const records = (n: number): string => (n === 1 ? '1 registro de sesión' : `${n} registros de sesiones`);
+
+/** Texto de «Sincronizar ahora» sobre los registros de sesiones (AC-mobile-003-16). */
+export function describeSyncReport({ sent, pending }: SyncReport): string {
+  if (pending === 0) {
+    if (sent === 0) return 'No hay registros de sesiones pendientes.';
+    return `${sent === 1 ? 'Se envió' : 'Se enviaron'} ${records(sent)}.`;
+  }
+  const left = `${pending === 1 ? 'queda' : 'quedan'} ${records(pending)} pendiente${pending === 1 ? '' : 's'}`;
+  return sent === 0
+    ? `Sin conexión con el servidor: ${left}.`
+    : `Se enviaron ${records(sent)}; sin conexión con el servidor, ${left}.`;
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { describeSyncReport } from './format';
 import { MemoryStore } from './memoryStore';
 import { SessionService, parseDraft, type RawLogInput } from './sessionService';
 import type {
@@ -621,5 +622,69 @@ describe('historial (AC-mobile-003-12)', () => {
 
     expect((await visible(DUMBBELL)).map((l) => l.exerciseId)).toEqual([DUMBBELL.id]);
     expect((await visible(MACHINE)).map((l) => l.exerciseId)).toEqual([MACHINE.id]);
+  });
+});
+
+describe('informe de «Sincronizar ahora» (AC-mobile-003-16)', () => {
+  it('AC-mobile-003-16 envía lo pendiente y cuenta cuántos se enviaron', async () => {
+    remote.online = false;
+    await service.save(DUMBBELL, raw({ date: '2026-10-27' }));
+    await service.save(DUMBBELL, raw({ date: '2026-10-28' }));
+    remote.online = true;
+
+    const report = await service.syncReport();
+
+    expect(report).toEqual({ sent: 2, pending: 0 });
+    expect(remote.calls).toEqual(['put:log-1', 'put:log-2']);
+  });
+
+  it('AC-mobile-003-16 sin conexión informa de cuántos quedan pendientes', async () => {
+    remote.online = false;
+    await service.save(DUMBBELL, raw({ date: '2026-10-27' }));
+    await service.save(DUMBBELL, raw({ date: '2026-10-28' }));
+
+    expect(await service.syncReport()).toEqual({ sent: 0, pending: 2 });
+  });
+
+  it('AC-mobile-003-16 si envía unos y otros no, informa de ambas cosas', async () => {
+    remote.online = false;
+    await service.save(DUMBBELL, raw({ date: '2026-10-27' }));
+    await service.save(DUMBBELL, raw({ date: '2026-10-28' }));
+    remote.online = true;
+    const original = remote.putLog;
+    remote.putLog = async (log) => (log.date === '2026-10-28' ? { kind: 'retry' } : original(log));
+
+    expect(await service.syncReport()).toEqual({ sent: 1, pending: 1 });
+  });
+
+  it('AC-mobile-003-16 los borrados pendientes también cuentan como enviados', async () => {
+    await service.save(DUMBBELL, raw());
+    remote.online = false;
+    await service.remove('log-1');
+    remote.online = true;
+
+    expect(await service.syncReport()).toEqual({ sent: 1, pending: 0 });
+  });
+
+  it('AC-mobile-003-16 sin nada pendiente lo indica', async () => {
+    expect(await service.syncReport()).toEqual({ sent: 0, pending: 0 });
+  });
+
+  it('AC-mobile-003-16 los registros rechazados no cuentan como pendientes', async () => {
+    remote.putResult = { kind: 'rejected', reason: 'No válido.' };
+    await service.save(DUMBBELL, raw());
+
+    expect(await service.syncReport()).toEqual({ sent: 0, pending: 0 });
+  });
+
+  it.each([
+    [{ sent: 0, pending: 0 }, 'No hay registros de sesiones pendientes.'],
+    [{ sent: 1, pending: 0 }, 'Se envió 1 registro de sesión.'],
+    [{ sent: 3, pending: 0 }, 'Se enviaron 3 registros de sesiones.'],
+    [{ sent: 0, pending: 1 }, 'Sin conexión con el servidor: queda 1 registro de sesión pendiente.'],
+    [{ sent: 0, pending: 4 }, 'Sin conexión con el servidor: quedan 4 registros de sesiones pendientes.'],
+    [{ sent: 2, pending: 1 }, 'Se enviaron 2 registros de sesiones; sin conexión con el servidor, queda 1 registro de sesión pendiente.'],
+  ])('AC-mobile-003-16 el texto del informe %j', (report, text) => {
+    expect(describeSyncReport(report)).toBe(text);
   });
 });

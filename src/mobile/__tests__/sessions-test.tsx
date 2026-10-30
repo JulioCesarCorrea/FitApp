@@ -263,3 +263,44 @@ describe('Tema claro y oscuro (SPEC-mobile-003)', () => {
     expect(title).toHaveStyle({ color: textColor });
   });
 });
+
+describe('Sincronizar ahora en Mi rutina (SPEC-mobile-003)', () => {
+  it('AC-mobile-003-16: envía los registros pendientes y dice cuántos se enviaron', async () => {
+    // El servidor no acepta nada hasta que se pulsa el botón (al abrir la pantalla ya se intenta enviar solo).
+    let accepting = false;
+    fakes.remote.putLog = async () => (accepting ? { kind: 'ok' } : { kind: 'retry' });
+    await fakes.store.saveLog(seed({ id: 'a', date: '2026-10-01', status: 'pending', pendingOp: 'upsert' }));
+    await fakes.store.saveLog(seed({ id: 'b', date: '2026-10-08', status: 'pending', pendingOp: 'upsert' }));
+    await fakes.seedServer('martes', [{ id: 'p1', exerciseId: EXERCISE, order: 0, machineStepKg: null }]);
+    await openApp('/rutina');
+    const button = await screen.findByText('Sincronizar ahora');
+    accepting = true;
+
+    await press(button);
+
+    expect(await screen.findByTestId('sync-report')).toHaveTextContent(has('Se enviaron 2 registros de sesiones.'));
+    expect((await fakes.store.getLog('a'))?.status).toBe('synced');
+  });
+
+  it('AC-mobile-003-16: sin conexión con el servidor dice cuántos quedan pendientes', async () => {
+    await fakes.store.saveLog(seed({ id: 'a', status: 'pending', pendingOp: 'upsert' }));
+    await fakes.seedServer('martes', [{ id: 'p1', exerciseId: EXERCISE, order: 0, machineStepKg: null }]);
+    await openApp('/rutina');
+
+    await press(await screen.findByText('Sincronizar ahora'));
+
+    expect(await screen.findByTestId('sync-report')).toHaveTextContent(
+      has('Sin conexión con el servidor: queda 1 registro de sesión pendiente.'),
+    );
+    expect((await fakes.store.getLog('a'))?.status).toBe('pending');
+  });
+
+  it('AC-mobile-003-16: sin nada pendiente lo indica', async () => {
+    await fakes.seedServer('martes', [{ id: 'p1', exerciseId: EXERCISE, order: 0, machineStepKg: null }]);
+    await openApp('/rutina');
+
+    await press(await screen.findByText('Sincronizar ahora'));
+
+    expect(await screen.findByTestId('sync-report')).toHaveTextContent(has('No hay registros de sesiones pendientes.'));
+  });
+});

@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Body, Button, Muted, Title } from '../../components/ui';
 import { useDeps } from '../../data/DataContext';
+import { describeSyncReport } from '../../data/format';
 import { findExercise, useCatalog, useDays } from '../../data/hooks';
 import { DAY_NAMES, type DayState, type SyncStatus } from '../../data/types';
 import { useTheme } from '../../theme';
@@ -17,9 +19,16 @@ const STATUS_LABEL: Record<SyncStatus, string> = {
 export default function RoutineScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { service } = useDeps();
+  const { service, sessions } = useDeps();
   const { sections } = useCatalog();
   const { days, reload, refresh } = useDays();
+  const [report, setReport] = useState<string | null>(null);
+
+  // AC-mobile-003-16: envía también los registros de sesiones y dice cuántos se enviaron o quedan pendientes.
+  const syncNow = async () => {
+    setReport(describeSyncReport(await sessions.syncReport()));
+    await refresh();
+  };
 
   const act = (run: () => Promise<unknown>) => () => void run().then(reload);
 
@@ -65,7 +74,8 @@ export default function RoutineScreen() {
         </View>
       ))}
 
-      <Button title="Sincronizar ahora" variant="secondary" onPress={() => void refresh()} />
+      <Button title="Sincronizar ahora" variant="secondary" onPress={() => void syncNow()} />
+      {report && <Muted testID="sync-report">{report}</Muted>}
     </ScrollView>
   );
 }

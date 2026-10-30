@@ -62,6 +62,12 @@ export interface LogOutcome {
   kind: 'ok' | 'rejected' | 'retry';
 }
 
+/** Resultado de «Sincronizar ahora»: cuántos cambios se enviaron y cuántos siguen pendientes. */
+export interface SyncReport {
+  sent: number;
+  pending: number;
+}
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /** Día local en formato AAAA-MM-DD. */
@@ -223,6 +229,13 @@ export class SessionService {
     const run = this.chain.then(() => this.doSync());
     this.chain = run.catch(() => undefined);
     return run;
+  }
+
+  /** AC-mobile-003-16: envía lo pendiente y cuenta lo enviado y lo que sigue pendiente (los rechazados no cuentan). */
+  async syncReport(): Promise<SyncReport> {
+    const outcomes = await this.syncPending();
+    const pending = (await this.store.getPendingLogs()).length;
+    return { sent: outcomes.filter((o) => o.kind === 'ok').length, pending };
   }
 
   private async doSync(): Promise<LogOutcome[]> {
