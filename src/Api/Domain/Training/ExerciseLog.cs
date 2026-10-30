@@ -21,11 +21,13 @@ public sealed record ExerciseLog(DateOnly Date, decimal LoadKg, EffectiveSet Fir
 
     public Tempo Tempo => Tempo.Standard;
 
-    public static ExerciseLog Register(DateOnly date, decimal loadKg, IReadOnlyList<EffectiveSet> sets)
+    /// <param name="allowZeroLoad">Ejercicios de peso corporal: la carga es el lastre y puede ser 0 (SPEC-training-003, AC-03).</param>
+    public static ExerciseLog Register(
+        DateOnly date, decimal loadKg, IReadOnlyList<EffectiveSet> sets, bool allowZeroLoad = false)
     {
         if (sets.Count != RequiredSets)
             throw new ArgumentException($"Se exigen exactamente {RequiredSets} series efectivas.", nameof(sets));
-        if (loadKg <= 0)
+        if (loadKg < 0 || (loadKg == 0 && !allowZeroLoad))
             throw new ArgumentOutOfRangeException(nameof(loadKg), "La carga debe ser mayor que cero.");
 
         var (first, second) = (sets[0], sets[1]);

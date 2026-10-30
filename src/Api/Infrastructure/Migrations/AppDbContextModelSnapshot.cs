@@ -1390,6 +1390,49 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                     b.ToTable("equipment_settings", (string)null);
                 });
 
+            modelBuilder.Entity("FitnessApp.Api.Domain.Training.ExerciseLogEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExerciseId")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("FirstSetReps")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("LoadKg")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<int>("SecondSetAssistedReps")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SecondSetReps")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExerciseId");
+
+                    b.HasIndex("UserId", "ExerciseId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("exercise_logs", (string)null);
+                });
+
             modelBuilder.Entity("FitnessApp.Api.Domain.Training.PlanEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1421,6 +1464,20 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                     b.HasIndex("UserId", "Day", "Order");
 
                     b.ToTable("plan_entries", (string)null);
+                });
+
+            modelBuilder.Entity("FitnessApp.Api.Domain.Training.TrainingSettings", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("StagnationThreshold")
+                        .HasColumnType("integer");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("training_settings", (string)null);
                 });
 
             modelBuilder.Entity("FitnessApp.Api.Domain.Training.UserRestriction", b =>
@@ -1480,6 +1537,15 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                     b.HasIndex("UserId", "MeasuredAt");
 
                     b.ToTable("weight_entries", (string)null);
+                });
+
+            modelBuilder.Entity("FitnessApp.Api.Domain.Training.ExerciseLogEntry", b =>
+                {
+                    b.HasOne("FitnessApp.Api.Domain.Training.CatalogExercise", null)
+                        .WithMany()
+                        .HasForeignKey("ExerciseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FitnessApp.Api.Domain.Training.PlanEntry", b =>

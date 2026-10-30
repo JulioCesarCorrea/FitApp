@@ -3,6 +3,7 @@ using FitnessApp.Api.Features.Progress.Weights;
 using FitnessApp.Api.Features.Training.Catalog;
 using FitnessApp.Api.Features.Training.Equipment;
 using FitnessApp.Api.Features.Training.Plan;
+using FitnessApp.Api.Features.Training.Sessions;
 using FitnessApp.Api.Infrastructure;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,9 @@ builder.Services.AddScoped<ListWeightsHandler>();
 builder.Services.AddScoped<ListCatalogHandler>();
 builder.Services.AddScoped<PlanHandler>();
 builder.Services.AddScoped<EquipmentHandler>();
+builder.Services.AddScoped<ExerciseLogHandler>();
+builder.Services.AddScoped<AdviceHandler>();
+builder.Services.AddScoped<TrainingSettingsHandler>();
 
 var app = builder.Build();
 
@@ -41,6 +45,7 @@ app.MapWeightEndpoints();
 app.MapCatalogEndpoints();
 app.MapPlanEndpoints();
 app.MapEquipmentEndpoints();
+app.MapSessionEndpoints();
 
 app.Run();
 
