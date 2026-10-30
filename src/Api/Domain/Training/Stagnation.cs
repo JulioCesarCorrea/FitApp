@@ -18,8 +18,13 @@ public static class Stagnation
         if (threshold < 1) throw new ArgumentOutOfRangeException(nameof(threshold));
 
         var streak = 0;
-        for (var i = history.Count - 1; i >= 1 && !Improved(history[i - 1], history[i]); i--)
+        for (var i = history.Count - 1; i >= 1; i--)
+        {
+            var (previous, current) = (history[i - 1], history[i]);
+            // Bajar de carga reinicia la comparación (SPEC-training-003, AC-11); subirla cuenta como progreso.
+            if (current.LoadKg < previous.LoadKg || Improved(previous, current)) break;
             streak++;
+        }
 
         return new StagnationResult(streak >= threshold, streak);
     }

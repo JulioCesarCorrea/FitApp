@@ -1,0 +1,132 @@
+{
+  "descripcion": "Vectores compartidos entre la API (C#) y la app (TypeScript) para la progresión de carga y el estancamiento (ADR-0004). Cualquier cambio de regla se hace aquí primero.",
+  "advice": [
+    {
+      "name": "serie 1 en 12 y serie 2 en 8 sube a la siguiente carga",
+      "log": { "loadKg": 22.5, "firstSet": 12, "secondSet": 8, "assisted": 5 },
+      "availableLoads": [20, 22.5, 25, 27.5],
+      "expected": { "action": "subir", "nextLoadKg": 25, "missingLoadData": false }
+    },
+    {
+      "name": "serie 1 en 11 mantiene",
+      "log": { "loadKg": 22.5, "firstSet": 11, "secondSet": 9, "assisted": 5 },
+      "availableLoads": [20, 22.5, 25],
+      "expected": { "action": "mantener", "nextLoadKg": 22.5, "missingLoadData": false }
+    },
+    {
+      "name": "serie 2 en 7 propias mantiene",
+      "log": { "loadKg": 22.5, "firstSet": 12, "secondSet": 7, "assisted": 6 },
+      "availableLoads": [20, 22.5, 25],
+      "expected": { "action": "mantener", "nextLoadKg": 22.5, "missingLoadData": false }
+    },
+    {
+      "name": "sin carga superior mantiene y avisa que falta el dato",
+      "log": { "loadKg": 25, "firstSet": 12, "secondSet": 8, "assisted": 5 },
+      "availableLoads": [20, 22.5, 25],
+      "expected": { "action": "mantener", "nextLoadKg": 25, "missingLoadData": true }
+    },
+    {
+      "name": "las repeticiones asistidas no cuentan para subir",
+      "log": { "loadKg": 22.5, "firstSet": 12, "secondSet": 6, "assisted": 9 },
+      "availableLoads": [20, 22.5, 25],
+      "expected": { "action": "mantener", "nextLoadKg": 22.5, "missingLoadData": false }
+    }
+  ],
+  "stagnation": [
+    {
+      "name": "3 sesiones iguales avisan con umbral 3",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 }
+      ],
+      "expected": { "isStagnant": true, "sessionsWithoutProgress": 3 }
+    },
+    {
+      "name": "2 sesiones sin progreso no avisan con umbral 3",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 }
+      ],
+      "expected": { "isStagnant": false, "sessionsWithoutProgress": 2 }
+    },
+    {
+      "name": "con umbral 2 avisan 2 sesiones sin progreso",
+      "threshold": 2,
+      "history": [
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 }
+      ],
+      "expected": { "isStagnant": true, "sessionsWithoutProgress": 2 }
+    },
+    {
+      "name": "más repeticiones propias en la serie 2 es progreso",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 6, "assisted": 5 }
+      ],
+      "expected": { "isStagnant": false, "sessionsWithoutProgress": 0 }
+    },
+    {
+      "name": "las repeticiones asistidas no cuentan como progreso",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 3 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 4 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 6 }
+      ],
+      "expected": { "isStagnant": true, "sessionsWithoutProgress": 3 }
+    },
+    {
+      "name": "subir la carga es progreso",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 105, "firstSet": 7, "secondSet": 4, "assisted": 5 }
+      ],
+      "expected": { "isStagnant": false, "sessionsWithoutProgress": 0 }
+    },
+    {
+      "name": "bajar de carga reinicia la racha",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 90, "firstSet": 9, "secondSet": 5, "assisted": 5 }
+      ],
+      "expected": { "isStagnant": false, "sessionsWithoutProgress": 0 }
+    },
+    {
+      "name": "tras bajar de carga cuenta desde la nueva carga",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 90, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 90, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 90, "firstSet": 9, "secondSet": 5, "assisted": 5 },
+        { "loadKg": 90, "firstSet": 9, "secondSet": 5, "assisted": 5 }
+      ],
+      "expected": { "isStagnant": true, "sessionsWithoutProgress": 3 }
+    },
+    {
+      "name": "una sola sesión no tiene racha",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 100, "firstSet": 9, "secondSet": 5, "assisted": 5 }
+      ],
+      "expected": { "isStagnant": false, "sessionsWithoutProgress": 0 }
+    }
+  ]
+}

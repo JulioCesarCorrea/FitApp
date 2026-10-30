@@ -12,6 +12,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PlanEntry> PlanEntries => Set<PlanEntry>();
     public DbSet<EquipmentSettings> Equipment => Set<EquipmentSettings>();
     public DbSet<UserRestriction> Restrictions => Set<UserRestriction>();
+    public DbSet<ExerciseLogEntry> ExerciseLogs => Set<ExerciseLogEntry>();
+    public DbSet<TrainingSettings> TrainingSettings => Set<TrainingSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -55,6 +57,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.RemoEnTBarKg).HasPrecision(6, 2);
             e.Property(x => x.MachineStepKg).HasPrecision(6, 2);
             e.Property(x => x.MachineBaseKg).HasPrecision(6, 2);
+        });
+
+        modelBuilder.Entity<ExerciseLogEntry>(e =>
+        {
+            e.ToTable("exercise_logs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ExerciseId).HasMaxLength(120);
+            e.Property(x => x.LoadKg).HasPrecision(7, 2);
+            // Una fila por persona, ejercicio y fecha (SPEC-training-003, AC-06).
+            e.HasIndex(x => new { x.UserId, x.ExerciseId, x.Date }).IsUnique();
+            e.HasOne<CatalogExercise>().WithMany().HasForeignKey(x => x.ExerciseId);
+        });
+
+        modelBuilder.Entity<TrainingSettings>(e =>
+        {
+            e.ToTable("training_settings");
+            e.HasKey(x => x.UserId);
         });
 
         modelBuilder.Entity<UserRestriction>(e =>
