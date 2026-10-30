@@ -97,6 +97,62 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("FitnessApp.Api.Domain.Profile.UserProfile", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActivityLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.PrimitiveCollection<string[]>("Allergies")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<DateOnly>("BirthDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("DaysPerWeek")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("ExperienceLevel")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Goal")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("HeightCm")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Methodology")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Sex")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("profiles", (string)null);
+                });
+
             modelBuilder.Entity("FitnessApp.Api.Domain.Training.CatalogExercise", b =>
                 {
                     b.Property<string>("Id")

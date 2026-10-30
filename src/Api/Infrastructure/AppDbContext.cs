@@ -1,5 +1,6 @@
 using FitnessApp.Api.Domain;
 using FitnessApp.Api.Domain.Auth;
+using FitnessApp.Api.Domain.Profile;
 using FitnessApp.Api.Domain.Training;
 using FitnessApp.Api.Infrastructure.Seed;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserRestriction> Restrictions => Set<UserRestriction>();
     public DbSet<ExerciseLogEntry> ExerciseLogs => Set<ExerciseLogEntry>();
     public DbSet<TrainingSettings> TrainingSettings => Set<TrainingSettings>();
+    public DbSet<UserProfile> Profiles => Set<UserProfile>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -77,6 +79,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.ToTable("training_settings");
             e.HasKey(x => x.UserId);
+        });
+
+        modelBuilder.Entity<UserProfile>(e =>
+        {
+            e.ToTable("profiles");
+            e.HasKey(x => x.UserId);
+            e.Property(x => x.DisplayName).HasMaxLength(ProfileRules.MaxNameLength);
+            e.Property(x => x.Sex).HasMaxLength(20);
+            e.Property(x => x.Goal).HasMaxLength(20);
+            e.Property(x => x.ActivityLevel).HasMaxLength(20);
+            e.Property(x => x.ExperienceLevel).HasMaxLength(20);
+            e.Property(x => x.Methodology).HasMaxLength(40);
         });
 
         modelBuilder.Entity<AppUser>(e =>
