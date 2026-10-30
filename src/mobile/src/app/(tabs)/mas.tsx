@@ -1,4 +1,5 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { AccountPanel } from '../../components/AccountPanel';
 import { Button, Muted, Title } from '../../components/ui';
 import { Scanner } from '../../Scanner';
 import { StagnationSetting } from '../../components/StagnationSetting';
@@ -12,12 +13,14 @@ const MODES: { mode: ThemeMode; label: string }[] = [
   { mode: 'dark', label: 'Oscuro' },
 ];
 
-/** Más: tema, umbral de estancamiento (SPEC-mobile-003), registro de peso y escáner del spike de SPEC-mobile-001. */
+/** Más: cuenta (SPEC-mobile-004), tema, umbral de estancamiento (SPEC-mobile-003), registro de peso y escáner del spike de SPEC-mobile-001. */
 export default function MoreScreen() {
   const { mode, setMode } = useTheme();
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      <AccountPanel />
+
       <Title>Tema</Title>
       <Muted>Por defecto sigue al sistema.</Muted>
       <View style={styles.row}>

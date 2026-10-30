@@ -141,6 +141,28 @@ export class SqliteStore implements LocalStore {
     });
   }
 
+  async clearUserData(): Promise<void> {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      for (const table of ['plan_entries_local', 'plan_day_state', 'equipment_local', 'exercise_logs_local', 'weight_queue']) {
+        await db.runAsync(`DELETE FROM ${table}`);
+      }
+      await db.runAsync(`DELETE FROM settings WHERE key LIKE 'stagnation%' OR key = 'localUserId'`);
+    });
+  }
+
+  async countPendingChanges(): Promise<number> {
+    const db = await getDb();
+    const count = async (sql: string) => (await db.getFirstAsync<{ n: number }>(sql))?.n ?? 0;
+    return (
+      (await count(`SELECT COUNT(*) AS n FROM plan_day_state WHERE status IN ('pending', 'needs_confirmation')`)) +
+      (await count(`SELECT COUNT(*) AS n FROM equipment_local WHERE status = 'pending'`)) +
+      (await count(`SELECT COUNT(*) AS n FROM exercise_logs_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
+      (await count(`SELECT COUNT(*) AS n FROM settings WHERE key = 'stagnationThresholdStatus' AND value = 'pending'`)) +
+      (await count(`SELECT COUNT(*) AS n FROM weight_queue WHERE status = 'pending'`))
+    );
+  }
+
   async getSetting(key: string): Promise<string | null> {
     const db = await getDb();
     return (await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', key))?.value ?? null;

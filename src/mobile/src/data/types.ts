@@ -114,6 +114,14 @@ export interface LocalStore {
   /** Sustituye todos los registros del ejercicio por lo que dice el servidor, ya sincronizados. */
   replaceSyncedLogs(exerciseId: string, logs: ServerExerciseLog[]): Promise<void>;
 
+  /**
+   * AC-mobile-004-07 y 08: borra los datos de la cuenta (rutina, equipo, registros, cola de pesos, umbral y de quién son).
+   * Conserva el tema y el catálogo.
+   */
+  clearUserData(): Promise<void>;
+  /** Cambios sin enviar de la cuenta actual: días, equipo, registros, umbral y pesos pendientes (no los rechazados). */
+  countPendingChanges(): Promise<number>;
+
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
 }

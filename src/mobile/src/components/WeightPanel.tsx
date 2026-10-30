@@ -51,7 +51,7 @@ export function WeightPanel() {
   return (
     <View style={styles.box}>
       <Title>Registro de peso</Title>
-      {!apiConfigured && <Muted>Falta EXPO_PUBLIC_API_URL / EXPO_PUBLIC_DEV_USER_ID</Muted>}
+      {!apiConfigured && <Muted>Falta EXPO_PUBLIC_API_URL</Muted>}
       <Field label="Peso en kg" value={input} onChangeText={setInput} keyboardType="decimal-pad" placeholder="80.5" />
       <Button title="Guardar peso" onPress={save} />
       <Button title="Sincronizar ahora" onPress={sync} variant="secondary" />

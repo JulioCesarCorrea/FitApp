@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useDeps } from './DataContext';
+import type { AuthState } from './authService';
 import type { SessionAdvice } from './sessionService';
 import type { CatalogExercise, CatalogSection, DayState, EquipmentState, LocalExerciseLog } from './types';
 
@@ -83,4 +84,10 @@ export function useSessions(exercise: CatalogExercise | undefined) {
 
   useFocusEffect(useCallback(() => { void reload(); }, [reload]));
   return { ...state, reload };
+}
+
+/** Estado de la sesión (SPEC-mobile-004): se vuelve a pintar cuando la persona entra, sale o la sesión termina. */
+export function useAuthState(): AuthState {
+  const { auth } = useDeps();
+  return useSyncExternalStore(auth.subscribe, auth.getState, auth.getState);
 }
