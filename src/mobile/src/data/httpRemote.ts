@@ -1,16 +1,15 @@
 import { reasonFrom } from '../api';
+import { authedFetch, type Authorizer } from './authedFetch';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, PutDayResult, PutEquipmentResult, PutLogResult, RemoteApi,
   RestrictionHit, ServerExerciseLog,
 } from './types';
 
-const TIMEOUT_MS = 8000;
-
 /** Cliente HTTP de la API (SPEC-training-002). Traduce las respuestas al contrato de RemoteApi. */
 export class HttpRemote implements RemoteApi {
   constructor(
+    private readonly auth: Authorizer,
     private readonly baseUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL,
-    private readonly userId: string | undefined = process.env.EXPO_PUBLIC_DEV_USER_ID,
   ) {}
 
   imageUrl(path: string): string {
@@ -101,22 +100,12 @@ export class HttpRemote implements RemoteApi {
     return { kind: 'retry' }; // 401, 5xx y cualquier otro
   }
 
-  private async request(method: 'GET' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<Response | null> {
-    if (!this.baseUrl || !this.userId) return null;
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    try {
-      return await fetch(`${this.baseUrl}${path}`, {
-        method,
-        headers: { 'Content-Type': 'application/json', 'X-User-Id': this.userId },
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: controller.signal,
-      });
-    } catch {
-      return null; // sin red o tiempo agotado
-    } finally {
-      clearTimeout(timer);
-    }
+  // AC-mobile-004-11: siempre con el token de la sesión; sin token o sin red devuelve null (queda pendiente).
+  private request(method: 'GET' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<Response | null> {
+    if (!this.baseUrl) return Promise.resolve(null);
+    return authedFetch(this.auth, `${this.baseUrl}${path}`, {
+      method,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
   }
 }

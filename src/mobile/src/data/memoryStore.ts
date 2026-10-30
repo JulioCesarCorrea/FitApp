@@ -20,6 +20,9 @@ export class MemoryStore implements LocalStore {
   private settings = new Map<string, string>();
   private logs = new Map<string, LocalExerciseLog>();
 
+  /** Los pesos viven en otra tabla (db.ts); las pruebas fijan aquí cuántos hay pendientes. */
+  pendingWeights = 0;
+
   async getCatalog() {
     return this.catalog;
   }
@@ -87,6 +90,24 @@ export class MemoryStore implements LocalStore {
     for (const l of logs) {
       this.logs.set(l.id, { ...l, status: 'synced', message: null, pendingOp: null, attempted: true });
     }
+  }
+
+  async clearUserData() {
+    this.days.clear();
+    this.equipment = { profile: null, status: 'synced', message: null };
+    this.logs.clear();
+    this.pendingWeights = 0;
+    for (const key of [...this.settings.keys()]) {
+      if (key.startsWith('stagnation') || key === 'localUserId') this.settings.delete(key);
+    }
+  }
+
+  async countPendingChanges() {
+    const days = [...this.days.values()].filter((d) => d.status === 'pending' || d.status === 'needs_confirmation').length;
+    const equipment = this.equipment.profile !== null && this.equipment.status === 'pending' ? 1 : 0;
+    const logs = [...this.logs.values()].filter((l) => l.pendingOp !== null && l.status === 'pending').length;
+    const threshold = this.settings.get('stagnationThresholdStatus') === 'pending' ? 1 : 0;
+    return days + equipment + logs + threshold + this.pendingWeights;
   }
 
   async getSetting(key: string) {
