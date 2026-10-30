@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { AccountPanel } from '../../components/AccountPanel';
 import { Button, Muted, Title } from '../../components/ui';
@@ -13,13 +14,25 @@ const MODES: { mode: ThemeMode; label: string }[] = [
   { mode: 'dark', label: 'Oscuro' },
 ];
 
-/** Más: cuenta (SPEC-mobile-004), tema, umbral de estancamiento (SPEC-mobile-003), registro de peso y escáner del spike de SPEC-mobile-001. */
+/** Más: cuenta (SPEC-mobile-004), perfil y restricciones (SPEC-profile-001), tema, umbral de estancamiento (SPEC-mobile-003), registro de peso y escáner del spike de SPEC-mobile-001. */
 export default function MoreScreen() {
   const { mode, setMode } = useTheme();
+  const router = useRouter();
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <AccountPanel />
+
+      <Title>Mi perfil</Title>
+      <Muted>Tus datos, tu objetivo y las lesiones o restricciones que debes cuidar.</Muted>
+      <View style={styles.row}>
+        <View style={styles.flex}>
+          <Button title="Perfil" variant="secondary" testID="go-profile" onPress={() => router.push('/profile')} />
+        </View>
+        <View style={styles.flex}>
+          <Button title="Restricciones" variant="secondary" testID="go-restrictions" onPress={() => router.push('/restrictions')} />
+        </View>
+      </View>
 
       <Title>Tema</Title>
       <Muted>Por defecto sigue al sistema.</Muted>

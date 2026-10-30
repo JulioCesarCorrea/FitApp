@@ -2,6 +2,7 @@ import { useCallback, useState, useSyncExternalStore } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useDeps } from './DataContext';
 import type { AuthState } from './authService';
+import type { ProfileGate } from './profileService';
 import type { SessionAdvice } from './sessionService';
 import type { CatalogExercise, CatalogSection, DayState, EquipmentState, LocalExerciseLog } from './types';
 
@@ -90,4 +91,10 @@ export function useSessions(exercise: CatalogExercise | undefined) {
 export function useAuthState(): AuthState {
   const { auth } = useDeps();
   return useSyncExternalStore(auth.subscribe, auth.getState, auth.getState);
+}
+
+/** Qué muestra la app tras entrar: asistente, pedir conexión o la app (SPEC-profile-001, AC-11 y 19). */
+export function useProfileGate(): ProfileGate {
+  const { profile } = useDeps();
+  return useSyncExternalStore(profile.subscribe, profile.getGate, profile.getGate);
 }
