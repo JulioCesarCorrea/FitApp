@@ -1,4 +1,5 @@
 using FitnessApp.Api.Domain;
+using FitnessApp.Api.Domain.Auth;
 using FitnessApp.Api.Domain.Training;
 using FitnessApp.Api.Infrastructure.Seed;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserRestriction> Restrictions => Set<UserRestriction>();
     public DbSet<ExerciseLogEntry> ExerciseLogs => Set<ExerciseLogEntry>();
     public DbSet<TrainingSettings> TrainingSettings => Set<TrainingSettings>();
+    public DbSet<AppUser> Users => Set<AppUser>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -74,6 +77,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.ToTable("training_settings");
             e.HasKey(x => x.UserId);
+        });
+
+        modelBuilder.Entity<AppUser>(e =>
+        {
+            e.ToTable("users");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Username).HasMaxLength(30);
+            e.Property(x => x.PasswordHash).HasMaxLength(256);
+            e.HasIndex(x => x.Username).IsUnique();
+        });
+
+        modelBuilder.Entity<RefreshToken>(e =>
+        {
+            e.ToTable("refresh_tokens");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => x.UserId);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UserRestriction>(e =>

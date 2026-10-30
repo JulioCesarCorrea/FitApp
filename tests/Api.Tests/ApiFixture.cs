@@ -1,9 +1,13 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using FitnessApp.Api.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -17,6 +21,10 @@ namespace FitnessApp.Api.Tests;
 /// </summary>
 public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    /// <summary>Clave de firma y código de invitación de las pruebas (SPEC-auth-001).</summary>
+    public const string JwtKey = "clave-de-pruebas-con-al-menos-32-bytes-0123456789";
+    public const string InviteCode = "codigo-de-pruebas";
+
     private static readonly string? ServerConnection = Environment.GetEnvironmentVariable("FITNESS_TEST_PG");
 
     private readonly PostgreSqlContainer? _container =
@@ -72,8 +80,37 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             ["ConnectionStrings:Default"] = _connectionString,
             ["Auth:DevHeader"] = "true",
             ["Exercises:ImagesPath"] = ImagesDir,
+            ["Auth:JwtKey"] = JwtKey,
+            ["Auth:InviteCode"] = InviteCode,
+            // Todas las pruebas comparten origen; el límite real se prueba con una API aparte (AC-auth-001-08).
+            ["Auth:RateLimitPerMinute"] = "100000",
         }));
     }
+
+    /// <summary>Token firmado a mano para probar firmas inválidas, caducidad y cambio obligatorio de contraseña.</summary>
+    public static string CreateToken(
+        Guid userId, string username = "prueba", DateTime? expires = null, string? key = null, bool mustChangePassword = false)
+    {
+        var until = expires ?? DateTime.UtcNow.AddMinutes(30);
+        var claims = new List<Claim> { new("sub", userId.ToString()), new("username", username) };
+        if (mustChangePassword) claims.Add(new Claim("mcp", "1"));
+        var credentials = new SigningCredentials(
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key ?? JwtKey)), SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken("fitness-api", "fitness-app", claims, until.AddHours(-1), until, credentials);
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public HttpClient ClientWithToken(string accessToken, WebApplicationFactory<Program>? factory = null)
+    {
+        var client = (factory ?? this).CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        return client;
+    }
+
+    /// <summary>API con otra configuración sobre la misma base (límite de peticiones, DevHeader apagado, sin código...).</summary>
+    public WebApplicationFactory<Program> WithAuth(params (string Key, string? Value)[] settings) =>
+        WithWebHostBuilder(b => b.ConfigureAppConfiguration((_, cfg) =>
+            cfg.AddInMemoryCollection(settings.ToDictionary(x => x.Key, x => x.Value))));
 
     public HttpClient ClientFor(Guid userId)
     {
