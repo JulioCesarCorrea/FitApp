@@ -1,5 +1,6 @@
 import { MemoryStore } from '../src/data/memoryStore';
 import { PlanService } from '../src/data/planService';
+import { SessionService } from '../src/data/sessionService';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, PutDayResult, PutEquipmentResult, RemoteApi,
 } from '../src/data/types';
@@ -41,6 +42,11 @@ export function createFakes() {
     sent: [],
     equipmentResult: { kind: 'ok' },
     dayResult: () => ({ kind: 'ok', entries: [] }),
+    putLog: async () => ({ kind: 'retry' }),
+    deleteLog: async () => 'retry',
+    fetchHistory: async () => null,
+    fetchTrainingSettings: async () => null,
+    putTrainingSettings: async () => ({ kind: 'retry' }),
     fetchCatalog: async () => (remote.online ? CATALOG : null),
     fetchPlan: async () =>
       remote.online ? [...server.entries()].filter(([, e]) => e.length > 0).map(([day, entries]) => ({ day, entries })) : null,
@@ -56,10 +62,11 @@ export function createFakes() {
     imageUrl: (path) => `http://api.test${path}`,
   };
   const service = new PlanService(store, remote, () => `id-${++n}`);
+  const sessions = new SessionService(store, remote, () => `log-${++n}`, () => '2026-10-30');
   /** Deja una rutina ya sincronizada: en el servidor y en el teléfono. */
   const seedServer = async (day: DayKey, entries: LocalPlanEntry[]) => {
     server.set(day, entries);
     await store.replaceDaySynced(day, entries);
   };
-  return { store, remote, service, seedServer, deps: { store, remote, service } };
+  return { store, remote, service, sessions, seedServer, deps: { store, remote, service, sessions } };
 }

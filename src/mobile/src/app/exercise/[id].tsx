@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { Body, Button, Field, Muted, Title } from '../../components/ui';
 import { DayPicker } from '../../components/DayPicker';
+import { SessionPanel } from '../../components/SessionPanel';
 import { useDeps } from '../../data/DataContext';
 import { findExercise, useCatalog } from '../../data/hooks';
 import { parseKg } from '../../data/format';
@@ -112,6 +113,8 @@ export default function ExerciseDetailScreen() {
       ))}
 
       {outcomes && <Button title="Ver mi rutina" variant="secondary" onPress={() => router.navigate('/rutina')} />}
+
+      <SessionPanel exercise={exercise} />
     </ScrollView>
   );
 }

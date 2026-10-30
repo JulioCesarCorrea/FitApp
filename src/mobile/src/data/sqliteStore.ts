@@ -6,8 +6,10 @@ import {
   type DayState,
   type EquipmentProfile,
   type EquipmentState,
+  type LocalExerciseLog,
   type LocalPlanEntry,
   type LocalStore,
+  type ServerExerciseLog,
   type SyncStatus,
 } from './types';
 
@@ -84,6 +86,61 @@ export class SqliteStore implements LocalStore {
     await db.runAsync('UPDATE equipment_local SET status = ?, message = ? WHERE id = 1', status, message);
   }
 
+  async getLog(id: string): Promise<LocalExerciseLog | null> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<LogRow>('SELECT * FROM exercise_logs_local WHERE id = ?', id);
+    return row ? toLog(row) : null;
+  }
+
+  async getLogs(exerciseId: string): Promise<LocalExerciseLog[]> {
+    const db = await getDb();
+    const rows = await db.getAllAsync<LogRow>(
+      'SELECT * FROM exercise_logs_local WHERE exercise_id = ? ORDER BY date ASC', exerciseId,
+    );
+    return rows.map(toLog);
+  }
+
+  async getPendingLogs(): Promise<LocalExerciseLog[]> {
+    const db = await getDb();
+    const rows = await db.getAllAsync<LogRow>(
+      `SELECT * FROM exercise_logs_local WHERE pending_op IS NOT NULL AND status = 'pending' ORDER BY date ASC`,
+    );
+    return rows.map(toLog);
+  }
+
+  async saveLog(log: LocalExerciseLog): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO exercise_logs_local
+         (id, exercise_id, date, load_kg, first_set_reps, second_set_reps, second_set_assisted_reps,
+          status, message, pending_op, attempted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      log.id, log.exerciseId, log.date, log.loadKg, log.firstSetReps, log.secondSetReps, log.secondSetAssistedReps,
+      log.status, log.message, log.pendingOp, log.attempted ? 1 : 0,
+    );
+  }
+
+  async deleteLog(id: string): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('DELETE FROM exercise_logs_local WHERE id = ?', id);
+  }
+
+  async replaceSyncedLogs(exerciseId: string, logs: ServerExerciseLog[]): Promise<void> {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync('DELETE FROM exercise_logs_local WHERE exercise_id = ?', exerciseId);
+      for (const l of logs) {
+        await db.runAsync(
+          `INSERT INTO exercise_logs_local
+             (id, exercise_id, date, load_kg, first_set_reps, second_set_reps, second_set_assisted_reps,
+              status, message, pending_op, attempted)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
+          l.id, l.exerciseId, l.date, l.loadKg, l.firstSetReps, l.secondSetReps, l.secondSetAssistedReps,
+        );
+      }
+    });
+  }
+
   async getSetting(key: string): Promise<string | null> {
     const db = await getDb();
     return (await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', key))?.value ?? null;
@@ -111,6 +168,34 @@ export class SqliteStore implements LocalStore {
     });
   }
 }
+
+interface LogRow {
+  id: string;
+  exercise_id: string;
+  date: string;
+  load_kg: number;
+  first_set_reps: number;
+  second_set_reps: number;
+  second_set_assisted_reps: number;
+  status: SyncStatus;
+  message: string | null;
+  pending_op: 'upsert' | 'delete' | null;
+  attempted: number;
+}
+
+const toLog = (r: LogRow): LocalExerciseLog => ({
+  id: r.id,
+  exerciseId: r.exercise_id,
+  date: r.date,
+  loadKg: r.load_kg,
+  firstSetReps: r.first_set_reps,
+  secondSetReps: r.second_set_reps,
+  secondSetAssistedReps: r.second_set_assisted_reps,
+  status: r.status,
+  message: r.message,
+  pendingOp: r.pending_op,
+  attempted: r.attempted === 1,
+});
 
 const toEntry = (r: EntryRow): LocalPlanEntry => ({
   id: r.id,

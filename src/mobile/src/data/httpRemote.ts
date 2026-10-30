@@ -1,7 +1,7 @@
 import { reasonFrom } from '../api';
 import type {
-  CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, PutDayResult, PutEquipmentResult, RemoteApi,
-  RestrictionHit,
+  CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, PutDayResult, PutEquipmentResult, PutLogResult, RemoteApi,
+  RestrictionHit, ServerExerciseLog,
 } from './types';
 
 const TIMEOUT_MS = 8000;
@@ -66,7 +66,42 @@ export class HttpRemote implements RemoteApi {
     return { kind: 'retry' };
   }
 
-  private async request(method: 'GET' | 'PUT', path: string, body?: unknown): Promise<Response | null> {
+  /** AC-mobile-003-01: PUT /exercise-logs/{id} (SPEC-training-003). 400, 404, 409 y 422 no se reintentan. */
+  async putLog(log: ServerExerciseLog): Promise<PutLogResult> {
+    const { id, ...body } = log;
+    return this.putResult(await this.request('PUT', `/exercise-logs/${id}`, body));
+  }
+
+  async deleteLog(id: string): Promise<'ok' | 'retry'> {
+    const res = await this.request('DELETE', `/exercise-logs/${id}`);
+    return res?.ok ? 'ok' : 'retry';
+  }
+
+  async fetchHistory(exerciseId: string): Promise<ServerExerciseLog[] | null> {
+    const res = await this.request('GET', `/exercises/${encodeURIComponent(exerciseId)}/history`);
+    return res?.ok ? ((await res.json()) as ServerExerciseLog[]) : null;
+  }
+
+  async fetchTrainingSettings(): Promise<number | null> {
+    const res = await this.request('GET', '/training-settings');
+    return res?.ok ? ((await res.json()) as { stagnationThreshold: number }).stagnationThreshold : null;
+  }
+
+  async putTrainingSettings(stagnationThreshold: number): Promise<PutLogResult> {
+    return this.putResult(await this.request('PUT', '/training-settings', { stagnationThreshold }));
+  }
+
+  private async putResult(res: Response | null): Promise<PutLogResult> {
+    if (!res) return { kind: 'retry' };
+    if (res.ok) return { kind: 'ok' };
+    if ([400, 404, 409, 422].includes(res.status)) {
+      const problem = await res.json().catch(() => null);
+      return { kind: 'rejected', reason: reasonFrom(problem, res.status) };
+    }
+    return { kind: 'retry' }; // 401, 5xx y cualquier otro
+  }
+
+  private async request(method: 'GET' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<Response | null> {
     if (!this.baseUrl || !this.userId) return null;
 
     const controller = new AbortController();

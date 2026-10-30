@@ -5,8 +5,10 @@ import {
   type DayState,
   type EquipmentProfile,
   type EquipmentState,
+  type LocalExerciseLog,
   type LocalPlanEntry,
   type LocalStore,
+  type ServerExerciseLog,
   type SyncStatus,
 } from './types';
 
@@ -16,6 +18,7 @@ export class MemoryStore implements LocalStore {
   private days = new Map<DayKey, DayState>();
   private equipment: EquipmentState = { profile: null, status: 'synced', message: null };
   private settings = new Map<string, string>();
+  private logs = new Map<string, LocalExerciseLog>();
 
   async getCatalog() {
     return this.catalog;
@@ -56,6 +59,34 @@ export class MemoryStore implements LocalStore {
 
   async setEquipmentStatus(status: SyncStatus, message: string | null) {
     this.equipment = { ...this.equipment, status, message };
+  }
+
+  async getLog(id: string) {
+    const log = this.logs.get(id);
+    return log ? { ...log } : null;
+  }
+
+  async getLogs(exerciseId: string) {
+    return [...this.logs.values()].filter((l) => l.exerciseId === exerciseId).map((l) => ({ ...l }));
+  }
+
+  async getPendingLogs() {
+    return [...this.logs.values()].filter((l) => l.pendingOp !== null && l.status === 'pending').map((l) => ({ ...l }));
+  }
+
+  async saveLog(log: LocalExerciseLog) {
+    this.logs.set(log.id, { ...log });
+  }
+
+  async deleteLog(id: string) {
+    this.logs.delete(id);
+  }
+
+  async replaceSyncedLogs(exerciseId: string, logs: ServerExerciseLog[]) {
+    for (const [id, l] of this.logs) if (l.exerciseId === exerciseId) this.logs.delete(id);
+    for (const l of logs) {
+      this.logs.set(l.id, { ...l, status: 'synced', message: null, pendingOp: null, attempted: true });
+    }
   }
 
   async getSetting(key: string) {

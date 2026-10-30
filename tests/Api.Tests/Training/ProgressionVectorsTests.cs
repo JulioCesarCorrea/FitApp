@@ -14,7 +14,11 @@ public sealed class ProgressionVectorsTests
     private sealed record AdviceCase(string Name, LogCase Log, decimal[] AvailableLoads, AdviceExpected Expected);
     private sealed record StagnationExpected(bool IsStagnant, int SessionsWithoutProgress);
     private sealed record StagnationCase(string Name, int Threshold, LogCase[] History, StagnationExpected Expected);
-    private sealed record Vectors(AdviceCase[] Advice, StagnationCase[] Stagnation);
+    private sealed record ProfileCase(
+        decimal[] DumbbellsKg, Dictionary<string, decimal> BarsKg, decimal[] DiscsKg, decimal MachineStepKg, decimal MachineBaseKg);
+    private sealed record LoadsCase(
+        string Name, ProfileCase Profile, string Kind, string? Bar, decimal? StepOverride, int? Take, decimal[] Expected);
+    private sealed record Vectors(AdviceCase[] Advice, LoadsCase[] Loads, StagnationCase[] Stagnation);
 
     private static readonly Vectors All = JsonSerializer.Deserialize<Vectors>(
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Training", "progression-vectors.json")),
@@ -26,7 +30,8 @@ public sealed class ProgressionVectorsTests
         new(Start.AddDays(7 * index), c.LoadKg, new EffectiveSet(c.FirstSet), new EffectiveSet(c.SecondSet, c.Assisted));
 
     public static TheoryData<string> AdviceNames() => [.. All.Advice.Select(a => a.Name)];
-    public static TheoryData<string> StagnationNames() => [.. All.Stagnation.Select(s => s.Name)];
+    public static TheoryData<string> LoadsNames() => [.. All.Loads.Select(l => l.Name)];
+    public static TheoryData<string> StagnationNames()=> [.. All.Stagnation.Select(s => s.Name)];
 
     [Theory]
     [MemberData(nameof(AdviceNames))]
@@ -39,6 +44,23 @@ public sealed class ProgressionVectorsTests
         Assert.Equal(c.Expected.Action, advice.Action == LoadAction.Subir ? "subir" : "mantener");
         Assert.Equal(c.Expected.NextLoadKg, advice.NextLoadKg);
         Assert.Equal(c.Expected.MissingLoadData, advice.MissingLoadData);
+    }
+
+    [Theory]
+    [MemberData(nameof(LoadsNames))]
+    public void AC_training_003_09_vectores_compartidos_de_cargas_posibles(string name)
+    {
+        var c = All.Loads.Single(l => l.Name == name);
+        var bars = c.Profile.BarsKg.ToDictionary(
+            b => b.Key switch { "recta" => BarKind.Recta, "z" => BarKind.Z, "smith" => BarKind.Smith, _ => BarKind.RemoEnT },
+            b => b.Value);
+        var profile = new EquipmentProfile(
+            c.Profile.DumbbellsKg, bars, c.Profile.DiscsKg, c.Profile.MachineStepKg, c.Profile.MachineBaseKg);
+
+        var loads = profile.LoadsFor(
+            Enum.Parse<EquipmentKind>(c.Kind), c.Bar is null ? null : Enum.Parse<BarKind>(c.Bar), c.StepOverride);
+
+        Assert.Equal(c.Expected, c.Take is { } take ? loads.Take(take) : loads);
     }
 
     [Theory]

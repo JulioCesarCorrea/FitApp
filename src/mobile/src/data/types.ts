@@ -62,6 +62,32 @@ export interface EquipmentState {
   message: string | null;
 }
 
+/**
+ * Registro de un ejercicio en una fecha (SPEC-mobile-003). Los nombres de los campos son los de la API.
+ * `pendingOp` dice qué falta enviar; `attempted` recuerda si ya se intentó enviar (puede haber llegado).
+ */
+export interface LocalExerciseLog {
+  id: string;
+  exerciseId: string;
+  /** Día local, AAAA-MM-DD. */
+  date: string;
+  loadKg: number;
+  firstSetReps: number;
+  secondSetReps: number;
+  secondSetAssistedReps: number;
+  /** pending → synced | rejected. `needs_confirmation` no se usa en los registros. */
+  status: SyncStatus;
+  message: string | null;
+  pendingOp: 'upsert' | 'delete' | null;
+  attempted: boolean;
+}
+
+/** Lo que guarda el servidor de un registro (historial). */
+export type ServerExerciseLog = Pick<
+  LocalExerciseLog,
+  'id' | 'exerciseId' | 'date' | 'loadKg' | 'firstSetReps' | 'secondSetReps' | 'secondSetAssistedReps'
+>;
+
 /** Almacén local (SQLite en la app, memoria en las pruebas). */
 export interface LocalStore {
   getCatalog(): Promise<CatalogSection[] | null>;
@@ -77,6 +103,16 @@ export interface LocalStore {
   getEquipment(): Promise<EquipmentState>;
   saveEquipment(profile: EquipmentProfile): Promise<void>;
   setEquipmentStatus(status: SyncStatus, message: string | null): Promise<void>;
+
+  getLog(id: string): Promise<LocalExerciseLog | null>;
+  /** Todos los registros del ejercicio, también los que esperan borrarse. */
+  getLogs(exerciseId: string): Promise<LocalExerciseLog[]>;
+  /** Registros con algo por enviar (guardar o borrar) que no están rechazados. */
+  getPendingLogs(): Promise<LocalExerciseLog[]>;
+  saveLog(log: LocalExerciseLog): Promise<void>;
+  deleteLog(id: string): Promise<void>;
+  /** Sustituye todos los registros del ejercicio por lo que dice el servidor, ya sincronizados. */
+  replaceSyncedLogs(exerciseId: string, logs: ServerExerciseLog[]): Promise<void>;
 
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
@@ -100,6 +136,11 @@ export type PutEquipmentResult =
   | { kind: 'rejected'; reason: string }
   | { kind: 'retry' };
 
+export type PutLogResult =
+  | { kind: 'ok' }
+  | { kind: 'rejected'; reason: string } // 400, 404, 409 o 422: no se reintenta
+  | { kind: 'retry' }; // red, 5xx o 401
+
 /** Cliente de la API (HTTP en la app, simulado en las pruebas). */
 export interface RemoteApi {
   fetchCatalog(): Promise<CatalogSection[] | null>; // null = sin conexión o error
@@ -107,5 +148,11 @@ export interface RemoteApi {
   fetchEquipment(): Promise<EquipmentProfile | null | 'none'>; // 'none' = la persona aún no tiene perfil
   putDay(day: DayKey, entries: LocalPlanEntry[], confirmWarnings: boolean): Promise<PutDayResult>;
   putEquipment(profile: EquipmentProfile): Promise<PutEquipmentResult>;
+  putLog(log: ServerExerciseLog): Promise<PutLogResult>;
+  /** La API responde 204 aunque el registro no exista, así que solo puede salir bien o reintentarse. */
+  deleteLog(id: string): Promise<'ok' | 'retry'>;
+  fetchHistory(exerciseId: string): Promise<ServerExerciseLog[] | null>; // null = sin conexión o error
+  fetchTrainingSettings(): Promise<number | null>; // umbral de estancamiento
+  putTrainingSettings(stagnationThreshold: number): Promise<PutLogResult>;
   imageUrl(path: string): string;
 }
