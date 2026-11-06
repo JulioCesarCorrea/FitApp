@@ -1,7 +1,12 @@
+import { AuthService, MemoryTokenStore, type AuthRemote, type AuthResult, type StoredSession } from '../src/data/authService';
 import { MemoryStore } from '../src/data/memoryStore';
+import { ProfileService } from '../src/data/profileService';
+import { RestrictionService } from '../src/data/restrictionService';
 import { PlanService } from '../src/data/planService';
+import { SessionService } from '../src/data/sessionService';
 import type {
-  CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, PutDayResult, PutEquipmentResult, RemoteApi,
+  CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
+  RemoteApi, RestrictionItem,
 } from '../src/data/types';
 
 export const CATALOG: CatalogSection[] = [
@@ -29,9 +34,92 @@ export interface FakeRemote extends RemoteApi {
   sent: { day: DayKey; entries: LocalPlanEntry[]; confirm: boolean }[];
   dayResult: (day: DayKey, confirm: boolean) => PutDayResult;
   equipmentResult: PutEquipmentResult;
+  /** Perfil que «tiene el servidor»; null = la cuenta aún no tiene perfil (verá el asistente). */
+  serverProfile: LocalProfile | null;
+  putProfileResult: PutLogResult | null;
+  serverRestrictions: RestrictionItem[];
+  restrictionResult: PutLogResult | null;
 }
 
-export function createFakes() {
+export interface FakeAuthRemote extends AuthRemote {
+  online: boolean;
+  calls: string[];
+  accounts: Map<string, { id: string; password: string; mustChange: boolean }>;
+  locked: boolean;
+  inviteCode: string;
+}
+
+/** Servidor de cuentas simulado (SPEC-auth-001): lo justo para recorrer las pantallas. */
+function createAuthRemote(): FakeAuthRemote {
+  let n = 0;
+  const r: FakeAuthRemote = {
+    online: true,
+    calls: [],
+    locked: false,
+    inviteCode: 'codigo-bueno',
+    accounts: new Map([
+      ['julio', { id: 'user-1', password: 'contraseña-segura-1', mustChange: false }],
+      ['ana', { id: 'user-2', password: 'otra-contraseña-9', mustChange: false }],
+    ]),
+    register: async (username, password, inviteCode) => {
+      if (!r.online) return { kind: 'network' };
+      r.calls.push(`register:${username}`);
+      if (inviteCode !== r.inviteCode) return { kind: 'rejected', status: 403, reason: 'El código de invitación no es válido.' };
+      if (r.accounts.has(username)) return { kind: 'rejected', status: 409, reason: 'Ese nombre de usuario ya está en uso.' };
+      r.accounts.set(username, { id: `id-${username}`, password, mustChange: false });
+      return issue(username);
+    },
+    login: async (username, password) => {
+      if (!r.online) return { kind: 'network' };
+      r.calls.push(`login:${username}`);
+      if (r.locked) return { kind: 'locked', retryAfterSeconds: 600 };
+      const account = r.accounts.get(username);
+      if (!account || account.password !== password) return { kind: 'rejected', status: 401, reason: 'Usuario o contraseña incorrectos.' };
+      return issue(username);
+    },
+    refresh: async () => (r.online ? { kind: 'rejected', status: 401, reason: 'La sesión ya no es válida. Entra de nuevo.' } : { kind: 'network' }),
+    logout: async () => {
+      r.calls.push('logout');
+    },
+    changePassword: async (_token, current, next) => {
+      if (!r.online) return { kind: 'network' };
+      const entry = [...r.accounts].find(([, a]) => a.password === current);
+      if (!entry) return { kind: 'rejected', status: 400, reason: 'La contraseña actual no es correcta.' };
+      entry[1].password = next;
+      entry[1].mustChange = false;
+      return issue(entry[0]);
+    },
+  };
+
+  function issue(username: string): AuthResult {
+    n++;
+    const account = r.accounts.get(username)!;
+    return {
+      kind: 'ok',
+      body: {
+        accessToken: `access-${n}`, refreshToken: `refresh-${n}`, expiresIn: 3600,
+        user: { id: account.id, username, mustChangePassword: account.mustChange },
+      },
+    };
+  }
+
+  return r;
+}
+
+export const PROFILE_DATA: LocalProfile = {
+  displayName: 'Julio', sex: 'masculino', birthDate: '1995-05-20', heightCm: 178, goal: 'ganar_musculo',
+  activityLevel: 'ligero', experienceLevel: null, daysPerWeek: null, methodology: 'heavy_duty_personalizado', allergies: [],
+};
+
+export const SESSION: StoredSession = {
+  accessToken: 'access-0', refreshToken: 'refresh-0', expiresAt: Date.now() + 3600 * 1000,
+  user: { id: 'user-1', username: 'julio', mustChangePassword: false },
+};
+
+/** `signedIn: false` deja el teléfono sin sesión; por defecto las pruebas arrancan con la sesión de «julio» ya iniciada. */
+export function createFakes(
+  options: { signedIn?: boolean; session?: StoredSession; withProfile?: boolean; serverProfile?: 'none' } = {},
+) {
   let n = 0;
   const store = new MemoryStore();
   // Lo que «tiene el servidor»: las pruebas lo siembran con seedServer y putDay lo actualiza.
@@ -41,6 +129,34 @@ export function createFakes() {
     sent: [],
     equipmentResult: { kind: 'ok' },
     dayResult: () => ({ kind: 'ok', entries: [] }),
+    serverProfile: options.serverProfile === 'none' ? null : PROFILE_DATA,
+    putProfileResult: null,
+    serverRestrictions: [],
+    restrictionResult: null,
+    fetchProfile: async () => (remote.online ? (remote.serverProfile ?? 'none') : null),
+    putProfile: async (p) => {
+      if (!remote.online) return { kind: 'retry' };
+      if (remote.putProfileResult) return remote.putProfileResult;
+      remote.serverProfile = p;
+      return { kind: 'ok' };
+    },
+    fetchRestrictions: async () => (remote.online ? [...remote.serverRestrictions] : null),
+    putRestriction: async (item) => {
+      if (!remote.online) return { kind: 'retry' };
+      if (remote.restrictionResult) return remote.restrictionResult;
+      remote.serverRestrictions = [...remote.serverRestrictions.filter((r) => r.id !== item.id), item];
+      return { kind: 'ok' };
+    },
+    deleteRestriction: async (id) => {
+      if (!remote.online) return 'retry';
+      remote.serverRestrictions = remote.serverRestrictions.filter((r) => r.id !== id);
+      return 'ok';
+    },
+    putLog: async () => ({ kind: 'retry' }),
+    deleteLog: async () => 'retry',
+    fetchHistory: async () => null,
+    fetchTrainingSettings: async () => null,
+    putTrainingSettings: async () => ({ kind: 'retry' }),
     fetchCatalog: async () => (remote.online ? CATALOG : null),
     fetchPlan: async () =>
       remote.online ? [...server.entries()].filter(([, e]) => e.length > 0).map(([day, entries]) => ({ day, entries })) : null,
@@ -56,10 +172,26 @@ export function createFakes() {
     imageUrl: (path) => `http://api.test${path}`,
   };
   const service = new PlanService(store, remote, () => `id-${++n}`);
+  const sessions = new SessionService(store, remote, () => `log-${++n}`, () => '2026-10-30');
+  const weightsAdded: number[] = [];
+  const profile = new ProfileService(store, remote, async (kg) => {
+    weightsAdded.push(kg);
+  });
+  const restrictions = new RestrictionService(remote, () => `restriction-${++n}`, () => '2026-10-30');
+  const authRemote = createAuthRemote();
+  const tokens = new MemoryTokenStore(options.signedIn === false ? null : (options.session ?? SESSION));
+  const auth = new AuthService(tokens, authRemote, store);
   /** Deja una rutina ya sincronizada: en el servidor y en el teléfono. */
   const seedServer = async (day: DayKey, entries: LocalPlanEntry[]) => {
     server.set(day, entries);
     await store.replaceDaySynced(day, entries);
   };
-  return { store, remote, service, seedServer, deps: { store, remote, service } };
+  // Las pruebas que no son del asistente arrancan con un perfil ya hecho en el teléfono (sin él se vería el asistente).
+  if (options.signedIn !== false && options.withProfile !== false) {
+    void store.saveProfile(PROFILE_DATA).then(() => store.setProfileStatus('synced', null));
+  }
+  return {
+    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, weightsAdded, seedServer,
+    deps: { store, remote, service, sessions, auth, profile, restrictions },
+  };
 }

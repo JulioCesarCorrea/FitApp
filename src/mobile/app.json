@@ -32,7 +32,8 @@
         }
       ],
       "expo-router",
-      "expo-image"
+      "expo-image",
+      "expo-secure-store"
     ],
     "scheme": "fitnessapp"
   }

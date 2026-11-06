@@ -42,6 +42,27 @@ public class EquipmentSettings
     public decimal MachineBaseKg { get; set; }
 }
 
+/// <summary>Registro de un ejercicio en una fecha (SPEC-training-003). Uno por persona, ejercicio y fecha.</summary>
+public class ExerciseLogEntry
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string ExerciseId { get; set; } = "";
+    public DateOnly Date { get; set; }
+    public decimal LoadKg { get; set; }
+    public int FirstSetReps { get; set; }
+    public int SecondSetReps { get; set; }
+    public int SecondSetAssistedReps { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>Ajustes de entrenamiento de una persona (uno por persona).</summary>
+public class TrainingSettings
+{
+    public Guid UserId { get; set; }
+    public int StagnationThreshold { get; set; } = Stagnation.DefaultThreshold;
+}
+
 /// <summary>Restricción de una persona (P3). La API para gestionarlas llega con su propia spec.</summary>
 public class UserRestriction
 {

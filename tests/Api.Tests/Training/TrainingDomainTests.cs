@@ -324,4 +324,49 @@ public sealed class TrainingDomainTests
 
         Assert.True(Stagnation.Check(history, threshold: 2).IsStagnant);
     }
+
+    // SPEC-training-003, AC-03: el peso corporal admite carga 0 (lastre opcional); el resto exige carga mayor que cero.
+    [Fact]
+    public void AC_training_003_03_peso_corporal_admite_carga_cero_y_el_resto_no()
+    {
+        var sets = new[] { new EffectiveSet(9), new EffectiveSet(5, 5) };
+
+        var log = ExerciseLog.Register(Day, 0m, sets, allowZeroLoad: true);
+
+        Assert.Equal(0m, log.LoadKg);
+        Assert.Throws<ArgumentOutOfRangeException>(() => ExerciseLog.Register(Day, 0m, sets));
+        Assert.Throws<ArgumentOutOfRangeException>(() => ExerciseLog.Register(Day, -1m, sets, allowZeroLoad: true));
+    }
+
+    // SPEC-training-003, AC-11: bajar de carga reinicia la racha.
+    [Fact]
+    public void AC_training_003_11_bajar_de_carga_reinicia_la_racha()
+    {
+        var history = new[]
+        {
+            Log(9, 5, dayOffset: 0), Log(9, 5, dayOffset: 7), Log(9, 5, dayOffset: 14),
+            Log(9, 5, load: 90m, dayOffset: 21),
+        };
+
+        var result = Stagnation.Check(history);
+
+        Assert.False(result.IsStagnant);
+        Assert.Equal(0, result.SessionsWithoutProgress);
+    }
+
+    [Fact]
+    public void AC_training_003_11_tras_bajar_de_carga_la_racha_cuenta_desde_la_nueva_carga()
+    {
+        var history = new[]
+        {
+            Log(9, 5, dayOffset: 0), Log(9, 5, dayOffset: 7),
+            Log(9, 5, load: 90m, dayOffset: 14), Log(9, 5, load: 90m, dayOffset: 21), Log(9, 5, load: 90m, dayOffset: 28),
+            Log(9, 5, load: 90m, dayOffset: 35),
+        };
+
+        var result = Stagnation.Check(history);
+
+        Assert.True(result.IsStagnant);
+        Assert.Equal(3, result.SessionsWithoutProgress);
+    }
 }
