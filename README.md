@@ -23,7 +23,7 @@ Estado: **Fase 1 — fundamentos**. Aún no hay funcionalidades de producto.
 ```
 docker compose up -d                          # Postgres local
 dotnet ef database update --project src/Api   # aplicar migraciones
-dotnet run --project src/Api                  # API (usa X-User-Id como usuario de desarrollo)
+dotnet run --project src/Api                  # API (necesita src/Api/appsettings.Local.json: ver appsettings.Local.json.example)
 dotnet test FitnessApp.slnx                   # tests (Testcontainers si hay Docker)
 # Sin Docker: apuntar a un Postgres local con permiso CREATEDB; cada ejecución crea y borra su propia base
 $env:FITNESS_TEST_PG='Host=localhost;Username=fitness;Password=fitness_dev;Database=postgres'
