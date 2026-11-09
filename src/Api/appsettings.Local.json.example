@@ -1,0 +1,13 @@
+{
+  "ConnectionStrings": {
+    "Default": "Host=localhost;Port=5432;Database=fitness;Username=fitness;Password=<contraseña de docker-compose.yml>"
+  },
+  "Auth": {
+    "JwtKey": "<al menos 32 bytes aleatorios>",
+    "InviteCode": "<código para registrar cuentas>",
+    "DevHeader": false
+  },
+  "Exercises": {
+    "ImagesPath": "C:\\ruta\\a\\ejercicios"
+  }
+}
