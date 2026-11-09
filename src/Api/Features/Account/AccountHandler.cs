@@ -27,7 +27,8 @@ public sealed record ExportEquipment(
     decimal? RemoEnTBarKg, decimal MachineStepKg, decimal MachineBaseKg);
 
 public sealed record ExportExerciseLog(
-    Guid Id, string ExerciseId, DateOnly Date, decimal LoadKg, int FirstSetReps, int SecondSetReps, int SecondSetAssistedReps);
+    Guid Id, string ExerciseId, DateOnly Date, decimal LoadKg, int FirstSetReps, int SecondSetReps, int SecondSetAssistedReps,
+    string Methodology, int[]? RepsPerSet);
 
 public sealed record AccountExport(
     int Version,
@@ -94,7 +95,7 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
             .Select(s => (int?)s.StagnationThreshold).FirstOrDefaultAsync(ct);
 
         var logs = await db.ExerciseLogs.AsNoTracking().Where(l => l.UserId == userId).OrderBy(l => l.Date).ThenBy(l => l.ExerciseId)
-            .Select(l => new ExportExerciseLog(l.Id, l.ExerciseId, l.Date, l.LoadKg, l.FirstSetReps, l.SecondSetReps, l.SecondSetAssistedReps))
+            .Select(l => new ExportExerciseLog(l.Id, l.ExerciseId, l.Date, l.LoadKg, l.FirstSetReps, l.SecondSetReps, l.SecondSetAssistedReps, l.Methodology, l.RepsPerSet))
             .ToListAsync(ct);
 
         return new AccountExport(ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs);

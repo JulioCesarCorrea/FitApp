@@ -53,6 +53,12 @@ public class ExerciseLogEntry
     public int FirstSetReps { get; set; }
     public int SecondSetReps { get; set; }
     public int SecondSetAssistedReps { get; set; }
+
+    /// <summary>Metodología con la que se registró (SPEC-training-004). Los registros anteriores son de Heavy Duty.</summary>
+    public string Methodology { get; set; } = "heavy_duty_personalizado";
+
+    /// <summary>Repeticiones propias de cada serie en 4×15; nulo en Heavy Duty. En 4×15, FirstSetReps y SecondSetReps repiten la serie 1 y la 4.</summary>
+    public int[]? RepsPerSet { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 

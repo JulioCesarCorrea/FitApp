@@ -1548,6 +1548,16 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .HasPrecision(7, 2)
                         .HasColumnType("numeric(7,2)");
 
+                    b.Property<string>("Methodology")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("heavy_duty_personalizado");
+
+                    b.PrimitiveCollection<int[]>("RepsPerSet")
+                        .HasColumnType("integer[]");
+
                     b.Property<int>("SecondSetAssistedReps")
                         .HasColumnType("integer");
 

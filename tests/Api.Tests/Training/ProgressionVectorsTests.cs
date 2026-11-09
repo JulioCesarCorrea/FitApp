@@ -18,7 +18,13 @@ public sealed class ProgressionVectorsTests
         decimal[] DumbbellsKg, Dictionary<string, decimal> BarsKg, decimal[] DiscsKg, decimal MachineStepKg, decimal MachineBaseKg);
     private sealed record LoadsCase(
         string Name, ProfileCase Profile, string Kind, string? Bar, decimal? StepOverride, int? Take, decimal[] Expected);
-    private sealed record Vectors(AdviceCase[] Advice, LoadsCase[] Loads, StagnationCase[] Stagnation);
+    private sealed record NormalLogCase(decimal LoadKg, int[] Reps);
+    private sealed record NormalAdviceExpected(string Action, decimal NextLoadKg, bool MissingLoadData, string FirstSetEvaluation);
+    private sealed record NormalAdviceCase(string Name, NormalLogCase Log, decimal[] AvailableLoads, NormalAdviceExpected Expected);
+    private sealed record NormalStagnationCase(string Name, int Threshold, NormalLogCase[] History, StagnationExpected Expected);
+    private sealed record Vectors(
+        AdviceCase[] Advice, LoadsCase[] Loads, StagnationCase[] Stagnation,
+        NormalAdviceCase[] Advice4x15, NormalStagnationCase[] Stagnation4x15);
 
     private static readonly Vectors All = JsonSerializer.Deserialize<Vectors>(
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Training", "progression-vectors.json")),
@@ -32,6 +38,10 @@ public sealed class ProgressionVectorsTests
     public static TheoryData<string> AdviceNames() => [.. All.Advice.Select(a => a.Name)];
     public static TheoryData<string> LoadsNames() => [.. All.Loads.Select(l => l.Name)];
     public static TheoryData<string> StagnationNames()=> [.. All.Stagnation.Select(s => s.Name)];
+    public static TheoryData<string> Advice4x15Names() => [.. All.Advice4x15.Select(a => a.Name)];
+    public static TheoryData<string> Stagnation4x15Names() => [.. All.Stagnation4x15.Select(s => s.Name)];
+
+    private static NormalLog ToNormalLog(NormalLogCase c, int index) => new(Start.AddDays(7 * index), c.LoadKg, c.Reps);
 
     [Theory]
     [MemberData(nameof(AdviceNames))]
@@ -70,6 +80,39 @@ public sealed class ProgressionVectorsTests
         var c = All.Stagnation.Single(s => s.Name == name);
 
         var result = Stagnation.Check(c.History.Select(ToLog).ToList(), c.Threshold);
+
+        Assert.Equal(c.Expected.IsStagnant, result.IsStagnant);
+        Assert.Equal(c.Expected.SessionsWithoutProgress, result.SessionsWithoutProgress);
+    }
+
+    [Theory]
+    [MemberData(nameof(Advice4x15Names))]
+    public void AC_training_004_10_vectores_compartidos_de_consejo_de_carga_4x15(string name)
+    {
+        var c = All.Advice4x15.Single(a => a.Name == name);
+        var log = ToNormalLog(c.Log, 0);
+
+        var advice = Normal4x15.Advise(log, c.AvailableLoads);
+
+        Assert.Equal(c.Expected.Action, advice.Action == LoadAction.Subir ? "subir" : "mantener");
+        Assert.Equal(c.Expected.NextLoadKg, advice.NextLoadKg);
+        Assert.Equal(c.Expected.MissingLoadData, advice.MissingLoadData);
+        var evaluation = Normal4x15.EvaluateFirstSet(log.Reps[0]);
+        Assert.Equal(c.Expected.FirstSetEvaluation, evaluation switch
+        {
+            FirstSetEvaluation.PorDebajo => "por_debajo",
+            FirstSetEvaluation.EnBanda => "en_banda",
+            _ => "techo",
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(Stagnation4x15Names))]
+    public void AC_training_004_10_vectores_compartidos_de_estancamiento_4x15(string name)
+    {
+        var c = All.Stagnation4x15.Single(s => s.Name == name);
+
+        var result = Normal4x15.CheckStagnation(c.History.Select(ToNormalLog).ToList(), c.Threshold);
 
         Assert.Equal(c.Expected.IsStagnant, result.IsStagnant);
         Assert.Equal(c.Expected.SessionsWithoutProgress, result.SessionsWithoutProgress);

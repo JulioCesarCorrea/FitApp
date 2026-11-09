@@ -34,7 +34,7 @@ public static class ProfileRules
     public static readonly string[] Goals = ["bajar_grasa", "ganar_musculo", "mantener"];
     public static readonly string[] ActivityLevels = ["sedentario", "ligero", "moderado", "muy_activo"];
     public static readonly string[] ExperienceLevels = ["principiante", "intermedio", "avanzado"];
-    public static readonly string[] Methodologies = [DefaultMethodology];
+    public static readonly string[] Methodologies = [DefaultMethodology, Training.Normal4x15.Name];
 
     /// <summary>Edad cumplida en <paramref name="today"/>.</summary>
     public static int AgeOn(DateOnly birth, DateOnly today)

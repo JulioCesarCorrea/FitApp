@@ -32,23 +32,44 @@ public sealed class AdviceHandler(AppDbContext db)
             .ToListAsync(ct);
         if (rows.Count == 0) return new AdviceResult.NoRecords();
 
-        var history = rows.Select(r => new ExerciseLog(
-            r.Date, r.LoadKg, new EffectiveSet(r.FirstSetReps), new EffectiveSet(r.SecondSetReps, r.SecondSetAssistedReps))).ToList();
-        var last = history[^1];
-
         var threshold = (await db.TrainingSettings.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == userId, ct))
             ?.StagnationThreshold ?? Stagnation.DefaultThreshold;
 
-        var load = exercise.Equipment == EquipmentKind.PesoCorporal
-            ? new LoadAdvice(LoadAction.Mantener, last.LoadKg) // el peso corporal no tiene carga siguiente que proponer
-            : LoadProgression.Advise(last, await LoadsAsync(userId, exercise, ct));
+        // El consejo sale del último registro y solo cuenta los registros de su misma metodología (SPEC-training-004, AC-08).
+        var methodology = rows[^1].Methodology;
+        rows = rows.Where(r => r.Methodology == methodology).ToList();
+        var bodyweight = exercise.Equipment == EquipmentKind.PesoCorporal;
 
-        var stagnation = Stagnation.Check(history, threshold);
+        LoadAdvice load;
+        FirstSetEvaluation evaluation;
+        StagnationResult stagnation;
+        if (methodology == Normal4x15.Name)
+        {
+            var history = rows.Select(r => new NormalLog(r.Date, r.LoadKg, r.RepsPerSet ?? [])).ToList();
+            var last = history[^1];
+            load = bodyweight
+                ? new LoadAdvice(LoadAction.Mantener, last.LoadKg)
+                : Normal4x15.Advise(last, await LoadsAsync(userId, exercise, ct));
+            evaluation = Normal4x15.EvaluateFirstSet(last.Reps[0]);
+            stagnation = Normal4x15.CheckStagnation(history, threshold);
+        }
+        else
+        {
+            var history = rows.Select(r => new ExerciseLog(
+                r.Date, r.LoadKg, new EffectiveSet(r.FirstSetReps), new EffectiveSet(r.SecondSetReps, r.SecondSetAssistedReps))).ToList();
+            var last = history[^1];
+            load = bodyweight
+                ? new LoadAdvice(LoadAction.Mantener, last.LoadKg) // el peso corporal no tiene carga siguiente que proponer
+                : LoadProgression.Advise(last, await LoadsAsync(userId, exercise, ct));
+            evaluation = ExerciseLog.EvaluateFirstSet(last.FirstSet.OwnReps);
+            stagnation = Stagnation.Check(history, threshold);
+        }
+
         return new AdviceResult.Advice(new AdviceDto(
             load.Action == LoadAction.Subir ? "subir" : "mantener",
             load.NextLoadKg,
             load.MissingLoadData,
-            Name(ExerciseLog.EvaluateFirstSet(last.FirstSet.OwnReps)),
+            Name(evaluation),
             new StagnationDto(stagnation.IsStagnant, stagnation.SessionsWithoutProgress, stagnation.Message)));
     }
 
