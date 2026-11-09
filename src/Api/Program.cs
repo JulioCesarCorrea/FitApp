@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using FitnessApp.Api.Common;
+using FitnessApp.Api.Features.Account;
 using FitnessApp.Api.Features.Auth;
 using FitnessApp.Api.Features.Profile;
 using FitnessApp.Api.Features.Progress.Weights;
@@ -59,12 +60,14 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             {
                 if (!Guid.TryParse(context.Principal?.FindFirst("sub")?.Value, out var userId)) return;
                 var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
-                var changedAt = await db.Users.AsNoTracking().Where(u => u.Id == userId)
-                    .Select(u => u.PasswordChangedAt).FirstOrDefaultAsync(context.HttpContext.RequestAborted);
-                if (changedAt is null) return;
+                var account = await db.Users.AsNoTracking().Where(u => u.Id == userId)
+                    .Select(u => new { u.PasswordChangedAt }).FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+                // La cuenta ya no existe (AC-account-001-08): el token deja de servir aunque no haya caducado.
+                if (account is null) { context.Fail("La cuenta no existe."); return; }
+                if (account.PasswordChangedAt is not { } changedAt) return;
 
                 var issuedAt = long.TryParse(context.Principal?.FindFirst("iat")?.Value, out var iat) ? iat : 0;
-                if (issuedAt < changedAt.Value.ToUnixTimeSeconds()) context.Fail("Token anterior al cambio de contraseña.");
+                if (issuedAt < changedAt.ToUnixTimeSeconds()) context.Fail("Token anterior al cambio de contraseña.");
             },
         };
     });
@@ -106,6 +109,7 @@ builder.Services.AddScoped<ProfileHandler>();
 builder.Services.AddScoped<RestrictionHandler>();
 builder.Services.AddScoped<AuthHandler>();
 builder.Services.AddScoped<AdminCommands>();
+builder.Services.AddScoped<AccountHandler>();
 
 var app = builder.Build();
 
@@ -149,6 +153,7 @@ app.MapSessionEndpoints();
 app.MapAuthEndpoints();
 app.MapProfileEndpoints();
 app.MapRestrictionEndpoints();
+app.MapAccountEndpoints();
 
 app.Run();
 return 0;

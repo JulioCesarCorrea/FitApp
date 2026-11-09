@@ -253,7 +253,7 @@ public sealed class AuthTests(ApiFixture api)
     public async Task AC_auth_001_08_el_limite_no_afecta_a_los_endpoints_de_datos()
     {
         await using var limited = api.WithAuth(("Auth:RateLimitPerMinute", "1"));
-        var client = api.ClientWithToken(ApiFixture.CreateToken(Guid.NewGuid()), limited);
+        var client = api.ClientWithToken(await api.CreateAccountTokenAsync(), limited);
 
         for (var i = 0; i < 3; i++)
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/equipment")).StatusCode);
