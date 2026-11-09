@@ -197,8 +197,8 @@ public sealed class ProfileTests(ApiFixture api)
     [Fact]
     public async Task AC_profile_001_05_con_un_token_real_el_perfil_es_de_su_dueno()
     {
-        var one = api.ClientWithToken(ApiFixture.CreateToken(Guid.NewGuid()));
-        var two = api.ClientWithToken(ApiFixture.CreateToken(Guid.NewGuid()));
+        var one = api.ClientWithToken(await api.CreateAccountTokenAsync());
+        var two = api.ClientWithToken(await api.CreateAccountTokenAsync());
 
         await one.PutAsJsonAsync("/profile", Valid());
 

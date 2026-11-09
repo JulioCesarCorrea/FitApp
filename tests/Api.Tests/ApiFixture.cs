@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using FitnessApp.Api.Domain.Auth;
 using FitnessApp.Api.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -98,6 +99,17 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key ?? JwtKey)), SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken("fitness-api", "fitness-app", claims, until.AddHours(-1), until, credentials);
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    /// <summary>Crea una cuenta mínima en la base y devuelve un token de acceso firmado para ella (la API rechaza tokens de cuentas inexistentes).</summary>
+    public async Task<string> CreateAccountTokenAsync()
+    {
+        var id = Guid.NewGuid();
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Users.Add(new AppUser { Id = id, Username = "t" + id.ToString("N")[..20], PasswordHash = "sin-uso", CreatedAt = DateTimeOffset.UtcNow });
+        await db.SaveChangesAsync();
+        return CreateToken(id);
     }
 
     public HttpClient ClientWithToken(string accessToken, WebApplicationFactory<Program>? factory = null)
