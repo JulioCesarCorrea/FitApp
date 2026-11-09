@@ -40,6 +40,9 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                     b.Property<bool>("MustChangePassword")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTimeOffset?>("PasswordChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(256)

@@ -66,6 +66,7 @@ public sealed class AdminCommands(AppDbContext db, PasswordService passwords, Ti
         var now = clock.GetUtcNow();
         user.PasswordHash = passwords.Hash(temporary);
         user.MustChangePassword = true;
+        user.PasswordChangedAt = now;
         user.FailedLogins = 0;
         user.LockedUntil = null;
         await db.SaveChangesAsync(ct);

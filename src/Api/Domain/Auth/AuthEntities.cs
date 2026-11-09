@@ -17,6 +17,9 @@ public class AppUser
     public int FailedLogins { get; set; }
 
     public DateTimeOffset? LockedUntil { get; set; }
+
+    /// <summary>Último cambio o restablecimiento de contraseña; los tokens de acceso emitidos antes dejan de servir (AC-auth-001-22).</summary>
+    public DateTimeOffset? PasswordChangedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 

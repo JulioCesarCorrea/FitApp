@@ -335,12 +335,79 @@ public sealed class AuthTests(ApiFixture api)
         var second = (await (await client.PostAsJsonAsync("/auth/refresh", new RefreshRequest(first.RefreshToken)))
             .Content.ReadFromJsonAsync<AuthResponse>())!;
 
+        await UseTokenLongAgo(first.RefreshToken); // fuera de la ventana de tolerancia (AC-21)
         var reuse = await client.PostAsJsonAsync("/auth/refresh", new RefreshRequest(first.RefreshToken));
         var latest = await client.PostAsJsonAsync("/auth/refresh", new RefreshRequest(second.RefreshToken));
 
         Assert.Equal(HttpStatusCode.Unauthorized, reuse.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, latest.StatusCode);
     }
+
+    // AC-21
+    [Fact]
+    public async Task AC_auth_001_21_reintentar_una_renovacion_recien_usada_responde_401_sin_revocar_las_demas()
+    {
+        var first = await Registered();
+        var client = api.CreateClient();
+        var second = (await (await client.PostAsJsonAsync("/auth/refresh", new RefreshRequest(first.RefreshToken)))
+            .Content.ReadFromJsonAsync<AuthResponse>())!;
+
+        var retry = await client.PostAsJsonAsync("/auth/refresh", new RefreshRequest(first.RefreshToken));
+        var latest = await client.PostAsJsonAsync("/auth/refresh", new RefreshRequest(second.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, retry.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, latest.StatusCode);
+    }
+
+    [Fact]
+    public async Task AC_auth_001_21_con_la_tolerancia_a_cero_el_reintento_revoca_las_vigentes()
+    {
+        var first = await Registered();
+        using var strict = api.WithAuth(("Auth:RefreshReuseGraceSeconds", "0"));
+        var client = strict.CreateClient();
+        var second = (await (await client.PostAsJsonAsync("/auth/refresh", new RefreshRequest(first.RefreshToken)))
+            .Content.ReadFromJsonAsync<AuthResponse>())!;
+
+        var retry = await client.PostAsJsonAsync("/auth/refresh", new RefreshRequest(first.RefreshToken));
+        var latest = await client.PostAsJsonAsync("/auth/refresh", new RefreshRequest(second.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, retry.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, latest.StatusCode);
+    }
+
+    // AC-22
+    [Fact]
+    public async Task AC_auth_001_22_tras_cambiar_la_contrasena_el_token_anterior_responde_401_y_el_nuevo_sirve()
+    {
+        var auth = await Registered();
+        await Task.Delay(1100); // el token lleva la hora en segundos
+        var response = await Bearer(auth.AccessToken).PostAsJsonAsync(
+            "/auth/change-password", new ChangePasswordRequest(Password, "contraseña-nueva-2"));
+        var renewed = (await response.Content.ReadFromJsonAsync<AuthResponse>())!;
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Bearer(auth.AccessToken).GetAsync("/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await Bearer(renewed.AccessToken).GetAsync("/auth/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task AC_auth_001_22_tras_un_reset_del_administrador_el_token_anterior_responde_401()
+    {
+        var name = NewName();
+        var auth = await Registered(name);
+        await Task.Delay(1100);
+        await using (var scope = api.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<AdminCommands>().ResetPasswordAsync(name, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Bearer(auth.AccessToken).GetAsync("/auth/me")).StatusCode);
+    }
+
+    private Task<int> UseTokenLongAgo(string rawRefreshToken) => InDb(async db =>
+    {
+        var hash = TokenService.Hash(rawRefreshToken);
+        await db.RefreshTokens.Where(t => t.TokenHash == hash)
+            .ExecuteUpdateAsync(x => x.SetProperty(t => t.UsedAt, DateTimeOffset.UtcNow.AddMinutes(-5)));
+        return 0;
+    });
 
     // AC-12
     [Fact]

@@ -170,6 +170,10 @@ public sealed class AuthHandler(
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAt, now), ct);
         if (claimed == 0)
         {
+            // Un reintento justo después del primer uso (respuesta perdida por la red) no es robo (AC-21).
+            var grace = TimeSpan.FromSeconds(options.Value.RefreshReuseGraceSeconds);
+            if (now - (token.UsedAt ?? now) <= grace) return null;
+
             await RevokeAllAsync(token.UserId, ct);
             return null;
         }
@@ -200,6 +204,7 @@ public sealed class AuthHandler(
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         user.PasswordHash = passwords.Hash(request.NewPassword);
         user.MustChangePassword = false;
+        user.PasswordChangedAt = clock.GetUtcNow();
         user.FailedLogins = 0;
         user.LockedUntil = null;
         await db.SaveChangesAsync(ct);

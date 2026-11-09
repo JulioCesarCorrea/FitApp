@@ -24,6 +24,9 @@ public sealed class AuthOptions
     public int RefreshTokenDays { get; set; } = 90;
     public int RateLimitPerMinute { get; set; } = 20;
 
+    /// <summary>Segundos tras usar un token de renovación en que reintentarlo no cuenta como robo (AC-auth-001-21). 0 lo desactiva.</summary>
+    public int RefreshReuseGraceSeconds { get; set; } = 10;
+
     /// <summary>Acepta el encabezado X-User-Id. Solo en desarrollo y pruebas; nunca en producción.</summary>
     public bool DevHeader { get; set; }
 }
@@ -111,6 +114,7 @@ public sealed class TokenService(IOptions<AuthOptions> options, JwtKeyProvider k
             Issuer = AuthOptions.Issuer,
             Audience = AuthOptions.Audience,
             Subject = new ClaimsIdentity(claims),
+            IssuedAt = now.UtcDateTime,
             NotBefore = now.UtcDateTime,
             Expires = now.AddMinutes(minutes).UtcDateTime,
             SigningCredentials = new SigningCredentials(keys.SigningKey, SecurityAlgorithms.HmacSha256),
