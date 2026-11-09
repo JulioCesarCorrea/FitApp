@@ -52,6 +52,21 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             IssuerSigningKey = keys.SigningKey,
             ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
         };
+        // Un token emitido antes del último cambio de contraseña ya no sirve (AC-auth-001-22).
+        o.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                if (!Guid.TryParse(context.Principal?.FindFirst("sub")?.Value, out var userId)) return;
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var changedAt = await db.Users.AsNoTracking().Where(u => u.Id == userId)
+                    .Select(u => u.PasswordChangedAt).FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+                if (changedAt is null) return;
+
+                var issuedAt = long.TryParse(context.Principal?.FindFirst("iat")?.Value, out var iat) ? iat : 0;
+                if (issuedAt < changedAt.Value.ToUnixTimeSeconds()) context.Fail("Token anterior al cambio de contraseña.");
+            },
+        };
     });
 
 // Límite de peticiones solo para /auth/* (AC-auth-001-08). Detrás de un proxy habrá que configurar los encabezados reenviados.
