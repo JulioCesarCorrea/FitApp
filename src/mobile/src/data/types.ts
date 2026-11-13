@@ -129,6 +129,102 @@ export interface RestrictionItem {
   reviewOn: string | null;
 }
 
+// ---- Nutrición (SPEC-nutrition-001) ----
+
+/** Alimento propio con sus valores por 100 g. `pendingOp` dice qué falta enviar; `attempted`, si ya se intentó. */
+export interface LocalFood {
+  id: string;
+  name: string;
+  brand: string | null;
+  barcode: string | null;
+  kcalPer100g: number;
+  proteinPer100g: number;
+  fatPer100g: number;
+  carbsPer100g: number;
+  source: 'manual' | 'openfoodfacts';
+  status: SyncStatus;
+  message: string | null;
+  pendingOp: 'upsert' | 'delete' | null;
+  attempted: boolean;
+}
+
+/** Lo comido: copia el nombre y los valores de la cantidad, como la API. */
+export interface LocalFoodEntry {
+  id: string;
+  /** Día local, AAAA-MM-DD. */
+  date: string;
+  /** desayuno, almuerzo, cena, snack o un nombre libre. */
+  meal: string;
+  foodId: string | null;
+  grams: number;
+  name: string;
+  kcal: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+  status: SyncStatus;
+  message: string | null;
+  pendingOp: 'upsert' | 'delete' | null;
+  attempted: boolean;
+}
+
+export type ServerFood = Pick<
+  LocalFood,
+  'id' | 'name' | 'brand' | 'barcode' | 'kcalPer100g' | 'proteinPer100g' | 'fatPer100g' | 'carbsPer100g' | 'source'
+>;
+
+export type ServerFoodEntry = Pick<
+  LocalFoodEntry,
+  'id' | 'date' | 'meal' | 'foodId' | 'grams' | 'name' | 'kcal' | 'proteinG' | 'fatG' | 'carbsG'
+>;
+
+/** Objetivo diario que calcula la API. */
+export interface NutritionTarget {
+  calories: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+  basalKcal: number;
+  weightKg: number;
+  weightDate: string;
+}
+
+export type TargetsResponse = { kind: 'ok'; target: NutritionTarget } | { kind: 'missing'; what: 'perfil' | 'peso' };
+
+/** Parte de la API de nutrición; aparte de RemoteApi para no tocar los demás módulos. */
+export interface NutritionApi {
+  fetchTargets(): Promise<TargetsResponse | null>; // null = sin conexión o error
+  fetchFoods(): Promise<ServerFood[] | null>;
+  putFood(food: ServerFood): Promise<PutLogResult>;
+  deleteFood(id: string): Promise<'ok' | 'retry'>;
+  /** Las entradas del día, ya sin agrupar. */
+  fetchDayEntries(date: string): Promise<ServerFoodEntry[] | null>;
+  putFoodEntry(entry: Pick<ServerFoodEntry, 'id' | 'date' | 'meal' | 'foodId' | 'grams'>): Promise<PutLogResult>;
+  deleteFoodEntry(id: string): Promise<'ok' | 'retry'>;
+}
+
+/** Producto que devuelve Open Food Facts, con lo que se pudo leer. Los valores son por 100 g. */
+export interface ScannedProduct {
+  barcode: string;
+  name: string | null;
+  brand: string | null;
+  kcalPer100g: number | null;
+  proteinPer100g: number | null;
+  fatPer100g: number | null;
+  carbsPer100g: number | null;
+}
+
+/** AC-nutrition-001-17: completo, incompleto (falta algún valor), desconocido o sin conexión. */
+export type ProductLookupResult =
+  | { kind: 'found'; product: ScannedProduct }
+  | { kind: 'incomplete'; product: ScannedProduct }
+  | { kind: 'notFound' }
+  | { kind: 'offline' };
+
+export interface ProductLookup {
+  lookup(barcode: string): Promise<ProductLookupResult>;
+}
+
 /** Almacén local (SQLite en la app, memoria en las pruebas). */
 export interface LocalStore {
   getCatalog(): Promise<CatalogSection[] | null>;
@@ -159,6 +255,22 @@ export interface LocalStore {
   /** Guarda el perfil y lo deja `pending`. */
   saveProfile(profile: LocalProfile): Promise<void>;
   setProfileStatus(status: SyncStatus, message: string | null): Promise<void>;
+
+  getFoods(): Promise<LocalFood[]>;
+  getFood(id: string): Promise<LocalFood | null>;
+  saveFood(food: LocalFood): Promise<void>;
+  deleteFood(id: string): Promise<void>;
+  /** Sustituye los alimentos ya sincronizados por lo que dice el servidor; conserva los que esperan envío. */
+  replaceSyncedFoods(foods: ServerFood[]): Promise<void>;
+  /** Todas las entradas del día, también las que esperan borrarse. */
+  getFoodEntries(date: string): Promise<LocalFoodEntry[]>;
+  getFoodEntry(id: string): Promise<LocalFoodEntry | null>;
+  saveFoodEntry(entry: LocalFoodEntry): Promise<void>;
+  deleteFoodEntry(id: string): Promise<void>;
+  /** Alimentos y entradas con algo por enviar (guardar o borrar) que no están rechazados. */
+  getPendingNutrition(): Promise<{ foods: LocalFood[]; entries: LocalFoodEntry[] }>;
+  /** Sustituye las entradas ya sincronizadas del día por lo que dice el servidor; conserva las pendientes. */
+  replaceSyncedFoodEntries(date: string, entries: ServerFoodEntry[]): Promise<void>;
 
   /**
    * AC-mobile-004-07 y 08: borra los datos de la cuenta (rutina, equipo, registros, cola de pesos, umbral y de quién son).

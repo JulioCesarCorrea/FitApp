@@ -6,11 +6,15 @@ import {
   type EquipmentProfile,
   type EquipmentState,
   type LocalExerciseLog,
+  type LocalFood,
+  type LocalFoodEntry,
   type LocalPlanEntry,
   type LocalProfile,
   type LocalStore,
   type ProfileState,
   type ServerExerciseLog,
+  type ServerFood,
+  type ServerFoodEntry,
   type SyncStatus,
 } from './types';
 
@@ -21,6 +25,8 @@ export class MemoryStore implements LocalStore {
   private equipment: EquipmentState = { profile: null, status: 'synced', message: null };
   private settings = new Map<string, string>();
   private logs = new Map<string, LocalExerciseLog>();
+  private foods = new Map<string, LocalFood>();
+  private foodEntries = new Map<string, LocalFoodEntry>();
   private profile: ProfileState = { profile: null, status: 'synced', message: null };
 
   /** Los pesos viven en otra tabla (db.ts); las pruebas fijan aquí cuántos hay pendientes. */
@@ -107,21 +113,83 @@ export class MemoryStore implements LocalStore {
     this.profile = { ...this.profile, status, message };
   }
 
+  async getFoods() {
+    return [...this.foods.values()].map((f) => ({ ...f }));
+  }
+
+  async getFood(id: string) {
+    const f = this.foods.get(id);
+    return f ? { ...f } : null;
+  }
+
+  async saveFood(food: LocalFood) {
+    this.foods.set(food.id, { ...food });
+  }
+
+  async deleteFood(id: string) {
+    this.foods.delete(id);
+  }
+
+  async replaceSyncedFoods(foods: ServerFood[]) {
+    for (const [id, f] of this.foods) if (f.pendingOp === null && f.status === 'synced') this.foods.delete(id);
+    for (const f of foods) {
+      if (this.foods.get(f.id)?.pendingOp) continue; // lo que espera envío manda sobre el servidor
+      this.foods.set(f.id, { ...f, status: 'synced', message: null, pendingOp: null, attempted: true });
+    }
+  }
+
+  async getFoodEntries(date: string) {
+    return [...this.foodEntries.values()].filter((e) => e.date === date).map((e) => ({ ...e }));
+  }
+
+  async getFoodEntry(id: string) {
+    const e = this.foodEntries.get(id);
+    return e ? { ...e } : null;
+  }
+
+  async saveFoodEntry(entry: LocalFoodEntry) {
+    this.foodEntries.set(entry.id, { ...entry });
+  }
+
+  async deleteFoodEntry(id: string) {
+    this.foodEntries.delete(id);
+  }
+
+  async getPendingNutrition() {
+    const pending = <T extends { pendingOp: string | null; status: SyncStatus }>(x: T) => x.pendingOp !== null && x.status === 'pending';
+    return {
+      foods: [...this.foods.values()].filter(pending).map((f) => ({ ...f })),
+      entries: [...this.foodEntries.values()].filter(pending).map((e) => ({ ...e })),
+    };
+  }
+
+  async replaceSyncedFoodEntries(date: string, entries: ServerFoodEntry[]) {
+    for (const [id, e] of this.foodEntries) if (e.date === date && e.pendingOp === null && e.status === 'synced') this.foodEntries.delete(id);
+    for (const e of entries) {
+      if (this.foodEntries.get(e.id)?.pendingOp) continue;
+      this.foodEntries.set(e.id, { ...e, status: 'synced', message: null, pendingOp: null, attempted: true });
+    }
+  }
+
   async clearUserData() {
     this.profile = { profile: null, status: 'synced', message: null };
+    this.foods.clear();
+    this.foodEntries.clear();
     this.days.clear();
     this.equipment = { profile: null, status: 'synced', message: null };
     this.logs.clear();
     this.pendingWeights = 0;
     for (const key of [...this.settings.keys()]) {
-      if (key.startsWith('stagnation') || key === 'localUserId') this.settings.delete(key);
+      if (key.startsWith('stagnation') || key.startsWith('nutrition') || key === 'localUserId') this.settings.delete(key);
     }
   }
 
   async countPendingChanges() {
     const days = [...this.days.values()].filter((d) => d.status === 'pending' || d.status === 'needs_confirmation').length;
     const equipment = this.equipment.profile !== null && this.equipment.status === 'pending' ? 1 : 0;
-    const logs = [...this.logs.values()].filter((l) => l.pendingOp !== null && l.status === 'pending').length;
+    const logs = [...this.logs.values()].filter((l) => l.pendingOp !== null && l.status === 'pending').length
+      + [...this.foods.values()].filter((f) => f.pendingOp !== null && f.status === 'pending').length
+      + [...this.foodEntries.values()].filter((e) => e.pendingOp !== null && e.status === 'pending').length;
     const threshold = this.settings.get('stagnationThresholdStatus') === 'pending' ? 1 : 0;
     const profile = this.profile.profile !== null && this.profile.status === 'pending' ? 1 : 0;
     return days + equipment + logs + threshold + profile + this.pendingWeights;

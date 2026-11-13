@@ -79,6 +79,7 @@ function Navigation() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="exercise/[id]" options={{ title: 'Ejercicio', presentation: 'modal' }} />
           <Stack.Screen name="session/[exerciseId]" options={{ title: 'Registrar sesión', presentation: 'modal' }} />
+          <Stack.Screen name="food/add" options={{ title: 'Añadir alimento', presentation: 'modal' }} />
           <Stack.Screen name="profile" options={{ title: 'Mi perfil' }} />
           <Stack.Screen name="restrictions" options={{ title: 'Mis restricciones' }} />
         </Stack.Protected>

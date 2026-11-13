@@ -4,6 +4,7 @@ import { useDeps } from './DataContext';
 import type { AuthState } from './authService';
 import type { ProfileGate } from './profileService';
 import type { SessionAdvice } from './sessionService';
+import type { DayView } from './nutritionService';
 import type { SuggestionsResult } from './suggestionService';
 import type { CatalogExercise, CatalogSection, DayState, EquipmentState, LocalExerciseLog } from './types';
 
@@ -60,6 +61,17 @@ export function useSuggestions() {
 
   useFocusEffect(useCallback(() => { void reload(); }, [reload]));
   return { state, reload };
+}
+
+/** El día de nutrición (SPEC-nutrition-001): lo del teléfono al instante y, con conexión, lo del servidor después. */
+export function useNutritionDay(date: string) {
+  const { nutrition } = useDeps();
+  const [view, setView] = useState<DayView | null>(null);
+
+  const reload = useCallback(async () => setView(await nutrition.loadDay(date)), [nutrition, date]);
+
+  useFocusEffect(useCallback(() => { void reload(); }, [reload]));
+  return { view, reload };
 }
 
 export function useEquipment() {
