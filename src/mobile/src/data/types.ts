@@ -215,3 +215,29 @@ export interface RemoteApi {
   putTrainingSettings(stagnationThreshold: number): Promise<PutLogResult>;
   imageUrl(path: string): string;
 }
+
+/** Alternativa para sustituir un ejercicio (SPEC-training-005). */
+export interface SuggestionAlternative {
+  exerciseId: string;
+  name: string;
+}
+
+/** Sugerencia que calcula la API. `kind`: ejercicio-estancado, metodo, dia-omitido, recuperacion-corta, restriccion-revision o restriccion-choque. */
+export interface Suggestion {
+  key: string;
+  kind: string;
+  exerciseId: string | null;
+  day: string | null;
+  message: string;
+  alternatives: SuggestionAlternative[] | null;
+}
+
+export type AcceptSuggestionResult = { kind: 'ok' } | { kind: 'rejected'; reason: string } | { kind: 'retry' };
+
+/** Parte de la API de las sugerencias; aparte de RemoteApi porque necesita conexión y no tiene cola local. */
+export interface SuggestionsApi {
+  fetchSuggestions(): Promise<Suggestion[] | null>; // null = sin conexión o error
+  acceptSuggestion(key: string, replacementExerciseId: string): Promise<AcceptSuggestionResult>;
+  dismissSuggestion(key: string): Promise<'ok' | 'retry'>;
+}
+

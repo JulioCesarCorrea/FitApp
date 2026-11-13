@@ -11,6 +11,7 @@ import { RestrictionService } from './restrictionService';
 import { SecureTokenStore } from './secureTokenStore';
 import { SessionService, todayLocal } from './sessionService';
 import { SqliteStore } from './sqliteStore';
+import { SuggestionService } from './suggestionService';
 import type { LocalStore, RemoteApi } from './types';
 
 export interface Deps {
@@ -21,6 +22,7 @@ export interface Deps {
   auth: AuthService;
   profile: ProfileService;
   restrictions: RestrictionService;
+  suggestions: SuggestionService;
 }
 
 /** Dependencias reales de la app: SQLite local, API por HTTP y UUID generado en el dispositivo. */
@@ -36,13 +38,15 @@ export async function createDeps(): Promise<Deps> {
     await weights.add(weightKg);
     await syncPending(weights, postWeight).catch(() => {});
   };
+  const service = new PlanService(store, remote, newId);
   return {
     store,
     remote,
-    service: new PlanService(store, remote, newId),
+    service,
     sessions: new SessionService(store, remote, newId),
     auth,
     profile: new ProfileService(store, remote, addWeight),
     restrictions: new RestrictionService(remote, newId, () => todayLocal()),
+    suggestions: new SuggestionService(remote, service),
   };
 }

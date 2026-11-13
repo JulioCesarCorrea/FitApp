@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SuggestionsPanel } from '../../components/SuggestionsPanel';
 import { Body, Button, Muted, Title } from '../../components/ui';
 import { useDeps } from '../../data/DataContext';
 import { describeSyncReport } from '../../data/format';
@@ -37,6 +38,8 @@ export default function RoutineScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      <SuggestionsPanel onPlanChanged={() => void reload()} />
+
       {days.length === 0 && (
         <Muted>Aún no tienes ejercicios en tu rutina. Añádelos desde el catálogo.</Muted>
       )}
