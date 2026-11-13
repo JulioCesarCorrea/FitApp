@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { describeSyncReport } from './format';
 import { MemoryStore } from './memoryStore';
 import { SessionService, parseDraft, type RawLogInput } from './sessionService';
+import { formatLogLine } from './format';
 import type {
   CatalogExercise, EquipmentProfile, LocalExerciseLog, PutLogResult, RemoteApi, ServerExerciseLog,
 } from './types';
@@ -62,6 +63,7 @@ function fakeRemote(): Fake {
       r.server.set(log.id, {
         id: log.id, exerciseId: log.exerciseId, date: log.date, loadKg: log.loadKg,
         firstSetReps: log.firstSetReps, secondSetReps: log.secondSetReps, secondSetAssistedReps: log.secondSetAssistedReps,
+        methodology: log.methodology, repsPerSet: log.repsPerSet,
       });
       return { kind: 'ok' };
     },
@@ -691,5 +693,190 @@ describe('informe de «Sincronizar ahora» (AC-mobile-003-16)', () => {
     [{ sent: 2, pending: 1 }, 'Se enviaron 2 registros de sesiones; sin conexión con el servidor, queda 1 registro de sesión pendiente.'],
   ])('AC-mobile-003-16 el texto del informe %j', (report, text) => {
     expect(describeSyncReport(report)).toBe(text);
+  });
+});
+
+// ---- Metodología «normal» 4×15 (SPEC-training-004) ----
+
+const NORMAL = 'normal_4x15';
+
+const rawNormal = (reps: string[] = ['15', '14', '13', '12'], over: Partial<RawLogInput> = {}): RawLogInput => ({
+  date: '2026-10-29', load: '22.5', first: '', second: '', assisted: '', reps, ...over,
+});
+
+const profileWith = (methodology: string) => ({
+  displayName: 'Julio', sex: 'masculino' as const, birthDate: '1995-05-20', heightCm: 178, goal: 'mantener' as const,
+  activityLevel: 'ligero' as const, experienceLevel: null, daysPerWeek: null, methodology, allergies: [],
+});
+
+/** Registros 4×15 ya sincronizados, uno por semana, del más antiguo al más reciente. */
+async function seedNormal(rows: { load: number; reps: number[] }[], e = DUMBBELL, firstWeek = 0) {
+  for (const [i, r] of rows.entries()) {
+    const date = new Date(Date.UTC(2026, 8, 1 + 7 * (firstWeek + i))).toISOString().slice(0, 10);
+    const log = seed({
+      id: `normal-${e.id}-${firstWeek + i}`, exerciseId: e.id, date, loadKg: r.load,
+      firstSetReps: r.reps[0], secondSetReps: r.reps[3], secondSetAssistedReps: 0, methodology: NORMAL, repsPerSet: r.reps,
+    });
+    await store.saveLog(log);
+    remote.server.set(log.id, {
+      id: log.id, exerciseId: log.exerciseId, date: log.date, loadKg: log.loadKg, firstSetReps: log.firstSetReps,
+      secondSetReps: log.secondSetReps, secondSetAssistedReps: 0, methodology: NORMAL, repsPerSet: r.reps,
+    });
+  }
+}
+
+describe('registrar 4×15 (AC-training-004-03, 12, 13)', () => {
+  it('AC-training-004-12 con el perfil en 4×15 guarda las 4 series y las envía sin los campos de Heavy Duty', async () => {
+    await store.saveProfile(profileWith(NORMAL));
+
+    const result = await service.save(DUMBBELL, rawNormal());
+
+    expect(result.ok).toBe(true);
+    const saved = (await store.getLogs(DUMBBELL.id))[0];
+    expect(saved).toMatchObject({ methodology: NORMAL, repsPerSet: [15, 14, 13, 12], secondSetAssistedReps: 0, status: 'synced' });
+    expect(remote.server.get(saved.id)?.repsPerSet).toEqual([15, 14, 13, 12]);
+  });
+
+  it.each([
+    [['15', '15', '15'], 'faltan series'],
+    [['16', '15', '15', '15'], 'la serie 1 pasa de 15'],
+    [['15', '0', '15', '15'], 'una serie intermedia en 0'],
+    [['15', '15', '15', '0'], 'la serie 4 en 0'],
+    [['15', '15', '15', '51'], 'la serie 4 pasa de 50'],
+    [['15', 'x', '15', '15'], 'texto en una serie'],
+  ])('AC-training-004-03 rechaza %j (%s) sin guardar nada', async (reps) => {
+    await store.saveProfile(profileWith(NORMAL));
+
+    const result = await service.save(DUMBBELL, rawNormal(reps));
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? [] : result.issues.map((i) => i.field)).toContain('reps');
+    expect(await store.getLogs(DUMBBELL.id)).toEqual([]);
+  });
+
+  it('AC-training-004-03 la serie 4 al fallo admite más de 15 y el peso corporal admite carga 0', async () => {
+    await store.saveProfile(profileWith(NORMAL));
+
+    expect((await service.save(DUMBBELL, rawNormal(['15', '15', '15', '30']))).ok).toBe(true);
+    expect((await service.save(BODYWEIGHT, rawNormal(['15', '15', '15', '15'], { load: '' }))).ok).toBe(true);
+  });
+
+  it('AC-training-004-12 sin perfil o con Heavy Duty el formulario sigue siendo el de dos series', async () => {
+    expect(await service.methodologyFor()).toBe('heavy_duty_personalizado');
+    await store.saveProfile(profileWith('heavy_duty_personalizado'));
+    expect(await service.methodologyFor()).toBe('heavy_duty_personalizado');
+    await store.saveProfile(profileWith(NORMAL));
+    expect(await service.methodologyFor()).toBe(NORMAL);
+  });
+
+  it('AC-training-004-12 al editar un registro se conserva su metodología aunque el perfil cambie', async () => {
+    const saved = await service.save(DUMBBELL, raw());
+    if (!saved.ok) throw new Error('no se guardó');
+    await store.saveProfile(profileWith(NORMAL));
+
+    expect(await service.methodologyFor(saved.log.id)).toBe('heavy_duty_personalizado');
+  });
+
+  it('AC-training-004-13 sin conexión queda pendiente y al volver la red se envía una sola vez con el mismo id', async () => {
+    await store.saveProfile(profileWith(NORMAL));
+    remote.online = false;
+
+    const result = await service.save(DUMBBELL, rawNormal());
+    if (!result.ok) throw new Error('no se guardó');
+    expect(result.log.status).toBe('pending');
+
+    remote.online = true;
+    await service.syncPending();
+    await service.syncPending();
+
+    expect(remote.calls.filter((c) => c === `put:${result.log.id}`)).toHaveLength(1);
+    expect(remote.server.get(result.log.id)?.methodology).toBe(NORMAL);
+  });
+
+  it('AC-training-004-12 la línea del historial muestra las 4 series', () => {
+    expect(formatLogLine({ loadKg: 22.5, firstSetReps: 15, secondSetReps: 12, secondSetAssistedReps: 0, repsPerSet: [15, 14, 13, 12] }))
+      .toBe('22.5 kg · Series: 15 / 14 / 13 / 12');
+  });
+
+  it('AC-training-004-04 un registro sin metodología se trata como Heavy Duty', () => {
+    const parsed = parseDraft(DUMBBELL, raw(), TODAY);
+
+    expect(parsed.ok && parsed.draft.methodology).toBe('heavy_duty_personalizado');
+    expect(parsed.ok && parsed.draft.repsPerSet).toBeNull();
+  });
+});
+
+describe('consejo y estancamiento 4×15 (AC-training-004-05, 06, 07, 08, 13)', () => {
+  it('AC-training-004-05 sube con las cuatro series en 15 o más, sin conexión', async () => {
+    remote.online = false;
+    await store.saveProfile(profileWith(NORMAL));
+    await service.save(DUMBBELL, rawNormal(['15', '15', '15', '18'], { load: '22.5' }));
+
+    const advice = await service.getAdvice(DUMBBELL);
+
+    expect(advice?.methodology).toBe(NORMAL);
+    expect(advice?.advice).toEqual({ action: 'subir', nextLoadKg: 25, missingLoadData: false });
+    expect(advice?.firstSetEvaluation).toBe('techo');
+  });
+
+  it('AC-training-004-05 mantiene si una serie no llega a 15 y avisa si falta la carga superior', async () => {
+    await seedNormal([{ load: 22.5, reps: [15, 15, 15, 14] }]);
+    expect((await service.getAdvice(DUMBBELL))?.advice.action).toBe('mantener');
+
+    await store.clearUserData();
+    await store.saveEquipment(PROFILE);
+    await seedNormal([{ load: 25, reps: [15, 15, 15, 15] }]);
+    expect((await service.getAdvice(DUMBBELL))?.advice).toEqual({ action: 'mantener', nextLoadKg: 25, missingLoadData: true });
+  });
+
+  it.each([
+    [10, 'por_debajo'], [12, 'en_banda'], [14, 'en_banda'], [15, 'techo'],
+  ])('AC-training-004-06 la serie 1 con %i repeticiones es %s', async (first, expected) => {
+    await seedNormal([{ load: 22.5, reps: [first, 10, 10, 10] }]);
+
+    expect((await service.getAdvice(DUMBBELL))?.firstSetEvaluation).toBe(expected);
+  });
+
+  it('AC-training-004-07 avisa tras 3 sesiones sin mejorar y bajar de carga reinicia la racha', async () => {
+    const same = { load: 22.5, reps: [12, 12, 12, 10] };
+    await seedNormal([same, same, same, same]);
+    expect((await service.getAdvice(DUMBBELL))?.stagnation).toMatchObject({ isStagnant: true, sessionsWithoutProgress: 3 });
+
+    await seedNormal([{ load: 20, reps: [12, 12, 12, 10] }], DUMBBELL, 4);
+    expect((await service.getAdvice(DUMBBELL))?.stagnation).toMatchObject({ isStagnant: false, sessionsWithoutProgress: 0 });
+  });
+
+  it('AC-training-004-08 el consejo sale del último registro y el estancamiento solo cuenta su metodología', async () => {
+    await seedHistory([
+      { load: 22.5, first: 9, second: 5 }, { load: 22.5, first: 9, second: 5 },
+      { load: 22.5, first: 9, second: 5 }, { load: 22.5, first: 9, second: 5 },
+    ]);
+    await seedNormal([{ load: 22.5, reps: [15, 15, 15, 15] }], DUMBBELL, 4);
+
+    const advice = await service.getAdvice(DUMBBELL);
+
+    expect(advice?.methodology).toBe(NORMAL);
+    expect(advice?.advice.action).toBe('subir');
+    expect(advice?.stagnation.isStagnant).toBe(false);
+  });
+
+  it('AC-training-004-08 si el último registro es de Heavy Duty se usan sus reglas', async () => {
+    await seedNormal([{ load: 22.5, reps: [15, 15, 15, 15] }]);
+    // El de Heavy Duty es el más reciente por fecha.
+    const hd = seed({ id: 'hd-last', date: '2026-10-20' });
+    await store.saveLog(hd);
+
+    const advice = await service.getAdvice(DUMBBELL);
+
+    expect(advice?.methodology).toBe('heavy_duty_personalizado');
+    expect(advice?.firstSetEvaluation).toBe('meta_alcanzada');
+  });
+
+  it('AC-training-004-08 el historial del servidor conserva la metodología de cada registro', async () => {
+    await seedNormal([{ load: 22.5, reps: [12, 12, 12, 10] }]);
+
+    const history = await service.loadHistory(DUMBBELL.id);
+
+    expect(history[0]).toMatchObject({ methodology: NORMAL, repsPerSet: [12, 12, 12, 10] });
   });
 });

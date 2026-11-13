@@ -1,6 +1,6 @@
 // Migraciones de fitness.db. Sin dependencias de React Native: se prueban en Node con una base simulada.
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** Lo mínimo que necesitamos de expo-sqlite para migrar. */
 export interface MigrationDb {
@@ -80,6 +80,22 @@ const V4 = `
   );
 `;
 
+// SPEC-training-004: metodología de cada registro y, en 4×15, las repeticiones de las 4 series (JSON). Los registros
+// anteriores quedan como Heavy Duty. ALTER TABLE no admite IF NOT EXISTS: se comprueba antes si la columna existe.
+const V5_COLUMNS: [string, string][] = [
+  ['methodology', "TEXT NOT NULL DEFAULT 'heavy_duty_personalizado'"],
+  ['reps_per_set', 'TEXT'],
+];
+
+async function addMissingColumns(db: MigrationDb): Promise<void> {
+  for (const [name, definition] of V5_COLUMNS) {
+    const found = await db.getFirstAsync<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM pragma_table_info('exercise_logs_local') WHERE name = '${name}'`,
+    );
+    if (!found?.n) await db.execAsync(`ALTER TABLE exercise_logs_local ADD COLUMN ${name} ${definition}`);
+  }
+}
+
 export async function migrate(db: MigrationDb): Promise<void> {
   const current = (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version ?? 0;
 
@@ -87,6 +103,7 @@ export async function migrate(db: MigrationDb): Promise<void> {
   if (current < 2) await db.execAsync(V2);
   if (current < 3) await db.execAsync(V3);
   if (current < 4) await db.execAsync(V4);
+  if (current < 5) await addMissingColumns(db);
 
   // Nunca se baja la versión: solo se sube cuando se aplicó algo.
   if (current < SCHEMA_VERSION) await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);

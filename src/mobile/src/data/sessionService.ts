@@ -2,9 +2,17 @@ import { parseKg } from './format';
 import {
   CEILING_REPS,
   DEFAULT_THRESHOLD,
+  HEAVY_DUTY_METHODOLOGY,
+  NORMAL_MAX_FAILURE_REPS,
+  NORMAL_METHODOLOGY,
+  NORMAL_SETS,
+  NORMAL_TARGET_REPS,
   advise,
+  adviseNormal,
   checkStagnation,
+  checkStagnationNormal,
   evaluateFirstSet,
+  evaluateFirstSetNormal,
   loadsFor,
   type FirstSetEvaluation,
   type LoadAdvice,
@@ -27,6 +35,8 @@ export interface RawLogInput {
   first: string;
   second: string;
   assisted: string;
+  /** Solo 4×15 (SPEC-training-004): las repeticiones de las 4 series. */
+  reps?: string[];
 }
 
 export interface LogDraft {
@@ -36,10 +46,13 @@ export interface LogDraft {
   firstSetReps: number;
   secondSetReps: number;
   secondSetAssistedReps: number;
+  methodology: string;
+  /** Solo 4×15. */
+  repsPerSet: number[] | null;
 }
 
 export interface LogIssue {
-  field: 'date' | 'load' | 'first' | 'second' | 'assisted';
+  field: 'date' | 'load' | 'first' | 'second' | 'assisted' | 'reps';
   message: string;
 }
 
@@ -50,6 +63,8 @@ export type SaveResult =
   | { ok: false; issues: LogIssue[]; /** Registro del mismo ejercicio y fecha, para ofrecer editarlo. */ duplicateOf?: string };
 
 export interface SessionAdvice {
+  /** Metodología del último registro: de ella salen las reglas del consejo. */
+  methodology: string;
   advice: LoadAdvice;
   firstSetEvaluation: FirstSetEvaluation;
   stagnation: StagnationResult;
@@ -99,7 +114,9 @@ function parseInteger(text: string): number | null {
  * Valida el formulario con los mismos límites que la API (SPEC-training-003, AC-03 y AC-05).
  * En peso corporal la carga es el lastre: puede ser 0 o quedar vacía.
  */
-export function parseDraft(exercise: CatalogExercise, raw: RawLogInput, today: string): ParseResult {
+export function parseDraft(
+  exercise: CatalogExercise, raw: RawLogInput, today: string, methodology: string = HEAVY_DUTY_METHODOLOGY,
+): ParseResult {
   const issues: LogIssue[] = [];
   const bodyweight = exercise.equipment === 'PesoCorporal';
 
@@ -125,6 +142,34 @@ export function parseDraft(exercise: CatalogExercise, raw: RawLogInput, today: s
     }
   }
 
+  if (methodology === NORMAL_METHODOLOGY) {
+    // Cuatro series: las tres primeras hasta 15 y la 4.ª al fallo propio (SPEC-training-004, AC-03).
+    const reps = Array.from({ length: NORMAL_SETS }, (_, i) => parseInteger(raw.reps?.[i] ?? ''));
+    reps.forEach((r, i) => {
+      const last = i === NORMAL_SETS - 1;
+      const max = last ? NORMAL_MAX_FAILURE_REPS : NORMAL_TARGET_REPS;
+      if (r === null || !Number.isInteger(r) || r < 1 || r > max) {
+        issues.push({
+          field: 'reps',
+          message: last
+            ? `La serie ${i + 1} (al fallo) lleva entre 1 y ${max} repeticiones.`
+            : `La serie ${i + 1} lleva entre 1 y ${max} repeticiones.`,
+        });
+      }
+    });
+    if (issues.length > 0) return { ok: false, issues };
+
+    const repsPerSet = reps as number[];
+    return {
+      ok: true,
+      draft: {
+        exerciseId: exercise.id, date, loadKg,
+        firstSetReps: repsPerSet[0], secondSetReps: repsPerSet[NORMAL_SETS - 1], secondSetAssistedReps: 0,
+        methodology: NORMAL_METHODOLOGY, repsPerSet,
+      },
+    };
+  }
+
   const first = parseInteger(raw.first);
   if (first === null || !Number.isInteger(first) || first < 1 || first > CEILING_REPS) {
     issues.push({ field: 'first', message: `La serie 1 lleva entre 1 y ${CEILING_REPS} repeticiones.` });
@@ -146,6 +191,7 @@ export function parseDraft(exercise: CatalogExercise, raw: RawLogInput, today: s
     draft: {
       exerciseId: exercise.id, date, loadKg,
       firstSetReps: first as number, secondSetReps: second as number, secondSetAssistedReps: assisted,
+      methodology: HEAVY_DUTY_METHODOLOGY, repsPerSet: null,
     },
   };
 }
@@ -153,7 +199,11 @@ export function parseDraft(exercise: CatalogExercise, raw: RawLogInput, today: s
 const toServer = (l: LocalExerciseLog): ServerExerciseLog => ({
   id: l.id, exerciseId: l.exerciseId, date: l.date, loadKg: l.loadKg,
   firstSetReps: l.firstSetReps, secondSetReps: l.secondSetReps, secondSetAssistedReps: l.secondSetAssistedReps,
+  methodology: l.methodology ?? HEAVY_DUTY_METHODOLOGY, repsPerSet: l.repsPerSet ?? null,
 });
+
+/** Metodología de un registro; los anteriores a SPEC-training-004 son de Heavy Duty. */
+export const methodologyOf = (l: Pick<LocalExerciseLog, 'methodology'>): string => l.methodology ?? HEAVY_DUTY_METHODOLOGY;
 
 const sameData = (a: LocalExerciseLog, b: LocalExerciseLog): boolean =>
   JSON.stringify(toServer(a)) === JSON.stringify(toServer(b));
@@ -175,9 +225,21 @@ export class SessionService {
     private readonly today: () => string = () => todayLocal(),
   ) {}
 
+  /**
+   * Metodología con la que se registra: la del registro que se edita o, en uno nuevo, la del perfil
+   * (AC-training-004-12). Sin perfil, Heavy Duty.
+   */
+  async methodologyFor(existingId?: string): Promise<string> {
+    if (existingId) {
+      const existing = await this.store.getLog(existingId);
+      if (existing) return methodologyOf(existing);
+    }
+    return (await this.store.getProfile()).profile?.methodology ?? HEAVY_DUTY_METHODOLOGY;
+  }
+
   /** AC-mobile-003-01, 02, 04, 08: crea el registro, o reemplaza el que tiene `existingId`, y lo intenta enviar. */
   async save(exercise: CatalogExercise, raw: RawLogInput, existingId?: string): Promise<SaveResult> {
-    const parsed = parseDraft(exercise, raw, this.today());
+    const parsed = parseDraft(exercise, raw, this.today(), await this.methodologyFor(existingId));
     if (!parsed.ok) return { ok: false, issues: parsed.issues };
 
     const rows = await this.store.getLogs(exercise.id);
@@ -307,7 +369,11 @@ export class SessionService {
       .sort((a, b) => a.date.localeCompare(b.date));
     if (rows.length === 0) return null;
 
-    const last = rows[rows.length - 1];
+    // El consejo sale del último registro y solo cuenta los de su misma metodología (SPEC-training-004, AC-08).
+    const methodology = methodologyOf(rows[rows.length - 1]);
+    const sameMethod = rows.filter((r) => methodologyOf(r) === methodology);
+    const normal = methodology === NORMAL_METHODOLOGY;
+    const last = sameMethod[sameMethod.length - 1];
     const bodyweight = exercise.equipment === 'PesoCorporal';
     const profile = (await this.store.getEquipment()).profile;
 
@@ -320,13 +386,17 @@ export class SessionService {
         .flatMap((d) => d.entries)
         .find((e) => e.exerciseId === exercise.id && e.machineStepKg !== null)?.machineStepKg ?? null;
       const loads = profile ? loadsFor(profile, exercise.equipment, exercise.bar, step) : [];
-      advice = advise(last, loads);
+      advice = normal ? adviseNormal({ loadKg: last.loadKg, repsPerSet: last.repsPerSet ?? [] }, loads) : advise(last, loads);
     }
 
+    const threshold = await this.getThreshold();
     return {
+      methodology,
       advice,
-      firstSetEvaluation: evaluateFirstSet(last.firstSetReps),
-      stagnation: checkStagnation(rows, await this.getThreshold()),
+      firstSetEvaluation: normal ? evaluateFirstSetNormal(last.firstSetReps) : evaluateFirstSet(last.firstSetReps),
+      stagnation: normal
+        ? checkStagnationNormal(sameMethod.map((r) => ({ loadKg: r.loadKg, repsPerSet: r.repsPerSet ?? [] })), threshold)
+        : checkStagnation(sameMethod, threshold),
       needsEquipment: !bodyweight && profile === null,
     };
   }

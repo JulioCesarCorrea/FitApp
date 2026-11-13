@@ -2,13 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { migrate, SCHEMA_VERSION, type MigrationDb } from './migrations';
 
 /** Base simulada: recuerda las tablas y falla como SQLite si se crea una que ya existe sin IF NOT EXISTS. */
-function fakeDb(version: number, tables: string[] = []) {
-  const state = { version, tables: new Set(tables), executed: [] as string[] };
+function fakeDb(version: number, tables: string[] = [], columns: string[] = []) {
+  const state = { version, tables: new Set(tables), columns: new Set(columns), executed: [] as string[] };
 
   const db: MigrationDb = {
-    getFirstAsync: async <T>() => ({ user_version: state.version }) as T,
+    getFirstAsync: async <T>(sql: string) => {
+      const column = /pragma_table_info\('(\w+)'\) WHERE name = '(\w+)'/.exec(sql);
+      if (column) return { n: state.columns.has(column[2]) ? 1 : 0 } as T;
+      return { user_version: state.version } as T;
+    },
     execAsync: async (sql) => {
       state.executed.push(sql);
+      const alter = /ALTER TABLE (\w+) ADD COLUMN (\w+)/.exec(sql);
+      if (alter) {
+        if (state.columns.has(alter[2])) throw new Error(`duplicate column name: ${alter[2]}`);
+        state.columns.add(alter[2]);
+      }
       const pragma = /PRAGMA user_version = (\d+)/.exec(sql);
       if (pragma) state.version = Number(pragma[1]);
       for (const m of sql.matchAll(/CREATE TABLE (IF NOT EXISTS )?(\w+)/g)) {
@@ -108,5 +117,25 @@ describe('migraciones de fitness.db (SPEC-mobile-002 y SPEC-mobile-003)', () => 
     await migrate(db);
     state.version = 1; // simula que otra versión de la app bajó el número
     await expect(migrate(db)).resolves.toBeUndefined();
+  });
+
+  it('AC-training-004-14 base con registros (versión 4): añade metodología y repeticiones por serie sin tocar los datos', async () => {
+    const { db, state } = fakeDb(4, ['exercise_logs_local', 'profile_local']);
+
+    await migrate(db);
+
+    expect([...state.columns].sort()).toEqual(['methodology', 'reps_per_set']);
+    expect(state.executed.some((sql) => /DROP|DELETE|UPDATE/i.test(sql))).toBe(false);
+    expect(state.executed.find((sql) => sql.includes('methodology'))).toContain("DEFAULT 'heavy_duty_personalizado'");
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+
+  it('AC-training-004-14 con las columnas ya creadas (una rama antigua bajó la versión): no falla ni las repite', async () => {
+    const { db, state } = fakeDb(4, ['exercise_logs_local'], ['methodology', 'reps_per_set']);
+
+    await expect(migrate(db)).resolves.toBeUndefined();
+
+    expect(state.executed.some((sql) => sql.includes('ALTER TABLE'))).toBe(false);
+    expect(state.version).toBe(SCHEMA_VERSION);
   });
 });

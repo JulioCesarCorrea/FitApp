@@ -2,7 +2,7 @@ import { configure, fireEvent, screen, waitFor } from '@testing-library/react-na
 import { renderRouter } from 'expo-router/testing-library';
 import { createDeps } from '../src/data/deps';
 import type { LocalExerciseLog } from '../src/data/types';
-import { CATALOG, PROFILE, createFakes } from './support';
+import { CATALOG, PROFILE, PROFILE_DATA, createFakes } from './support';
 
 // La app real abre SQLite y la API por HTTP; en estas pruebas se sustituyen por versiones en memoria.
 jest.mock('../src/data/deps', () => ({ createDeps: jest.fn() }));
@@ -41,6 +41,84 @@ async function fillForm(over: Partial<Record<'date' | 'load' | 'first' | 'second
 
 beforeEach(() => {
   fakes = createFakes();
+});
+
+describe('Registrar una sesión 4×15 (SPEC-training-004)', () => {
+  const NORMAL_PROFILE = { ...PROFILE_DATA, methodology: 'normal_4x15' };
+
+  async function fillNormal(reps: string[] = ['15', '14', '13', '12']) {
+    await type('Fecha (AAAA-MM-DD)', '2026-10-29');
+    await type('Carga en kg', '30');
+    await type('Serie 1: repeticiones (hasta 15)', reps[0]);
+    await type('Serie 2: repeticiones (hasta 15)', reps[1]);
+    await type('Serie 3: repeticiones (hasta 15)', reps[2]);
+    await type('Serie 4: repeticiones hasta el fallo', reps[3]);
+  }
+
+  it('AC-training-004-12: con el perfil en 4×15 el formulario pide 4 series, la última al fallo, y no pide asistidas', async () => {
+    await fakes.store.saveProfile(NORMAL_PROFILE);
+    await openApp(`/session/${EXERCISE}`);
+
+    expect(await screen.findByLabelText('Serie 4: repeticiones hasta el fallo')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Serie 1: repeticiones (hasta 15)')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('Serie 2: repeticiones asistidas (opcional)')).not.toBeOnTheScreen();
+    expect(screen.queryByLabelText('Serie 1: repeticiones (hasta 12)')).not.toBeOnTheScreen();
+  });
+
+  it('AC-training-004-12: guarda en el teléfono, lo envía y muestra el consejo calculado en el dispositivo', async () => {
+    await fakes.store.saveProfile(NORMAL_PROFILE);
+    fakes.remote.putLog = async () => ({ kind: 'ok' });
+    await openApp(`/session/${EXERCISE}`);
+    await screen.findByLabelText('Serie 4: repeticiones hasta el fallo');
+    await fillNormal(['15', '15', '15', '18']);
+
+    await press(screen.getByTestId('save-session'));
+
+    expect(await screen.findByTestId('saved-message')).toHaveTextContent(has('Sesión guardada.'));
+    const [saved] = await fakes.store.getLogs(EXERCISE);
+    expect(saved).toMatchObject({ methodology: 'normal_4x15', repsPerSet: [15, 15, 15, 18], status: 'synced' });
+    expect(screen.getByText(has('Serie 1 en 15'))).toBeOnTheScreen();
+  });
+
+  it('AC-training-004-12: valida las reglas del AC-03 antes de guardar y muestra el motivo', async () => {
+    await fakes.store.saveProfile(NORMAL_PROFILE);
+    await openApp(`/session/${EXERCISE}`);
+    await screen.findByLabelText('Serie 4: repeticiones hasta el fallo');
+    await fillNormal(['16', '14', '13', '12']);
+
+    await press(screen.getByTestId('save-session'));
+
+    expect(await screen.findByTestId('form-issues')).toHaveTextContent(has('La serie 1 lleva entre 1 y 15 repeticiones.'));
+    expect(await fakes.store.getLogs(EXERCISE)).toEqual([]);
+  });
+
+  it('AC-training-004-13: sin conexión queda guardada en el teléfono y avisa que se enviará después', async () => {
+    await fakes.store.saveProfile(NORMAL_PROFILE);
+    await fakes.store.saveCatalog(CATALOG);
+    fakes.remote.online = false;
+    await openApp(`/session/${EXERCISE}`);
+    await screen.findByLabelText('Serie 4: repeticiones hasta el fallo');
+    await fillNormal();
+
+    await press(screen.getByTestId('save-session'));
+
+    expect(await screen.findByTestId('saved-message')).toHaveTextContent(has('se enviará cuando haya conexión'));
+    expect((await fakes.store.getLogs(EXERCISE))[0]).toMatchObject({ methodology: 'normal_4x15', status: 'pending', pendingOp: 'upsert' });
+  });
+
+  it('AC-training-004-12: el historial muestra las 4 series y editar abre el formulario de 4×15 con sus datos', async () => {
+    await fakes.store.saveLog(seed({
+      id: 'n', date: '2026-10-01', loadKg: 27.5, firstSetReps: 15, secondSetReps: 12, secondSetAssistedReps: 0,
+      methodology: 'normal_4x15', repsPerSet: [15, 14, 13, 12],
+    }));
+    await openApp(`/exercise/${EXERCISE}`);
+    expect(await screen.findByTestId('log-n')).toHaveTextContent(has('Series: 15 / 14 / 13 / 12'));
+
+    await press(screen.getByTestId('edit-n'));
+
+    await waitFor(() => expect(screen.getByLabelText('Serie 4: repeticiones hasta el fallo').props.value).toBe('12'));
+    expect(screen.getByLabelText('Serie 2: repeticiones (hasta 15)').props.value).toBe('14');
+  });
 });
 
 describe('Registrar una sesión (SPEC-mobile-003)', () => {

@@ -33,7 +33,7 @@ const STEPS: Step[] = [
   { key: 'goal', title: '¿Cuál es tu objetivo?', intro: 'Elige el que más se acerque a lo que buscas.', required: true },
   { key: 'activity', title: 'Tu actividad diaria', intro: 'Sin contar el entrenamiento. Si lo omites usaremos «Ligero».', required: false },
   { key: 'experience', title: 'Tu experiencia', intro: 'Cuánto llevas entrenando y cuántos días a la semana puedes ir.', required: false },
-  { key: 'methodology', title: 'Tu método de entrenamiento', intro: 'Por ahora la app trabaja con un método.', required: false },
+  { key: 'methodology', title: 'Tu método de entrenamiento', intro: 'Elige cómo entrenas; lo puedes cambiar después en tu perfil.', required: false },
   { key: 'equipment', title: 'El equipo de tu gimnasio', intro: 'Con estos pesos la app calcula tu siguiente carga.', required: false },
   { key: 'restrictions', title: 'Lesiones o restricciones', intro: 'Zonas o movimientos que debes cuidar.', required: false },
   { key: 'allergies', title: 'Alergias o preferencias de comida', intro: 'Las guardamos para cuando llegue la parte de nutrición.', required: false },
@@ -134,7 +134,6 @@ export default function WelcomeScreen() {
         {step.key === 'equipment' && <EquipmentForm />}
         {step.key === 'restrictions' && <RestrictionsManager />}
         {step.key === 'allergies' && <AllergiesFields draft={draft} onChange={change} />}
-        {step.key === 'methodology' && METHODOLOGY_OPTIONS.length === 1 && <Muted>Más métodos llegarán más adelante.</Muted>}
 
         {messages.length > 0 && (
           <View testID="wizard-messages" style={styles.messages}>

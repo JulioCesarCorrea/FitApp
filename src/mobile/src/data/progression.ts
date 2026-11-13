@@ -89,6 +89,68 @@ export function checkStagnation(history: LogSets[], threshold = DEFAULT_THRESHOL
   };
 }
 
+// ---- Metodología «normal» 4×15 (SPEC-training-004) ----
+
+export const HEAVY_DUTY_METHODOLOGY = 'heavy_duty_personalizado';
+export const NORMAL_METHODOLOGY = 'normal_4x15';
+export const NORMAL_SETS = 4;
+export const NORMAL_TARGET_REPS = 15;
+export const NORMAL_BAND_FLOOR_REPS = 12;
+export const NORMAL_MAX_FAILURE_REPS = 50;
+
+/** Lo que las reglas de 4×15 necesitan de un registro. */
+export interface NormalSets {
+  loadKg: number;
+  repsPerSet: number[];
+}
+
+/** Serie 1 de 4×15 (AC-training-004-06): menos de 12 es carga alta, 12 a 14 en banda y 15 es el techo. */
+export function evaluateFirstSetNormal(reps: number): FirstSetEvaluation {
+  if (!Number.isInteger(reps) || reps < 1 || reps > NORMAL_TARGET_REPS) {
+    throw new RangeError(`Debe estar entre 1 y ${NORMAL_TARGET_REPS}.`);
+  }
+  if (reps < NORMAL_BAND_FLOOR_REPS) return 'por_debajo';
+  if (reps < NORMAL_TARGET_REPS) return 'en_banda';
+  return 'techo';
+}
+
+/** Doble progresión 12–15 (AC-training-004-05): sube si las 4 series llegaron a 15 repeticiones propias o más. */
+export function adviseNormal(log: NormalSets, availableLoads: number[]): LoadAdvice {
+  const triggered = log.repsPerSet.length === NORMAL_SETS && log.repsPerSet.every((r) => r >= NORMAL_TARGET_REPS);
+  if (!triggered) return { action: 'mantener', nextLoadKg: log.loadKg, missingLoadData: false };
+
+  const higher = availableLoads.filter((l) => l > log.loadKg);
+  return higher.length > 0
+    ? { action: 'subir', nextLoadKg: Math.min(...higher), missingLoadData: false }
+    : { action: 'mantener', nextLoadKg: log.loadKg, missingLoadData: true };
+}
+
+const totalReps = (l: NormalSets): number => l.repsPerSet.reduce((a, b) => a + b, 0);
+
+// Más carga cuenta como progreso; con la misma carga, más repeticiones totales de las 4 series.
+const improvedNormal = (previous: NormalSets, current: NormalSets): boolean =>
+  current.loadKg > previous.loadKg || (current.loadKg === previous.loadKg && totalReps(current) > totalReps(previous));
+
+/** Estancamiento de 4×15 (AC-training-004-07); bajar de carga reinicia la comparación. */
+export function checkStagnationNormal(history: NormalSets[], threshold = DEFAULT_THRESHOLD): StagnationResult {
+  if (threshold < 1) throw new RangeError('El umbral debe ser al menos 1.');
+
+  let streak = 0;
+  for (let i = history.length - 1; i >= 1; i--) {
+    const previous = history[i - 1];
+    const current = history[i];
+    if (current.loadKg < previous.loadKg || improvedNormal(previous, current)) break;
+    streak++;
+  }
+
+  const isStagnant = streak >= threshold;
+  return {
+    isStagnant,
+    sessionsWithoutProgress: streak,
+    message: isStagnant ? `Llevas ${streak} sesiones sin mejorar en este ejercicio.` : null,
+  };
+}
+
 // Las sumas de discos con decimales (2.5, 1.25...) se redondean para no arrastrar error de punto flotante.
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 

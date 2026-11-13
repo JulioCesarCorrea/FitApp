@@ -179,6 +179,27 @@ describe('El asistente de bienvenida (SPEC-profile-001)', () => {
     expect(await title()).toBe('Tu método de entrenamiento');
   });
 
+  it('AC-training-004-11: el paso del método ofrece Heavy Duty y Normal 4×15 con su explicación y guarda la elegida', async () => {
+    await openApp('/');
+    await fillRequired();
+    await skip(); // actividad
+    await skip(); // experiencia
+    expect(await title()).toBe('Tu método de entrenamiento');
+    expect(screen.getByTestId('methodology-heavy_duty_personalizado')).toBeOnTheScreen();
+
+    await press(screen.getByTestId('methodology-normal_4x15'));
+    expect(screen.getByText(has('4 series de hasta 15 repeticiones'))).toBeOnTheScreen();
+    expect(screen.getByTestId('methodology-normal_4x15').props.accessibilityState).toEqual({ selected: true });
+    await next();
+    await skip(); // equipo
+    await skip(); // restricciones
+    await skip(); // alergias: omitir termina
+
+    await waitFor(() => expect(fakes.remote.serverProfile).not.toBeNull());
+    expect(fakes.remote.serverProfile).toMatchObject({ methodology: 'normal_4x15' });
+    expect((await fakes.store.getProfile()).profile).toMatchObject({ methodology: 'normal_4x15' });
+  });
+
   it('AC-profile-001-13: la metodología sale preseleccionada', async () => {
     await openApp('/');
     await fillRequired();
@@ -344,6 +365,19 @@ describe('Perfil y restricciones en Más (SPEC-profile-001)', () => {
 
     expect(await screen.findByTestId('profile-saved')).toHaveTextContent('Guardado y sincronizado.');
     expect(fakes.remote.serverProfile).toMatchObject({ displayName: 'Julio César', heightCm: 180 });
+  });
+
+  it('AC-training-004-11: «Perfil» permite cambiar a Normal 4×15 y se guarda primero en el teléfono', async () => {
+    await openApp('/mas');
+    await press(await screen.findByTestId('go-profile'));
+    await waitFor(() => expect(screen.getByLabelText('Nombre o apodo').props.value).toBe('Julio'));
+
+    await press(screen.getByTestId('methodology-normal_4x15'));
+    await press(screen.getByTestId('save-profile'));
+
+    expect(await screen.findByTestId('profile-saved')).toHaveTextContent('Guardado y sincronizado.');
+    expect((await fakes.store.getProfile()).profile).toMatchObject({ methodology: 'normal_4x15' });
+    expect(fakes.remote.serverProfile).toMatchObject({ methodology: 'normal_4x15' });
   });
 
   it('AC-profile-001-17: valida con las mismas reglas y sin conexión queda pendiente', async () => {
