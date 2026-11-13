@@ -40,7 +40,8 @@ public sealed record AccountExport(
     List<ExportPlanEntry> Plan,
     ExportEquipment? Equipment,
     int? StagnationThreshold,
-    List<ExportExerciseLog> ExerciseLogs);
+    List<ExportExerciseLog> ExerciseLogs,
+    List<string> DismissedSuggestions);
 
 /// <summary>
 /// Entidades con datos de la persona. La exportación y el borrado las recorren y una prueba (AC-account-001-10)
@@ -51,7 +52,7 @@ public static class AccountData
     public static readonly Type[] PersonalEntities =
     [
         typeof(AppUser), typeof(RefreshToken), typeof(UserProfile), typeof(UserRestriction), typeof(WeightEntry),
-        typeof(PlanEntry), typeof(EquipmentSettings), typeof(TrainingSettings), typeof(ExerciseLogEntry),
+        typeof(PlanEntry), typeof(EquipmentSettings), typeof(TrainingSettings), typeof(ExerciseLogEntry), typeof(SuggestionDismissal),
     ];
 }
 
@@ -98,7 +99,10 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
             .Select(l => new ExportExerciseLog(l.Id, l.ExerciseId, l.Date, l.LoadKg, l.FirstSetReps, l.SecondSetReps, l.SecondSetAssistedReps, l.Methodology, l.RepsPerSet))
             .ToListAsync(ct);
 
-        return new AccountExport(ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs);
+        var dismissed = await db.SuggestionDismissals.AsNoTracking().Where(d => d.UserId == userId).OrderBy(d => d.Key)
+            .Select(d => d.Key).ToListAsync(ct);
+
+        return new AccountExport(ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs, dismissed);
     }
 
     /// <summary>Borra la cuenta y todos sus datos en una sola transacción (AC-account-001-05, 06, 09).</summary>
@@ -114,6 +118,7 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
         await db.Equipment.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.Restrictions.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.ExerciseLogs.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.SuggestionDismissals.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.TrainingSettings.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.Profiles.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.RefreshTokens.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
