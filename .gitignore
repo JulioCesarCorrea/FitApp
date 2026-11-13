@@ -29,3 +29,8 @@ appsettings.Local.json
 
 # Documentación de trabajo y configuración local de Claude (no se publica)
 .claude/
+
+# Despliegue: carpeta de subida preparada (lleva las imágenes del catálogo) y copias de seguridad de la base
+deploy/.stage/
+backups/
+*.sql.gz
