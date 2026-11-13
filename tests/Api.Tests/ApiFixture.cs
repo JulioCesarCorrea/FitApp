@@ -33,6 +33,7 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 
     private string _dbName = "";
     private string _connectionString = "";
+    private readonly List<string> _extraDatabases = [];
 
     /// <summary>Carpeta temporal con una imagen de ejemplo del catálogo (AC-training-002-02).</summary>
     public string ImagesDir { get; } = Path.Combine(Path.GetTempPath(), $"fitness-images-{Guid.NewGuid():N}");
@@ -47,6 +48,22 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             Id = Guid.NewGuid(), UserId = userId, Zone = zone, AvoidedMovements = movements, Level = level,
         });
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>Crea una base vacía en el mismo servidor (sin migraciones) y devuelve su cadena de conexión (SPEC-deploy-001, AC-03).</summary>
+    public async Task<string> CreateEmptyDatabaseAsync()
+    {
+        var adminString = ServerConnection ?? _container!.GetConnectionString();
+        var name = $"fitness_empty_{Guid.NewGuid():N}";
+        await using (var admin = new NpgsqlConnection(adminString))
+        {
+            await admin.OpenAsync();
+            await using var cmd = new NpgsqlCommand($"CREATE DATABASE \"{name}\"", admin);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        _extraDatabases.Add(name);
+        return new NpgsqlConnectionStringBuilder(adminString) { Database = name }.ConnectionString;
     }
 
     public async Task InitializeAsync()
@@ -143,8 +160,11 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         NpgsqlConnection.ClearAllPools();
         await using var admin = new NpgsqlConnection(ServerConnection);
         await admin.OpenAsync();
-        await using var cmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{_dbName}\" WITH (FORCE)", admin);
-        await cmd.ExecuteNonQueryAsync();
+        foreach (var name in _extraDatabases.Append(_dbName))
+        {
+            await using var cmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{name}\" WITH (FORCE)", admin);
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 }
 

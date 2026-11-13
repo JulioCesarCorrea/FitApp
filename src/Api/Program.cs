@@ -12,6 +12,7 @@ using FitnessApp.Api.Features.Training.Sessions;
 using FitnessApp.Api.Infrastructure;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -27,8 +28,15 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+// En un contenedor la plataforma fija el puerto con PORT (SPEC-deploy-001, AC-06).
+if (ListenUrl.ForContainer(Environment.GetEnvironmentVariable("PORT"), builder.Configuration["ASPNETCORE_URLS"]) is { } listen)
+    builder.WebHost.UseUrls(listen);
+
+// La base sale de ConnectionStrings:Default o, si no hay, de DATABASE_URL (AC-deploy-001-01 y 02).
+builder.Services.AddDbContext<AppDbContext>((sp, o) =>
+    o.UseNpgsql(DatabaseUrl.Resolve(sp.GetRequiredService<IConfiguration>())));
+builder.Services.AddOptions<DatabaseOptions>().BindConfiguration("Database");
+builder.Services.AddOptions<ProxyOptions>().BindConfiguration("Proxy");
 
 // Las opciones de «Auth» se leen al usarse (no al arrancar) para que los tests puedan sobrescribirlas.
 builder.Services.AddOptions<AuthOptions>().BindConfiguration("Auth");
@@ -116,6 +124,21 @@ var app = builder.Build();
 // Sin clave de firma propia la API no arranca fuera de desarrollo y pruebas.
 _ = app.Services.GetRequiredService<JwtKeyProvider>().SigningKey;
 
+// El encabezado X-User-Id solo es para desarrollo y pruebas: en cualquier otro entorno la API no arranca con él (AC-deploy-001-05).
+if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing")
+    && app.Services.GetRequiredService<IOptions<AuthOptions>>().Value.DevHeader)
+{
+    throw new InvalidOperationException(
+        "Auth:DevHeader está activo fuera de desarrollo y pruebas. Quítalo de la configuración (Auth__DevHeader).");
+}
+
+// Migraciones al arrancar, solo si se pide (AC-deploy-001-03).
+if (app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value.MigrateOnStartup)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+}
+
 // Comandos del administrador (SPEC-auth-001): dotnet run --project src/Api -- admin ...
 if (args is ["admin", ..])
 {
@@ -123,6 +146,21 @@ if (args is ["admin", ..])
     return await AdminCli.RunAsync(scope.ServiceProvider, args[1..]);
 }
 
+// Detrás del proxy de la plataforma, la IP del cliente viene en X-Forwarded-For (AC-deploy-001-04).
+// Se decide en cada petición para leer la configuración actual.
+app.UseWhen(
+    context => context.RequestServices.GetRequiredService<IOptions<ProxyOptions>>().Value.TrustForwardedHeaders,
+    branch =>
+    {
+        var forwarded = new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+        };
+        // La red del proxy no se conoce de antemano: se confía en el que está delante y se toma una sola entrada.
+        forwarded.KnownIPNetworks.Clear();
+        forwarded.KnownProxies.Clear();
+        branch.UseForwardedHeaders(forwarded);
+    });
 app.UseExceptionHandler();
 app.UseRateLimiter();
 app.UseAuthentication();
