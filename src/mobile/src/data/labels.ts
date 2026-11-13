@@ -61,11 +61,16 @@ export const EXPERIENCE_OPTIONS: Option<ExperienceLevel>[] = [
   { value: 'avanzado', label: 'Avanzado', hint: 'Más de 2 años de entrenamiento constante.' },
 ];
 
-export const METHODOLOGY_OPTIONS: Option<'heavy_duty_personalizado'>[] = [
+export const METHODOLOGY_OPTIONS: Option<'heavy_duty_personalizado' | 'normal_4x15'>[] = [
   {
     value: 'heavy_duty_personalizado',
     label: 'Heavy Duty personalizado',
     hint: '2 series efectivas por ejercicio: la primera sin llegar al fallo y la segunda hasta el fallo.',
+  },
+  {
+    value: 'normal_4x15',
+    label: 'Normal 4×15',
+    hint: '4 series de hasta 15 repeticiones por ejercicio; la última, hasta el fallo. Subes de peso al llegar a 15 en todas.',
   },
 ];
 

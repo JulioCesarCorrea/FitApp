@@ -172,5 +172,105 @@
       ],
       "expected": { "isStagnant": false, "sessionsWithoutProgress": 0 }
     }
+  ],
+  "advice4x15": [
+    {
+      "name": "4x15: las cuatro series en 15 suben a la siguiente carga",
+      "log": { "loadKg": 22.5, "reps": [15, 15, 15, 15] },
+      "availableLoads": [20, 22.5, 25, 27.5],
+      "expected": { "action": "subir", "nextLoadKg": 25, "missingLoadData": false, "firstSetEvaluation": "techo" }
+    },
+    {
+      "name": "4x15: la serie 4 al fallo puede superar 15 y también sube",
+      "log": { "loadKg": 22.5, "reps": [15, 15, 15, 20] },
+      "availableLoads": [20, 22.5, 25],
+      "expected": { "action": "subir", "nextLoadKg": 25, "missingLoadData": false, "firstSetEvaluation": "techo" }
+    },
+    {
+      "name": "4x15: una serie en 14 mantiene",
+      "log": { "loadKg": 22.5, "reps": [15, 14, 15, 15] },
+      "availableLoads": [20, 22.5, 25],
+      "expected": { "action": "mantener", "nextLoadKg": 22.5, "missingLoadData": false, "firstSetEvaluation": "techo" }
+    },
+    {
+      "name": "4x15: serie 1 por debajo de 12 es carga alta y mantiene",
+      "log": { "loadKg": 22.5, "reps": [10, 10, 9, 8] },
+      "availableLoads": [20, 22.5, 25],
+      "expected": { "action": "mantener", "nextLoadKg": 22.5, "missingLoadData": false, "firstSetEvaluation": "por_debajo" }
+    },
+    {
+      "name": "4x15: serie 1 entre 12 y 14 está en banda",
+      "log": { "loadKg": 22.5, "reps": [12, 12, 11, 10] },
+      "availableLoads": [20, 22.5, 25],
+      "expected": { "action": "mantener", "nextLoadKg": 22.5, "missingLoadData": false, "firstSetEvaluation": "en_banda" }
+    },
+    {
+      "name": "4x15: sin carga superior mantiene y avisa que falta el dato",
+      "log": { "loadKg": 25, "reps": [15, 15, 15, 15] },
+      "availableLoads": [20, 22.5, 25],
+      "expected": { "action": "mantener", "nextLoadKg": 25, "missingLoadData": true, "firstSetEvaluation": "techo" }
+    }
+  ],
+  "stagnation4x15": [
+    {
+      "name": "4x15: tres sesiones iguales con la misma carga son estancamiento",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 40, "reps": [12, 12, 12, 10] },
+        { "loadKg": 40, "reps": [12, 12, 12, 10] },
+        { "loadKg": 40, "reps": [12, 12, 12, 10] },
+        { "loadKg": 40, "reps": [12, 12, 12, 10] }
+      ],
+      "expected": { "isStagnant": true, "sessionsWithoutProgress": 3 }
+    },
+    {
+      "name": "4x15: más repeticiones totales con la misma carga es progreso",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 40, "reps": [12, 12, 12, 10] },
+        { "loadKg": 40, "reps": [12, 12, 12, 10] },
+        { "loadKg": 40, "reps": [12, 12, 12, 11] }
+      ],
+      "expected": { "isStagnant": false, "sessionsWithoutProgress": 0 }
+    },
+    {
+      "name": "4x15: el mismo total con otro reparto no es progreso",
+      "threshold": 2,
+      "history": [
+        { "loadKg": 40, "reps": [15, 15, 14, 10] },
+        { "loadKg": 40, "reps": [14, 14, 14, 12] },
+        { "loadKg": 40, "reps": [13, 14, 14, 13] }
+      ],
+      "expected": { "isStagnant": true, "sessionsWithoutProgress": 2 }
+    },
+    {
+      "name": "4x15: subir la carga cuenta como progreso aunque salgan menos repeticiones",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 40, "reps": [15, 15, 15, 15] },
+        { "loadKg": 45, "reps": [12, 12, 10, 8] }
+      ],
+      "expected": { "isStagnant": false, "sessionsWithoutProgress": 0 }
+    },
+    {
+      "name": "4x15: tras bajar de carga cuenta desde la nueva carga",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 45, "reps": [12, 12, 12, 10] },
+        { "loadKg": 40, "reps": [12, 12, 12, 10] },
+        { "loadKg": 40, "reps": [12, 12, 12, 10] },
+        { "loadKg": 40, "reps": [12, 12, 12, 10] },
+        { "loadKg": 40, "reps": [12, 12, 12, 10] }
+      ],
+      "expected": { "isStagnant": true, "sessionsWithoutProgress": 3 }
+    },
+    {
+      "name": "4x15: una sola sesión no tiene racha",
+      "threshold": 3,
+      "history": [
+        { "loadKg": 40, "reps": [12, 12, 12, 10] }
+      ],
+      "expected": { "isStagnant": false, "sessionsWithoutProgress": 0 }
+    }
   ]
 }

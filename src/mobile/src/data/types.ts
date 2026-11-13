@@ -75,6 +75,10 @@ export interface LocalExerciseLog {
   firstSetReps: number;
   secondSetReps: number;
   secondSetAssistedReps: number;
+  /** heavy_duty_personalizado (por defecto si falta) o normal_4x15 (SPEC-training-004). */
+  methodology?: string;
+  /** Solo 4×15: repeticiones propias de las 4 series. Entonces firstSetReps y secondSetReps repiten la serie 1 y la 4. */
+  repsPerSet?: number[] | null;
   /** pending → synced | rejected. `needs_confirmation` no se usa en los registros. */
   status: SyncStatus;
   message: string | null;
@@ -85,7 +89,7 @@ export interface LocalExerciseLog {
 /** Lo que guarda el servidor de un registro (historial). */
 export type ServerExerciseLog = Pick<
   LocalExerciseLog,
-  'id' | 'exerciseId' | 'date' | 'loadKg' | 'firstSetReps' | 'secondSetReps' | 'secondSetAssistedReps'
+  'id' | 'exerciseId' | 'date' | 'loadKg' | 'firstSetReps' | 'secondSetReps' | 'secondSetAssistedReps' | 'methodology' | 'repsPerSet'
 >;
 
 export type Sex = 'masculino' | 'femenino';

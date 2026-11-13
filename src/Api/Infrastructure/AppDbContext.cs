@@ -70,6 +70,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(x => x.Id);
             e.Property(x => x.ExerciseId).HasMaxLength(120);
             e.Property(x => x.LoadKg).HasPrecision(7, 2);
+            e.Property(x => x.Methodology).HasMaxLength(40).HasDefaultValue("heavy_duty_personalizado");
             // Una fila por persona, ejercicio y fecha (SPEC-training-003, AC-06).
             e.HasIndex(x => new { x.UserId, x.ExerciseId, x.Date }).IsUnique();
             e.HasOne<CatalogExercise>().WithMany().HasForeignKey(x => x.ExerciseId);

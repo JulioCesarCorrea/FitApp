@@ -25,8 +25,11 @@ export function parseKg(text: string): number | null | 'invalid' {
 export const formatKgList = (values: number[]): string => values.join(', ');
 
 /** Una línea del historial: carga y repeticiones de las dos series. */
-export function formatLogLine(log: Pick<LocalExerciseLog, 'loadKg' | 'firstSetReps' | 'secondSetReps' | 'secondSetAssistedReps'>): string {
+export function formatLogLine(
+  log: Pick<LocalExerciseLog, 'loadKg' | 'firstSetReps' | 'secondSetReps' | 'secondSetAssistedReps' | 'repsPerSet'>,
+): string {
   const load = log.loadKg === 0 ? 'sin lastre' : `${log.loadKg} kg`;
+  if (log.repsPerSet) return `${load} · Series: ${log.repsPerSet.join(' / ')}`;
   const assisted = log.secondSetAssistedReps > 0 ? ` + ${log.secondSetAssistedReps} asistidas` : '';
   return `${load} · Serie 1: ${log.firstSetReps} · Serie 2: ${log.secondSetReps}${assisted}`;
 }
@@ -40,6 +43,12 @@ const EVALUATION_HINT = {
 } as const;
 
 /** Textos del consejo de carga (AC-mobile-003-09): sugerencias, no órdenes. */
+const EVALUATION_HINT_NORMAL = {
+  por_debajo: 'Serie 1 por debajo de 12: la carga fue demasiado alta para 4×15.',
+  en_banda: 'Serie 1 dentro del rango de 12 a 14.',
+  techo: 'Serie 1 en 15: el techo del rango.',
+} as const;
+
 export function describeAdvice(a: SessionAdvice): string[] {
   const { advice } = a;
   const lines: string[] = [];
@@ -56,7 +65,11 @@ export function describeAdvice(a: SessionAdvice): string[] {
   } else {
     lines.push(advice.nextLoadKg > 0 ? `Sugerencia: mantén ${advice.nextLoadKg} kg.` : 'Sugerencia: mantén la carga actual.');
   }
-  lines.push(EVALUATION_HINT[a.firstSetEvaluation]);
+  lines.push(
+    a.methodology === 'normal_4x15'
+      ? EVALUATION_HINT_NORMAL[a.firstSetEvaluation as keyof typeof EVALUATION_HINT_NORMAL]
+      : EVALUATION_HINT[a.firstSetEvaluation],
+  );
   return lines;
 }
 

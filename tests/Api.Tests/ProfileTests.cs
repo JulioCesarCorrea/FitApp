@@ -96,7 +96,7 @@ public sealed class ProfileTests(ApiFixture api)
         { "objetivo desconocido", Valid() with { Goal = "volar" } },
         { "actividad desconocida", Valid() with { ActivityLevel = "extrema" } },
         { "experiencia desconocida", Valid() with { ExperienceLevel = "dios" } },
-        { "metodología desconocida", Valid() with { Methodology = "normal_4x15" } },
+        { "metodología desconocida", Valid() with { Methodology = "otra_metodologia" } },
         { "nacimiento futuro", Valid() with { BirthDate = Today.AddDays(1) } },
         { "13 años", Valid() with { BirthDate = Today.AddYears(-14).AddDays(1) } },
         { "101 años", Valid() with { BirthDate = Today.AddYears(-101) } },

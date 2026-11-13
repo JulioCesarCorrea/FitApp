@@ -67,7 +67,11 @@ export class HttpRemote implements RemoteApi {
 
   /** AC-mobile-003-01: PUT /exercise-logs/{id} (SPEC-training-003). 400, 404, 409 y 422 no se reintentan. */
   async putLog(log: ServerExerciseLog): Promise<PutLogResult> {
-    const { id, ...body } = log;
+    const { id, ...fields } = log;
+    // En 4×15 la API no admite los campos de Heavy Duty (SPEC-training-004, AC-03).
+    const body = fields.methodology === 'normal_4x15'
+      ? { exerciseId: fields.exerciseId, date: fields.date, loadKg: fields.loadKg, methodology: fields.methodology, repsPerSet: fields.repsPerSet }
+      : { ...fields, methodology: fields.methodology ?? 'heavy_duty_personalizado', repsPerSet: undefined };
     return this.putResult(await this.request('PUT', `/exercise-logs/${id}`, body));
   }
 

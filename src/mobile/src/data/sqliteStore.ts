@@ -115,10 +115,11 @@ export class SqliteStore implements LocalStore {
     await db.runAsync(
       `INSERT OR REPLACE INTO exercise_logs_local
          (id, exercise_id, date, load_kg, first_set_reps, second_set_reps, second_set_assisted_reps,
-          status, message, pending_op, attempted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          status, message, pending_op, attempted, methodology, reps_per_set)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       log.id, log.exerciseId, log.date, log.loadKg, log.firstSetReps, log.secondSetReps, log.secondSetAssistedReps,
       log.status, log.message, log.pendingOp, log.attempted ? 1 : 0,
+      log.methodology ?? 'heavy_duty_personalizado', log.repsPerSet ? JSON.stringify(log.repsPerSet) : null,
     );
   }
 
@@ -135,9 +136,10 @@ export class SqliteStore implements LocalStore {
         await db.runAsync(
           `INSERT INTO exercise_logs_local
              (id, exercise_id, date, load_kg, first_set_reps, second_set_reps, second_set_assisted_reps,
-              status, message, pending_op, attempted)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
+              status, message, pending_op, attempted, methodology, reps_per_set)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1, ?, ?)`,
           l.id, l.exerciseId, l.date, l.loadKg, l.firstSetReps, l.secondSetReps, l.secondSetAssistedReps,
+          l.methodology ?? 'heavy_duty_personalizado', l.repsPerSet ? JSON.stringify(l.repsPerSet) : null,
         );
       }
     });
@@ -229,6 +231,8 @@ interface LogRow {
   message: string | null;
   pending_op: 'upsert' | 'delete' | null;
   attempted: number;
+  methodology: string | null;
+  reps_per_set: string | null;
 }
 
 const toLog = (r: LogRow): LocalExerciseLog => ({
@@ -243,6 +247,8 @@ const toLog = (r: LogRow): LocalExerciseLog => ({
   message: r.message,
   pendingOp: r.pending_op,
   attempted: r.attempted === 1,
+  methodology: r.methodology ?? 'heavy_duty_personalizado',
+  repsPerSet: r.reps_per_set ? (JSON.parse(r.reps_per_set) as number[]) : null,
 });
 
 const toEntry = (r: EntryRow): LocalPlanEntry => ({
