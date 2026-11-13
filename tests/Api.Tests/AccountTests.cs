@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FitnessApp.Api.Domain;
 using FitnessApp.Api.Domain.Auth;
+using FitnessApp.Api.Domain.Nutrition;
 using FitnessApp.Api.Domain.Profile;
 using FitnessApp.Api.Domain.Training;
 using FitnessApp.Api.Features.Account;
@@ -53,6 +54,9 @@ public sealed class AccountTests(ApiFixture api)
         db.PlanEntries.Add(new PlanEntry { Id = Guid.NewGuid(), UserId = userId, Day = DayOfWeek.Tuesday, ExerciseId = exerciseId, Order = 0 });
         db.Equipment.Add(new EquipmentSettings { UserId = userId, DumbbellsKg = [10m, 12m], DiscsKg = [5m], MachineStepKg = 5m });
         db.TrainingSettings.Add(new TrainingSettings { UserId = userId, StagnationThreshold = 5 });
+        var foodId = Guid.NewGuid();
+        db.Foods.Add(new Food { Id = foodId, UserId = userId, Name = "Avena", KcalPer100g = 389m, ProteinPer100g = 16.9m, FatPer100g = 6.9m, CarbsPer100g = 66.3m, CreatedAt = now });
+        db.FoodEntries.Add(new FoodEntry { Id = Guid.NewGuid(), UserId = userId, Date = DateOnly.FromDateTime(DateTime.UtcNow), Meal = "desayuno", FoodId = foodId, Grams = 50, Name = "Avena", Kcal = 195, ProteinG = 8.5m, FatG = 3.5m, CarbsG = 33.2m, CreatedAt = now });
         db.SuggestionDismissals.Add(new SuggestionDismissal { UserId = userId, Key = "metodo:ejemplo:2026-11-01", DismissedAt = now });
         db.ExerciseLogs.Add(new ExerciseLogEntry
         {
@@ -67,7 +71,8 @@ public sealed class AccountTests(ApiFixture api)
         + await db.Profiles.CountAsync(x => x.UserId == userId) + await db.Restrictions.CountAsync(x => x.UserId == userId)
         + await db.Weights.CountAsync(x => x.UserId == userId) + await db.PlanEntries.CountAsync(x => x.UserId == userId)
         + await db.Equipment.CountAsync(x => x.UserId == userId) + await db.TrainingSettings.CountAsync(x => x.UserId == userId)
-        + await db.ExerciseLogs.CountAsync(x => x.UserId == userId) + await db.SuggestionDismissals.CountAsync(x => x.UserId == userId));
+        + await db.ExerciseLogs.CountAsync(x => x.UserId == userId) + await db.SuggestionDismissals.CountAsync(x => x.UserId == userId)
+        + await db.Foods.CountAsync(x => x.UserId == userId) + await db.FoodEntries.CountAsync(x => x.UserId == userId));
 
     private HttpClient Bearer(string token) => api.ClientWithToken(token);
 
@@ -96,6 +101,8 @@ public sealed class AccountTests(ApiFixture api)
         Assert.Equal(5, root.GetProperty("stagnationThreshold").GetInt32());
         Assert.Equal(1, root.GetProperty("exerciseLogs").GetArrayLength());
         Assert.Equal("metodo:ejemplo:2026-11-01", root.GetProperty("dismissedSuggestions")[0].GetString()); // SPEC-training-005
+        Assert.Equal("Avena", root.GetProperty("foods")[0].GetProperty("name").GetString()); // SPEC-nutrition-001
+        Assert.Equal(195, root.GetProperty("foodEntries")[0].GetProperty("kcal").GetInt32());
     }
 
     // AC-02
@@ -171,7 +178,7 @@ public sealed class AccountTests(ApiFixture api)
     {
         var auth = await Registered();
         await Seed(auth.User.Id);
-        Assert.True(await RowsOf(auth.User.Id) >= 10);
+        Assert.True(await RowsOf(auth.User.Id) >= 12);
 
         var response = await Bearer(auth.AccessToken).SendAsync(DeleteRequest(Password));
 
