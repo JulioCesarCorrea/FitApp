@@ -9,6 +9,7 @@ using FitnessApp.Api.Features.Training.Equipment;
 using FitnessApp.Api.Features.Training.Plan;
 using FitnessApp.Api.Features.Training.Restrictions;
 using FitnessApp.Api.Features.Training.Sessions;
+using FitnessApp.Api.Features.Training.Suggestions;
 using FitnessApp.Api.Infrastructure;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -118,6 +119,7 @@ builder.Services.AddScoped<RestrictionHandler>();
 builder.Services.AddScoped<AuthHandler>();
 builder.Services.AddScoped<AdminCommands>();
 builder.Services.AddScoped<AccountHandler>();
+builder.Services.AddScoped<SuggestionsHandler>();
 
 var app = builder.Build();
 
@@ -192,6 +194,7 @@ app.MapAuthEndpoints();
 app.MapProfileEndpoints();
 app.MapRestrictionEndpoints();
 app.MapAccountEndpoints();
+app.MapSuggestionsEndpoints();
 
 app.Run();
 return 0;

@@ -2,11 +2,11 @@ import { reasonFrom } from '../api';
 import { authedFetch, type Authorizer } from './authedFetch';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog,
+  AcceptSuggestionResult, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, Suggestion, SuggestionsApi,
 } from './types';
 
 /** Cliente HTTP de la API (SPEC-training-002). Traduce las respuestas al contrato de RemoteApi. */
-export class HttpRemote implements RemoteApi {
+export class HttpRemote implements RemoteApi, SuggestionsApi {
   constructor(
     private readonly auth: Authorizer,
     private readonly baseUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL,
@@ -121,6 +121,27 @@ export class HttpRemote implements RemoteApi {
     return res?.ok ? 'ok' : 'retry';
   }
 
+  /** AC-training-005-15: GET /suggestions. Sin conexión o con error, null. */
+  async fetchSuggestions(): Promise<Suggestion[] | null> {
+    const res = await this.request('GET', '/suggestions');
+    return res?.ok ? ((await res.json()) as Suggestion[]) : null;
+  }
+
+  async acceptSuggestion(key: string, replacementExerciseId: string): Promise<AcceptSuggestionResult> {
+    const res = await this.request('POST', `/suggestions/${encodeURIComponent(key)}/accept`, { replacementExerciseId });
+    if (!res) return { kind: 'retry' };
+    if (res.ok) return { kind: 'ok' };
+    if ([404, 422].includes(res.status)) {
+      return { kind: 'rejected', reason: reasonFrom(await res.json().catch(() => null), res.status) };
+    }
+    return { kind: 'retry' };
+  }
+
+  async dismissSuggestion(key: string): Promise<'ok' | 'retry'> {
+    const res = await this.request('POST', `/suggestions/${encodeURIComponent(key)}/dismiss`);
+    return res?.ok ? 'ok' : 'retry';
+  }
+
   private async putResult(res: Response | null): Promise<PutLogResult> {
     if (!res) return { kind: 'retry' };
     if (res.ok) return { kind: 'ok' };
@@ -132,7 +153,7 @@ export class HttpRemote implements RemoteApi {
   }
 
   // AC-mobile-004-11: siempre con el token de la sesión; sin token o sin red devuelve null (queda pendiente).
-  private request(method: 'GET' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<Response | null> {
+  private request(method: 'GET' | 'PUT' | 'POST' | 'DELETE', path: string, body?: unknown): Promise<Response | null> {
     if (!this.baseUrl) return Promise.resolve(null);
     return authedFetch(this.auth, `${this.baseUrl}${path}`, {
       method,

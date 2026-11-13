@@ -53,6 +53,7 @@ public sealed class AccountTests(ApiFixture api)
         db.PlanEntries.Add(new PlanEntry { Id = Guid.NewGuid(), UserId = userId, Day = DayOfWeek.Tuesday, ExerciseId = exerciseId, Order = 0 });
         db.Equipment.Add(new EquipmentSettings { UserId = userId, DumbbellsKg = [10m, 12m], DiscsKg = [5m], MachineStepKg = 5m });
         db.TrainingSettings.Add(new TrainingSettings { UserId = userId, StagnationThreshold = 5 });
+        db.SuggestionDismissals.Add(new SuggestionDismissal { UserId = userId, Key = "metodo:ejemplo:2026-11-01", DismissedAt = now });
         db.ExerciseLogs.Add(new ExerciseLogEntry
         {
             Id = Guid.NewGuid(), UserId = userId, ExerciseId = exerciseId, Date = DateOnly.FromDateTime(DateTime.UtcNow), LoadKg = 40m,
@@ -66,7 +67,7 @@ public sealed class AccountTests(ApiFixture api)
         + await db.Profiles.CountAsync(x => x.UserId == userId) + await db.Restrictions.CountAsync(x => x.UserId == userId)
         + await db.Weights.CountAsync(x => x.UserId == userId) + await db.PlanEntries.CountAsync(x => x.UserId == userId)
         + await db.Equipment.CountAsync(x => x.UserId == userId) + await db.TrainingSettings.CountAsync(x => x.UserId == userId)
-        + await db.ExerciseLogs.CountAsync(x => x.UserId == userId));
+        + await db.ExerciseLogs.CountAsync(x => x.UserId == userId) + await db.SuggestionDismissals.CountAsync(x => x.UserId == userId));
 
     private HttpClient Bearer(string token) => api.ClientWithToken(token);
 
@@ -94,6 +95,7 @@ public sealed class AccountTests(ApiFixture api)
         Assert.Equal(2, root.GetProperty("equipment").GetProperty("dumbbellsKg").GetArrayLength());
         Assert.Equal(5, root.GetProperty("stagnationThreshold").GetInt32());
         Assert.Equal(1, root.GetProperty("exerciseLogs").GetArrayLength());
+        Assert.Equal("metodo:ejemplo:2026-11-01", root.GetProperty("dismissedSuggestions")[0].GetString()); // SPEC-training-005
     }
 
     // AC-02
@@ -169,7 +171,7 @@ public sealed class AccountTests(ApiFixture api)
     {
         var auth = await Registered();
         await Seed(auth.User.Id);
-        Assert.True(await RowsOf(auth.User.Id) >= 9);
+        Assert.True(await RowsOf(auth.User.Id) >= 10);
 
         var response = await Bearer(auth.AccessToken).SendAsync(DeleteRequest(Password));
 

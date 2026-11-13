@@ -1610,6 +1610,23 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                     b.ToTable("plan_entries", (string)null);
                 });
 
+            modelBuilder.Entity("FitnessApp.Api.Domain.Training.SuggestionDismissal", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Key")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("DismissedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId", "Key");
+
+                    b.ToTable("suggestion_dismissals", (string)null);
+                });
+
             modelBuilder.Entity("FitnessApp.Api.Domain.Training.TrainingSettings", b =>
                 {
                     b.Property<Guid>("UserId")

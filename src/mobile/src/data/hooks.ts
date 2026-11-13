@@ -4,6 +4,7 @@ import { useDeps } from './DataContext';
 import type { AuthState } from './authService';
 import type { ProfileGate } from './profileService';
 import type { SessionAdvice } from './sessionService';
+import type { SuggestionsResult } from './suggestionService';
 import type { CatalogExercise, CatalogSection, DayState, EquipmentState, LocalExerciseLog } from './types';
 
 export function findExercise(sections: CatalogSection[] | null, id: string): CatalogExercise | undefined {
@@ -48,6 +49,17 @@ export function useDays() {
 
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
   return { days, reload, refresh };
+}
+
+/** Sugerencias de la rutina (SPEC-training-005): se piden a la API al entrar; sin conexión se avisa. */
+export function useSuggestions() {
+  const { suggestions } = useDeps();
+  const [state, setState] = useState<SuggestionsResult | null>(null);
+
+  const reload = useCallback(async () => setState(await suggestions.list()), [suggestions]);
+
+  useFocusEffect(useCallback(() => { void reload(); }, [reload]));
+  return { state, reload };
 }
 
 export function useEquipment() {

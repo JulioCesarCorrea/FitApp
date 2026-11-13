@@ -4,9 +4,10 @@ import { ProfileService } from '../src/data/profileService';
 import { RestrictionService } from '../src/data/restrictionService';
 import { PlanService } from '../src/data/planService';
 import { SessionService } from '../src/data/sessionService';
+import { SuggestionService } from '../src/data/suggestionService';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  RemoteApi, RestrictionItem,
+  AcceptSuggestionResult, RemoteApi, RestrictionItem, Suggestion, SuggestionsApi,
 } from '../src/data/types';
 
 export const CATALOG: CatalogSection[] = [
@@ -29,8 +30,14 @@ export const PROFILE: EquipmentProfile = {
   dumbbellsKg: [20, 22.5], barsKg: { recta: 20 }, discsKg: [2.5, 5], machineStepKg: 5, machineBaseKg: 0,
 };
 
-export interface FakeRemote extends RemoteApi {
+export interface FakeRemote extends RemoteApi, SuggestionsApi {
   online: boolean;
+  /** Sugerencias que «calcula el servidor» (SPEC-training-005). */
+  serverSuggestions: Suggestion[];
+  /** Si no es null, aceptar responde esto en lugar de aplicar el cambio. */
+  acceptResult: AcceptSuggestionResult | null;
+  accepted: { key: string; replacement: string }[];
+  dismissed: string[];
   sent: { day: DayKey; entries: LocalPlanEntry[]; confirm: boolean }[];
   dayResult: (day: DayKey, confirm: boolean) => PutDayResult;
   equipmentResult: PutEquipmentResult;
@@ -127,6 +134,10 @@ export function createFakes(
   const remote: FakeRemote = {
     online: true,
     sent: [],
+    serverSuggestions: [],
+    acceptResult: null,
+    accepted: [],
+    dismissed: [],
     equipmentResult: { kind: 'ok' },
     dayResult: () => ({ kind: 'ok', entries: [] }),
     serverProfile: options.serverProfile === 'none' ? null : PROFILE_DATA,
@@ -150,6 +161,25 @@ export function createFakes(
     deleteRestriction: async (id) => {
       if (!remote.online) return 'retry';
       remote.serverRestrictions = remote.serverRestrictions.filter((r) => r.id !== id);
+      return 'ok';
+    },
+    fetchSuggestions: async () => (remote.online ? [...remote.serverSuggestions] : null),
+    acceptSuggestion: async (key, replacement) => {
+      if (!remote.online) return { kind: 'retry' };
+      if (remote.acceptResult) return remote.acceptResult;
+      const suggestion = remote.serverSuggestions.find((s) => s.key === key);
+      if (!suggestion?.day) return { kind: 'rejected', reason: 'La sugerencia ya no existe.' };
+      // Sustituye el ejercicio en la rutina del servidor, en el mismo día y la misma posición.
+      const day = suggestion.day as DayKey;
+      server.set(day, (server.get(day) ?? []).map((e) => (e.exerciseId === suggestion.exerciseId ? { ...e, exerciseId: replacement } : e)));
+      remote.accepted.push({ key, replacement });
+      remote.serverSuggestions = remote.serverSuggestions.filter((s) => s.key !== key);
+      return { kind: 'ok' };
+    },
+    dismissSuggestion: async (key) => {
+      if (!remote.online) return 'retry';
+      remote.dismissed.push(key);
+      remote.serverSuggestions = remote.serverSuggestions.filter((s) => s.key !== key);
       return 'ok';
     },
     putLog: async () => ({ kind: 'retry' }),
@@ -178,6 +208,7 @@ export function createFakes(
     weightsAdded.push(kg);
   });
   const restrictions = new RestrictionService(remote, () => `restriction-${++n}`, () => '2026-10-30');
+  const suggestions = new SuggestionService(remote, service);
   const authRemote = createAuthRemote();
   const tokens = new MemoryTokenStore(options.signedIn === false ? null : (options.session ?? SESSION));
   const auth = new AuthService(tokens, authRemote, store);
@@ -191,7 +222,7 @@ export function createFakes(
     void store.saveProfile(PROFILE_DATA).then(() => store.setProfileStatus('synced', null));
   }
   return {
-    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, weightsAdded, seedServer,
-    deps: { store, remote, service, sessions, auth, profile, restrictions },
+    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, weightsAdded, seedServer,
+    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions },
   };
 }
