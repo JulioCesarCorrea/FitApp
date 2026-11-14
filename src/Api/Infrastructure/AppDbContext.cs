@@ -1,5 +1,6 @@
 using FitnessApp.Api.Domain;
 using FitnessApp.Api.Domain.Auth;
+using FitnessApp.Api.Domain.Nutrition;
 using FitnessApp.Api.Domain.Profile;
 using FitnessApp.Api.Domain.Training;
 using FitnessApp.Api.Infrastructure.Seed;
@@ -20,6 +21,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<SuggestionDismissal> SuggestionDismissals => Set<SuggestionDismissal>();
+    public DbSet<Food> Foods => Set<Food>();
+    public DbSet<FoodEntry> FoodEntries => Set<FoodEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -112,6 +115,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => x.TokenHash).IsUnique();
             e.HasIndex(x => x.UserId);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Food>(e =>
+        {
+            e.ToTable("foods");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(80);
+            e.Property(x => x.Brand).HasMaxLength(60);
+            e.Property(x => x.Barcode).HasMaxLength(14);
+            e.Property(x => x.Source).HasMaxLength(20);
+            e.Property(x => x.KcalPer100g).HasPrecision(7, 1);
+            e.Property(x => x.ProteinPer100g).HasPrecision(7, 1);
+            e.Property(x => x.FatPer100g).HasPrecision(7, 1);
+            e.Property(x => x.CarbsPer100g).HasPrecision(7, 1);
+            // Un código de barras por persona (SPEC-nutrition-001, AC-07); los alimentos sin código no chocan entre sí.
+            e.HasIndex(x => new { x.UserId, x.Barcode }).IsUnique().HasFilter("\"Barcode\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<FoodEntry>(e =>
+        {
+            e.ToTable("food_entries");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Meal).HasMaxLength(30);
+            e.Property(x => x.Name).HasMaxLength(80);
+            e.Property(x => x.ProteinG).HasPrecision(8, 1);
+            e.Property(x => x.FatG).HasPrecision(8, 1);
+            e.Property(x => x.CarbsG).HasPrecision(8, 1);
+            e.HasIndex(x => new { x.UserId, x.Date });
+            // Borrar un alimento no borra lo ya comido: la entrada conserva su copia (AC-09).
+            e.HasOne<Food>().WithMany().HasForeignKey(x => x.FoodId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<SuggestionDismissal>(e =>

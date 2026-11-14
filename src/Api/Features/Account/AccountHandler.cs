@@ -1,5 +1,6 @@
 using FitnessApp.Api.Domain;
 using FitnessApp.Api.Domain.Auth;
+using FitnessApp.Api.Domain.Nutrition;
 using FitnessApp.Api.Domain.Profile;
 using FitnessApp.Api.Domain.Training;
 using FitnessApp.Api.Features.Auth;
@@ -30,6 +31,13 @@ public sealed record ExportExerciseLog(
     Guid Id, string ExerciseId, DateOnly Date, decimal LoadKg, int FirstSetReps, int SecondSetReps, int SecondSetAssistedReps,
     string Methodology, int[]? RepsPerSet);
 
+public sealed record ExportFood(
+    Guid Id, string Name, string? Brand, string? Barcode, decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g,
+    decimal CarbsPer100g, string Source);
+
+public sealed record ExportFoodEntry(
+    Guid Id, DateOnly Date, string Meal, Guid? FoodId, int Grams, string Name, int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
+
 public sealed record AccountExport(
     int Version,
     DateTimeOffset ExportedAt,
@@ -41,7 +49,9 @@ public sealed record AccountExport(
     ExportEquipment? Equipment,
     int? StagnationThreshold,
     List<ExportExerciseLog> ExerciseLogs,
-    List<string> DismissedSuggestions);
+    List<string> DismissedSuggestions,
+    List<ExportFood> Foods,
+    List<ExportFoodEntry> FoodEntries);
 
 /// <summary>
 /// Entidades con datos de la persona. La exportación y el borrado las recorren y una prueba (AC-account-001-10)
@@ -53,6 +63,7 @@ public static class AccountData
     [
         typeof(AppUser), typeof(RefreshToken), typeof(UserProfile), typeof(UserRestriction), typeof(WeightEntry),
         typeof(PlanEntry), typeof(EquipmentSettings), typeof(TrainingSettings), typeof(ExerciseLogEntry), typeof(SuggestionDismissal),
+        typeof(Food), typeof(FoodEntry),
     ];
 }
 
@@ -102,7 +113,15 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
         var dismissed = await db.SuggestionDismissals.AsNoTracking().Where(d => d.UserId == userId).OrderBy(d => d.Key)
             .Select(d => d.Key).ToListAsync(ct);
 
-        return new AccountExport(ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs, dismissed);
+        var foods = await db.Foods.AsNoTracking().Where(f => f.UserId == userId).OrderBy(f => f.Name)
+            .Select(f => new ExportFood(f.Id, f.Name, f.Brand, f.Barcode, f.KcalPer100g, f.ProteinPer100g, f.FatPer100g, f.CarbsPer100g, f.Source))
+            .ToListAsync(ct);
+        var foodEntries = await db.FoodEntries.AsNoTracking().Where(e => e.UserId == userId).OrderBy(e => e.Date).ThenBy(e => e.CreatedAt)
+            .Select(e => new ExportFoodEntry(e.Id, e.Date, e.Meal, e.FoodId, e.Grams, e.Name, e.Kcal, e.ProteinG, e.FatG, e.CarbsG))
+            .ToListAsync(ct);
+
+        return new AccountExport(
+            ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs, dismissed, foods, foodEntries);
     }
 
     /// <summary>Borra la cuenta y todos sus datos en una sola transacción (AC-account-001-05, 06, 09).</summary>
@@ -119,6 +138,8 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
         await db.Restrictions.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.ExerciseLogs.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.SuggestionDismissals.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.FoodEntries.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.Foods.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.TrainingSettings.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.Profiles.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.RefreshTokens.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);

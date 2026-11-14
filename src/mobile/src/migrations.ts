@@ -1,6 +1,6 @@
 // Migraciones de fitness.db. Sin dependencias de React Native: se prueban en Node con una base simulada.
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /** Lo mínimo que necesitamos de expo-sqlite para migrar. */
 export interface MigrationDb {
@@ -80,6 +80,42 @@ const V4 = `
   );
 `;
 
+// SPEC-nutrition-001: alimentos propios y lo comido, con su estado de envío. `attempted` recuerda si ya se intentó enviar.
+const V6 = `
+  CREATE TABLE IF NOT EXISTS foods_local (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    brand TEXT,
+    barcode TEXT,
+    kcal_per_100g REAL NOT NULL,
+    protein_per_100g REAL NOT NULL,
+    fat_per_100g REAL NOT NULL,
+    carbs_per_100g REAL NOT NULL,
+    source TEXT NOT NULL,
+    status TEXT NOT NULL,
+    message TEXT,
+    pending_op TEXT,
+    attempted INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS food_entries_local (
+    id TEXT PRIMARY KEY NOT NULL,
+    date TEXT NOT NULL,
+    meal TEXT NOT NULL,
+    food_id TEXT,
+    grams INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    kcal INTEGER NOT NULL,
+    protein_g REAL NOT NULL,
+    fat_g REAL NOT NULL,
+    carbs_g REAL NOT NULL,
+    status TEXT NOT NULL,
+    message TEXT,
+    pending_op TEXT,
+    attempted INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_food_entries_local_date ON food_entries_local (date);
+`;
+
 // SPEC-training-004: metodología de cada registro y, en 4×15, las repeticiones de las 4 series (JSON). Los registros
 // anteriores quedan como Heavy Duty. ALTER TABLE no admite IF NOT EXISTS: se comprueba antes si la columna existe.
 const V5_COLUMNS: [string, string][] = [
@@ -104,6 +140,7 @@ export async function migrate(db: MigrationDb): Promise<void> {
   if (current < 3) await db.execAsync(V3);
   if (current < 4) await db.execAsync(V4);
   if (current < 5) await addMissingColumns(db);
+  if (current < 6) await db.execAsync(V6);
 
   // Nunca se baja la versión: solo se sube cuando se aplicó algo.
   if (current < SCHEMA_VERSION) await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);

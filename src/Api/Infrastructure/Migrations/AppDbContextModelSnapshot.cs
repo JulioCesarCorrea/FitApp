@@ -100,6 +100,116 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.Food", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)");
+
+                    b.Property<string>("Brand")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<decimal>("CarbsPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("FatPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<decimal>("KcalPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<decimal>("ProteinPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Barcode")
+                        .IsUnique()
+                        .HasFilter("\"Barcode\" IS NOT NULL");
+
+                    b.ToTable("foods", (string)null);
+                });
+
+            modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.FoodEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CarbsG")
+                        .HasPrecision(8, 1)
+                        .HasColumnType("numeric(8,1)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("FatG")
+                        .HasPrecision(8, 1)
+                        .HasColumnType("numeric(8,1)");
+
+                    b.Property<Guid?>("FoodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Grams")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Kcal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Meal")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<decimal>("ProteinG")
+                        .HasPrecision(8, 1)
+                        .HasColumnType("numeric(8,1)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FoodId");
+
+                    b.HasIndex("UserId", "Date");
+
+                    b.ToTable("food_entries", (string)null);
+                });
+
             modelBuilder.Entity("FitnessApp.Api.Domain.Profile.UserProfile", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1709,6 +1819,14 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.FoodEntry", b =>
+                {
+                    b.HasOne("FitnessApp.Api.Domain.Nutrition.Food", null)
+                        .WithMany()
+                        .HasForeignKey("FoodId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("FitnessApp.Api.Domain.Training.ExerciseLogEntry", b =>

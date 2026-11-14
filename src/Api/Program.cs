@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using FitnessApp.Api.Common;
 using FitnessApp.Api.Features.Account;
 using FitnessApp.Api.Features.Auth;
+using FitnessApp.Api.Features.Nutrition;
 using FitnessApp.Api.Features.Profile;
 using FitnessApp.Api.Features.Progress.Weights;
 using FitnessApp.Api.Features.Training.Catalog;
@@ -120,6 +121,9 @@ builder.Services.AddScoped<AuthHandler>();
 builder.Services.AddScoped<AdminCommands>();
 builder.Services.AddScoped<AccountHandler>();
 builder.Services.AddScoped<SuggestionsHandler>();
+builder.Services.AddScoped<FoodHandler>();
+builder.Services.AddScoped<FoodEntryHandler>();
+builder.Services.AddScoped<NutritionHandler>();
 
 var app = builder.Build();
 
@@ -195,6 +199,7 @@ app.MapProfileEndpoints();
 app.MapRestrictionEndpoints();
 app.MapAccountEndpoints();
 app.MapSuggestionsEndpoints();
+app.MapNutritionEndpoints();
 
 app.Run();
 return 0;

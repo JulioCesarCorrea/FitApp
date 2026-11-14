@@ -1,0 +1,659 @@
+{
+  "descripcion": "Vectores de nutrición (SPEC-nutrition-001, ADR-0004). «targets» y «floor» los ejecuta la API; «portions» los ejecutan la API (C#) y la app (TypeScript). Generados con una implementación independiente en Python (Decimal); cualquier cambio de regla se hace aquí primero.",
+  "targets": [
+    {
+      "name": "masculino, bajar_grasa, sedentario",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "sedentario",
+      "goal": "bajar_grasa",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 1805,
+        "proteinG": 161,
+        "fatG": 50,
+        "carbsG": 178,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, bajar_grasa, ligero",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "ligero",
+      "goal": "bajar_grasa",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 2065,
+        "proteinG": 161,
+        "fatG": 57,
+        "carbsG": 227,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, bajar_grasa, moderado",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "moderado",
+      "goal": "bajar_grasa",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 2330,
+        "proteinG": 161,
+        "fatG": 65,
+        "carbsG": 275,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, bajar_grasa, muy_activo",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "muy_activo",
+      "goal": "bajar_grasa",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 2590,
+        "proteinG": 161,
+        "fatG": 72,
+        "carbsG": 325,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, ganar_musculo, sedentario",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "sedentario",
+      "goal": "ganar_musculo",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 2335,
+        "proteinG": 145,
+        "fatG": 65,
+        "carbsG": 293,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, ganar_musculo, ligero",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "ligero",
+      "goal": "ganar_musculo",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 2675,
+        "proteinG": 145,
+        "fatG": 74,
+        "carbsG": 357,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, ganar_musculo, moderado",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "moderado",
+      "goal": "ganar_musculo",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 3015,
+        "proteinG": 145,
+        "fatG": 84,
+        "carbsG": 420,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, ganar_musculo, muy_activo",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "muy_activo",
+      "goal": "ganar_musculo",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 3355,
+        "proteinG": 145,
+        "fatG": 93,
+        "carbsG": 485,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, mantener, sedentario",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "sedentario",
+      "goal": "mantener",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 2120,
+        "proteinG": 145,
+        "fatG": 59,
+        "carbsG": 252,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, mantener, ligero",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "ligero",
+      "goal": "mantener",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 2430,
+        "proteinG": 145,
+        "fatG": 68,
+        "carbsG": 310,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, mantener, moderado",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "moderado",
+      "goal": "mantener",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 2740,
+        "proteinG": 145,
+        "fatG": 76,
+        "carbsG": 369,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "masculino, mantener, muy_activo",
+      "sex": "masculino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 178,
+      "activityLevel": "muy_activo",
+      "goal": "mantener",
+      "weightKg": 80.5,
+      "expected": {
+        "calories": 3050,
+        "proteinG": 145,
+        "fatG": 85,
+        "carbsG": 426,
+        "basalKcal": 1768
+      }
+    },
+    {
+      "name": "femenino, bajar_grasa, sedentario",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "sedentario",
+      "goal": "bajar_grasa",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 1365,
+        "proteinG": 125,
+        "fatG": 38,
+        "carbsG": 131,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, bajar_grasa, ligero",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "ligero",
+      "goal": "bajar_grasa",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 1565,
+        "proteinG": 125,
+        "fatG": 43,
+        "carbsG": 170,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, bajar_grasa, moderado",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "moderado",
+      "goal": "bajar_grasa",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 1760,
+        "proteinG": 125,
+        "fatG": 49,
+        "carbsG": 205,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, bajar_grasa, muy_activo",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "muy_activo",
+      "goal": "bajar_grasa",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 1960,
+        "proteinG": 125,
+        "fatG": 54,
+        "carbsG": 244,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, ganar_musculo, sedentario",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "sedentario",
+      "goal": "ganar_musculo",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 1765,
+        "proteinG": 112,
+        "fatG": 49,
+        "carbsG": 219,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, ganar_musculo, ligero",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "ligero",
+      "goal": "ganar_musculo",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 2025,
+        "proteinG": 112,
+        "fatG": 56,
+        "carbsG": 268,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, ganar_musculo, moderado",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "moderado",
+      "goal": "ganar_musculo",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 2280,
+        "proteinG": 112,
+        "fatG": 63,
+        "carbsG": 316,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, ganar_musculo, muy_activo",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "muy_activo",
+      "goal": "ganar_musculo",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 2540,
+        "proteinG": 112,
+        "fatG": 71,
+        "carbsG": 363,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, mantener, sedentario",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "sedentario",
+      "goal": "mantener",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 1605,
+        "proteinG": 112,
+        "fatG": 45,
+        "carbsG": 188,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, mantener, ligero",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "ligero",
+      "goal": "mantener",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 1840,
+        "proteinG": 112,
+        "fatG": 51,
+        "carbsG": 233,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, mantener, moderado",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "moderado",
+      "goal": "mantener",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 2075,
+        "proteinG": 112,
+        "fatG": 58,
+        "carbsG": 276,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "femenino, mantener, muy_activo",
+      "sex": "femenino",
+      "birthDate": "1995-05-20",
+      "today": "2026-11-13",
+      "heightCm": 165,
+      "activityLevel": "muy_activo",
+      "goal": "mantener",
+      "weightKg": 62.25,
+      "expected": {
+        "calories": 2310,
+        "proteinG": 112,
+        "fatG": 64,
+        "carbsG": 322,
+        "basalKcal": 1338
+      }
+    },
+    {
+      "name": "edad mínima (14 años cumplidos hoy)",
+      "sex": "masculino",
+      "birthDate": "2012-11-13",
+      "today": "2026-11-13",
+      "heightCm": 100,
+      "activityLevel": "sedentario",
+      "goal": "mantener",
+      "weightKg": 20.0,
+      "expected": {
+        "calories": 910,
+        "proteinG": 36,
+        "fatG": 25,
+        "carbsG": 135,
+        "basalKcal": 760
+      }
+    },
+    {
+      "name": "un día antes de cumplir 15 años sigue con 14",
+      "sex": "femenino",
+      "birthDate": "2011-11-14",
+      "today": "2026-11-13",
+      "heightCm": 150,
+      "activityLevel": "ligero",
+      "goal": "mantener",
+      "weightKg": 45.0,
+      "expected": {
+        "calories": 1590,
+        "proteinG": 81,
+        "fatG": 44,
+        "carbsG": 218,
+        "basalKcal": 1157
+      }
+    },
+    {
+      "name": "edad máxima (100 años)",
+      "sex": "masculino",
+      "birthDate": "1926-05-01",
+      "today": "2026-11-13",
+      "heightCm": 170,
+      "activityLevel": "sedentario",
+      "goal": "bajar_grasa",
+      "weightKg": 70.0,
+      "expected": {
+        "calories": 1295,
+        "proteinG": 140,
+        "fatG": 36,
+        "carbsG": 103,
+        "basalKcal": 1268
+      }
+    },
+    {
+      "name": "estatura máxima y peso máximo",
+      "sex": "masculino",
+      "birthDate": "1990-01-01",
+      "today": "2026-11-13",
+      "heightCm": 250,
+      "activityLevel": "muy_activo",
+      "goal": "ganar_musculo",
+      "weightKg": 500.0,
+      "expected": {
+        "calories": 12120,
+        "proteinG": 900,
+        "fatG": 337,
+        "carbsG": 1372,
+        "basalKcal": 6388
+      }
+    },
+    {
+      "name": "peso mínimo y estatura mínima",
+      "sex": "femenino",
+      "birthDate": "2000-02-29",
+      "today": "2026-11-13",
+      "heightCm": 100,
+      "activityLevel": "sedentario",
+      "goal": "bajar_grasa",
+      "weightKg": 20.0,
+      "expected": {
+        "calories": 545,
+        "proteinG": 40,
+        "fatG": 15,
+        "carbsG": 63,
+        "basalKcal": 534
+      }
+    },
+    {
+      "name": "los carbohidratos nunca bajan de 0",
+      "sex": "femenino",
+      "birthDate": "1990-01-01",
+      "today": "2026-11-13",
+      "heightCm": 100,
+      "activityLevel": "sedentario",
+      "goal": "bajar_grasa",
+      "weightKg": 200.0,
+      "expected": {
+        "calories": 2330,
+        "proteinG": 400,
+        "fatG": 65,
+        "carbsG": 36,
+        "basalKcal": 2284
+      }
+    }
+  ],
+  "floor": [
+    {
+      "name": "con el factor actual más bajo el gasto supera al basal",
+      "expenditure": 1440.0,
+      "goalFactor": 0.85,
+      "basal": 1200.0,
+      "expected": 1225
+    },
+    {
+      "name": "un factor menor cae por debajo y manda el metabolismo basal",
+      "expenditure": 1440.0,
+      "goalFactor": 0.8,
+      "basal": 1200.0,
+      "expected": 1200
+    },
+    {
+      "name": "el suelo también se redondea a múltiplos de 5",
+      "expenditure": 1000.0,
+      "goalFactor": 0.5,
+      "basal": 1203.4,
+      "expected": 1205
+    },
+    {
+      "name": "un gasto exactamente en la mitad redondea hacia arriba",
+      "expenditure": 2000.0,
+      "goalFactor": 1.0,
+      "basal": 1500.0,
+      "expected": 2000
+    }
+  ],
+  "portions": [
+    {
+      "name": "100 g devuelven los valores por 100 g",
+      "kcalPer100g": 539,
+      "proteinPer100g": 6.3,
+      "fatPer100g": 30.9,
+      "carbsPer100g": 57.5,
+      "grams": 100,
+      "expected": {
+        "kcal": 539,
+        "proteinG": 6.3,
+        "fatG": 30.9,
+        "carbsG": 57.5
+      }
+    },
+    {
+      "name": "una cantidad pequeña redondea las calorías al entero",
+      "kcalPer100g": 539,
+      "proteinPer100g": 6.3,
+      "fatPer100g": 30.9,
+      "carbsPer100g": 57.5,
+      "grams": 15,
+      "expected": {
+        "kcal": 81,
+        "proteinG": 0.9,
+        "fatG": 4.6,
+        "carbsG": 8.6
+      }
+    },
+    {
+      "name": "mitad exacta redondea hacia arriba (calorías)",
+      "kcalPer100g": 50,
+      "proteinPer100g": 1.5,
+      "fatPer100g": 0.5,
+      "carbsPer100g": 10,
+      "grams": 1,
+      "expected": {
+        "kcal": 1,
+        "proteinG": 0.0,
+        "fatG": 0.0,
+        "carbsG": 0.1
+      }
+    },
+    {
+      "name": "mitad exacta redondea hacia arriba (macros)",
+      "kcalPer100g": 100,
+      "proteinPer100g": 0.5,
+      "fatPer100g": 0.5,
+      "carbsPer100g": 0.5,
+      "grams": 10,
+      "expected": {
+        "kcal": 10,
+        "proteinG": 0.1,
+        "fatG": 0.1,
+        "carbsG": 0.1
+      }
+    },
+    {
+      "name": "cantidad máxima",
+      "kcalPer100g": 900,
+      "proteinPer100g": 100,
+      "fatPer100g": 0,
+      "carbsPer100g": 0,
+      "grams": 5000,
+      "expected": {
+        "kcal": 45000,
+        "proteinG": 5000.0,
+        "fatG": 0.0,
+        "carbsG": 0.0
+      }
+    },
+    {
+      "name": "alimento sin calorías",
+      "kcalPer100g": 0,
+      "proteinPer100g": 0,
+      "fatPer100g": 0,
+      "carbsPer100g": 0,
+      "grams": 250,
+      "expected": {
+        "kcal": 0,
+        "proteinG": 0.0,
+        "fatG": 0.0,
+        "carbsG": 0.0
+      }
+    },
+    {
+      "name": "valores con un decimal",
+      "kcalPer100g": 47.5,
+      "proteinPer100g": 0.3,
+      "fatPer100g": 0.2,
+      "carbsPer100g": 11.4,
+      "grams": 183,
+      "expected": {
+        "kcal": 87,
+        "proteinG": 0.5,
+        "fatG": 0.4,
+        "carbsG": 20.9
+      }
+    },
+    {
+      "name": "un gramo",
+      "kcalPer100g": 89,
+      "proteinPer100g": 1.1,
+      "fatPer100g": 0.3,
+      "carbsPer100g": 22.8,
+      "grams": 1,
+      "expected": {
+        "kcal": 1,
+        "proteinG": 0.0,
+        "fatG": 0.0,
+        "carbsG": 0.2
+      }
+    }
+  ]
+}

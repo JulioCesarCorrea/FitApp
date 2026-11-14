@@ -4,10 +4,13 @@ import { ProfileService } from '../src/data/profileService';
 import { RestrictionService } from '../src/data/restrictionService';
 import { PlanService } from '../src/data/planService';
 import { SessionService } from '../src/data/sessionService';
+import { NutritionService } from '../src/data/nutritionService';
+import { portionOf } from '../src/data/nutritionRules';
 import { SuggestionService } from '../src/data/suggestionService';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, RemoteApi, RestrictionItem, Suggestion, SuggestionsApi,
+  AcceptSuggestionResult, NutritionApi, ProductLookup, ProductLookupResult, RemoteApi, RestrictionItem, ServerFood, ServerFoodEntry,
+  Suggestion, SuggestionsApi, TargetsResponse,
 } from '../src/data/types';
 
 export const CATALOG: CatalogSection[] = [
@@ -30,8 +33,21 @@ export const PROFILE: EquipmentProfile = {
   dumbbellsKg: [20, 22.5], barsKg: { recta: 20 }, discsKg: [2.5, 5], machineStepKg: 5, machineBaseKg: 0,
 };
 
-export interface FakeRemote extends RemoteApi, SuggestionsApi {
+/** Objetivo de ejemplo que «calcula el servidor» (SPEC-nutrition-001). */
+export const TARGETS: TargetsResponse = {
+  kind: 'ok',
+  target: { calories: 2500, proteinG: 145, fatG: 69, carbsG: 321, basalKcal: 1800, weightKg: 80.5, weightDate: '2026-11-12' },
+};
+
+export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi {
   online: boolean;
+  /** Nutrición: lo que «tiene el servidor» y cómo responde. */
+  serverFoods: ServerFood[];
+  serverEntries: ServerFoodEntry[];
+  targets: TargetsResponse;
+  foodResult: PutLogResult | null;
+  entryResult: PutLogResult | null;
+  entryPuts: string[];
   /** Sugerencias que «calcula el servidor» (SPEC-training-005). */
   serverSuggestions: Suggestion[];
   /** Si no es null, aceptar responde esto en lugar de aplicar el cambio. */
@@ -134,6 +150,12 @@ export function createFakes(
   const remote: FakeRemote = {
     online: true,
     sent: [],
+    serverFoods: [],
+    serverEntries: [],
+    targets: TARGETS,
+    foodResult: null,
+    entryResult: null,
+    entryPuts: [],
     serverSuggestions: [],
     acceptResult: null,
     accepted: [],
@@ -161,6 +183,35 @@ export function createFakes(
     deleteRestriction: async (id) => {
       if (!remote.online) return 'retry';
       remote.serverRestrictions = remote.serverRestrictions.filter((r) => r.id !== id);
+      return 'ok';
+    },
+    fetchTargets: async () => (remote.online ? remote.targets : null),
+    fetchFoods: async () => (remote.online ? [...remote.serverFoods] : null),
+    putFood: async (food) => {
+      if (!remote.online) return { kind: 'retry' };
+      if (remote.foodResult) return remote.foodResult;
+      remote.serverFoods = [...remote.serverFoods.filter((f) => f.id !== food.id), food];
+      return { kind: 'ok' };
+    },
+    deleteFood: async (id) => {
+      if (!remote.online) return 'retry';
+      remote.serverFoods = remote.serverFoods.filter((f) => f.id !== id);
+      return 'ok';
+    },
+    fetchDayEntries: async (date) => (remote.online ? remote.serverEntries.filter((e) => e.date === date) : null),
+    putFoodEntry: async (entry) => {
+      if (!remote.online) return { kind: 'retry' };
+      if (remote.entryResult) return remote.entryResult;
+      const food = remote.serverFoods.find((f) => f.id === entry.foodId);
+      if (!food) return { kind: 'rejected', reason: 'El alimento no existe en tu lista.' };
+      remote.entryPuts.push(entry.id);
+      const portion = portionOf(food.kcalPer100g, food.proteinPer100g, food.fatPer100g, food.carbsPer100g, entry.grams);
+      remote.serverEntries = [...remote.serverEntries.filter((e) => e.id !== entry.id), { ...entry, name: food.name, ...portion }];
+      return { kind: 'ok' };
+    },
+    deleteFoodEntry: async (id) => {
+      if (!remote.online) return 'retry';
+      remote.serverEntries = remote.serverEntries.filter((e) => e.id !== id);
       return 'ok';
     },
     fetchSuggestions: async () => (remote.online ? [...remote.serverSuggestions] : null),
@@ -209,6 +260,15 @@ export function createFakes(
   });
   const restrictions = new RestrictionService(remote, () => `restriction-${++n}`, () => '2026-10-30');
   const suggestions = new SuggestionService(remote, service);
+  const nutrition = new NutritionService(store, remote, () => `food-${++n}`);
+  const products: ProductLookup & { result: ProductLookupResult; lookups: string[] } = {
+    result: { kind: 'notFound' },
+    lookups: [],
+    lookup: async (barcode) => {
+      products.lookups.push(barcode);
+      return products.result;
+    },
+  };
   const authRemote = createAuthRemote();
   const tokens = new MemoryTokenStore(options.signedIn === false ? null : (options.session ?? SESSION));
   const auth = new AuthService(tokens, authRemote, store);
@@ -222,7 +282,7 @@ export function createFakes(
     void store.saveProfile(PROFILE_DATA).then(() => store.setProfileStatus('synced', null));
   }
   return {
-    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, weightsAdded, seedServer,
-    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions },
+    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weightsAdded, seedServer,
+    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, products },
   };
 }

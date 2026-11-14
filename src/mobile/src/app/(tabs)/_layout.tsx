@@ -19,6 +19,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: 'Catálogo' }} />
       <Tabs.Screen name="rutina" options={{ title: 'Mi rutina' }} />
+      <Tabs.Screen name="nutricion" options={{ title: 'Nutrición' }} />
       <Tabs.Screen name="equipo" options={{ title: 'Equipo' }} />
       <Tabs.Screen name="mas" options={{ title: 'Más' }} />
     </Tabs>

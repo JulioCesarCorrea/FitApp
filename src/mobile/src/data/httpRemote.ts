@@ -2,11 +2,12 @@ import { reasonFrom } from '../api';
 import { authedFetch, type Authorizer } from './authedFetch';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, Suggestion, SuggestionsApi,
+  AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry,
+  Suggestion, SuggestionsApi, TargetsResponse,
 } from './types';
 
 /** Cliente HTTP de la API (SPEC-training-002). Traduce las respuestas al contrato de RemoteApi. */
-export class HttpRemote implements RemoteApi, SuggestionsApi {
+export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi {
   constructor(
     private readonly auth: Authorizer,
     private readonly baseUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL,
@@ -139,6 +140,52 @@ export class HttpRemote implements RemoteApi, SuggestionsApi {
 
   async dismissSuggestion(key: string): Promise<'ok' | 'retry'> {
     const res = await this.request('POST', `/suggestions/${encodeURIComponent(key)}/dismiss`);
+    return res?.ok ? 'ok' : 'retry';
+  }
+
+  // ---- Nutrición (SPEC-nutrition-001) ----
+
+  /** AC-nutrition-001-15: GET /nutrition/targets. 422 dice qué falta; sin conexión o con error, null. */
+  async fetchTargets(): Promise<TargetsResponse | null> {
+    const res = await this.request('GET', '/nutrition/targets');
+    if (!res) return null;
+    if (res.ok) return { kind: 'ok', target: (await res.json()) as NutritionTarget };
+    if (res.status === 422) {
+      const what = ((await res.json().catch(() => null)) as { missing?: string } | null)?.missing;
+      if (what === 'perfil' || what === 'peso') return { kind: 'missing', what };
+    }
+    return null;
+  }
+
+  async fetchFoods(): Promise<ServerFood[] | null> {
+    const res = await this.request('GET', '/foods');
+    return res?.ok ? ((await res.json()) as ServerFood[]) : null;
+  }
+
+  async putFood(food: ServerFood): Promise<PutLogResult> {
+    const { id, ...body } = food;
+    return this.putResult(await this.request('PUT', `/foods/${id}`, body));
+  }
+
+  async deleteFood(id: string): Promise<'ok' | 'retry'> {
+    const res = await this.request('DELETE', `/foods/${id}`);
+    return res?.ok ? 'ok' : 'retry';
+  }
+
+  async fetchDayEntries(date: string): Promise<ServerFoodEntry[] | null> {
+    const res = await this.request('GET', `/nutrition/day?date=${encodeURIComponent(date)}`);
+    if (!res?.ok) return null;
+    const day = (await res.json()) as { meals: { entries: ServerFoodEntry[] }[] };
+    return day.meals.flatMap((m) => m.entries);
+  }
+
+  async putFoodEntry(entry: Pick<ServerFoodEntry, 'id' | 'date' | 'meal' | 'foodId' | 'grams'>): Promise<PutLogResult> {
+    const { id, ...body } = entry;
+    return this.putResult(await this.request('PUT', `/food-entries/${id}`, body));
+  }
+
+  async deleteFoodEntry(id: string): Promise<'ok' | 'retry'> {
+    const res = await this.request('DELETE', `/food-entries/${id}`);
     return res?.ok ? 'ok' : 'retry';
   }
 

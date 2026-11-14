@@ -37,8 +37,8 @@ describe('migraciones de fitness.db (SPEC-mobile-002 y SPEC-mobile-003)', () => 
     await migrate(db);
 
     expect([...state.tables].sort()).toEqual([
-      'catalog_cache', 'equipment_local', 'exercise_logs_local', 'plan_day_state', 'plan_entries_local', 'profile_local',
-      'settings', 'weight_queue',
+      'catalog_cache', 'equipment_local', 'exercise_logs_local', 'food_entries_local', 'foods_local', 'plan_day_state',
+      'plan_entries_local', 'profile_local', 'settings', 'weight_queue',
     ]);
     expect(state.version).toBe(SCHEMA_VERSION);
   });
@@ -136,6 +136,25 @@ describe('migraciones de fitness.db (SPEC-mobile-002 y SPEC-mobile-003)', () => 
     await expect(migrate(db)).resolves.toBeUndefined();
 
     expect(state.executed.some((sql) => sql.includes('ALTER TABLE'))).toBe(false);
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+
+  it('AC-nutrition-001-18 base con la metodología (versión 5): añade solo las tablas de alimentos y entradas', async () => {
+    const { db, state } = fakeDb(5, ['exercise_logs_local', 'profile_local'], ['methodology', 'reps_per_set']);
+
+    await migrate(db);
+
+    expect(state.tables.has('foods_local')).toBe(true);
+    expect(state.tables.has('food_entries_local')).toBe(true);
+    expect(state.executed.some((sql) => /DROP|DELETE|UPDATE/i.test(sql))).toBe(false);
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+
+  it('AC-nutrition-001-18 con las tablas ya creadas (una rama antigua bajó la versión): no falla', async () => {
+    const { db, state } = fakeDb(5, ['foods_local', 'food_entries_local'], ['methodology', 'reps_per_set']);
+
+    await expect(migrate(db)).resolves.toBeUndefined();
+
     expect(state.version).toBe(SCHEMA_VERSION);
   });
 });

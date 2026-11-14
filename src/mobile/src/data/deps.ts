@@ -5,6 +5,8 @@ import { syncPending } from '../sync';
 import { HttpAuthRemote } from './authRemote';
 import { AuthService } from './authService';
 import { HttpRemote } from './httpRemote';
+import { NutritionService } from './nutritionService';
+import { OpenFoodFactsClient } from './openFoodFacts';
 import { PlanService } from './planService';
 import { ProfileService } from './profileService';
 import { RestrictionService } from './restrictionService';
@@ -12,7 +14,7 @@ import { SecureTokenStore } from './secureTokenStore';
 import { SessionService, todayLocal } from './sessionService';
 import { SqliteStore } from './sqliteStore';
 import { SuggestionService } from './suggestionService';
-import type { LocalStore, RemoteApi } from './types';
+import type { LocalStore, ProductLookup, RemoteApi } from './types';
 
 export interface Deps {
   store: LocalStore;
@@ -23,6 +25,9 @@ export interface Deps {
   profile: ProfileService;
   restrictions: RestrictionService;
   suggestions: SuggestionService;
+  nutrition: NutritionService;
+  /** Consulta de productos por código de barras (Open Food Facts). */
+  products: ProductLookup;
 }
 
 /** Dependencias reales de la app: SQLite local, API por HTTP y UUID generado en el dispositivo. */
@@ -48,5 +53,7 @@ export async function createDeps(): Promise<Deps> {
     profile: new ProfileService(store, remote, addWeight),
     restrictions: new RestrictionService(remote, newId, () => todayLocal()),
     suggestions: new SuggestionService(remote, service),
+    nutrition: new NutritionService(store, remote, newId),
+    products: new OpenFoodFactsClient(),
   };
 }
