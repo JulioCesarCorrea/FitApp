@@ -1,9 +1,12 @@
 import { allergenConflicts, normalizeAllergens } from './allergens';
 import {
-  fold, macrosFor, MAX_GRAMS, MAX_OVERRIDE_CALORIES, MAX_WATER_ML, MEAL_MAX_LENGTH, microsOf, MIN_GRAMS, MIN_OVERRIDE_CALORIES,
-  MIN_WATER_ML, mealOrder, normalizeMeal, portionOf, sumMicros, sumPortions, type MicroTotals, type Portion,
+  fold, macrosFor, MAX_GRAMS, MAX_INGREDIENTS, MAX_OVERRIDE_CALORIES, MAX_RECIPE_SERVINGS, MAX_SERVINGS, MAX_WATER_ML, MEAL_MAX_LENGTH,
+  microsOf, MIN_GRAMS, MIN_OVERRIDE_CALORIES, MIN_SERVINGS, MIN_WATER_ML, mealOrder, normalizeMeal, portionOf, recipeTotal, scaleRecipe,
+  sumMicros, sumPortions, type MicroTotals, type Portion,
 } from './nutritionRules';
-import type { LocalFood, LocalFoodEntry, LocalStore, LocalWater, NutritionApi, NutritionTarget, ServerFood } from './types';
+import type {
+  LocalFood, LocalFoodEntry, LocalIngredient, LocalRecipe, LocalStore, LocalWater, NutritionApi, NutritionTarget, ServerFood,
+} from './types';
 
 const TARGET_KEY = 'nutritionTarget';
 const MISSING_KEY = 'nutritionMissing';
@@ -40,6 +43,20 @@ export interface EntryIssue {
   field: 'date' | 'meal' | 'grams' | 'food';
   message: string;
 }
+
+/** Lo que escribe la persona al crear una receta, sin interpretar (SPEC-nutrition-005). */
+export interface RawRecipeInput {
+  name: string;
+  servings: string;
+  ingredients: { foodId: string; grams: string }[];
+}
+
+export interface RecipeIssue {
+  field: 'name' | 'servings' | 'ingredients' | 'grams' | 'food';
+  message: string;
+}
+
+export type SaveRecipeResult = { ok: true; recipe: LocalRecipe } | { ok: false; issues: RecipeIssue[] };
 
 export type SaveFoodResult =
   | { ok: true; food: LocalFood }
@@ -278,7 +295,7 @@ export class NutritionService {
     const micros = microsOf(food.fiberPer100g ?? null, food.sugarsPer100g ?? null, food.sodiumMgPer100g ?? null, grams);
     const existing = existingId ? await this.store.getFoodEntry(existingId) : null;
     const entry: LocalFoodEntry = {
-      id: existingId ?? this.newId(), date, meal, foodId: food.id, grams, name: food.name, ...portion, ...micros,
+      id: existingId ?? this.newId(), date, meal, foodId: food.id, grams, name: food.name, ...portion, ...micros, recipeId: null, servings: null,
       status: 'pending', message: null, pendingOp: 'upsert', attempted: existing?.attempted ?? false,
     };
     await this.store.saveFoodEntry(entry);
@@ -352,6 +369,133 @@ export class NutritionService {
     return true;
   }
 
+  // ---------- recetas (SPEC-nutrition-005) ----------
+
+  /** Recetas propias que no esperan borrarse, por nombre. */
+  async listRecipes(): Promise<LocalRecipe[]> {
+    return (await this.store.getRecipes()).filter(isVisible).sort((a, b) => fold(a.name).localeCompare(fold(b.name)));
+  }
+
+  /** AC-nutrition-005-01, 02, 09: valida con las reglas de la API, copia los valores de los alimentos y la intenta enviar. */
+  async saveRecipe(raw: RawRecipeInput, existingId?: string): Promise<SaveRecipeResult> {
+    const issues: RecipeIssue[] = [];
+    const name = raw.name.trim();
+    if (name.length < 1 || name.length > 80) issues.push({ field: 'name', message: 'El nombre lleva entre 1 y 80 caracteres.' });
+    const servingsText = raw.servings.trim();
+    const servings = /^\d+$/.test(servingsText) ? Number(servingsText) : Number.NaN;
+    if (!(servings >= 1 && servings <= MAX_RECIPE_SERVINGS)) issues.push({ field: 'servings', message: `Las raciones van de 1 a ${MAX_RECIPE_SERVINGS}.` });
+    if (raw.ingredients.length < 1 || raw.ingredients.length > MAX_INGREDIENTS) {
+      issues.push({ field: 'ingredients', message: `Una receta lleva entre 1 y ${MAX_INGREDIENTS} ingredientes.` });
+    }
+    if (new Set(raw.ingredients.map((i) => i.foodId)).size !== raw.ingredients.length) {
+      issues.push({ field: 'ingredients', message: 'Un alimento no puede repetirse en la receta.' });
+    }
+
+    const ingredients: LocalIngredient[] = [];
+    for (const i of raw.ingredients) {
+      const gramsText = i.grams.trim();
+      const grams = /^\d+$/.test(gramsText) ? Number(gramsText) : Number.NaN;
+      if (!(grams >= MIN_GRAMS && grams <= MAX_GRAMS)) issues.push({ field: 'grams', message: `Los gramos van de ${MIN_GRAMS} a ${MAX_GRAMS}.` });
+      const food = await this.store.getFood(i.foodId);
+      if (!food || !isVisible(food)) {
+        issues.push({ field: 'food', message: 'Cada ingrediente debe ser un alimento de tu lista.' });
+        continue;
+      }
+      ingredients.push({
+        foodId: food.id, name: food.name, grams, kcalPer100g: food.kcalPer100g, proteinPer100g: food.proteinPer100g,
+        fatPer100g: food.fatPer100g, carbsPer100g: food.carbsPer100g, fiberPer100g: food.fiberPer100g ?? null,
+        sugarsPer100g: food.sugarsPer100g ?? null, sodiumMgPer100g: food.sodiumMgPer100g ?? null,
+      });
+    }
+    if (issues.length > 0) return { ok: false, issues };
+
+    const existing = existingId ? await this.store.getRecipe(existingId) : null;
+    const recipe: LocalRecipe = {
+      id: existingId ?? this.newId(), name, servings, ingredients, status: 'pending', message: null, pendingOp: 'upsert',
+      attempted: existing?.attempted ?? false,
+    };
+    await this.store.saveRecipe(recipe);
+    await this.syncPending();
+    return { ok: true, recipe: (await this.store.getRecipe(recipe.id)) ?? recipe };
+  }
+
+  /** Quita la receta de la lista; lo ya comido conserva sus valores (AC-nutrition-005-04). */
+  async deleteRecipe(id: string): Promise<void> {
+    const row = await this.store.getRecipe(id);
+    if (!row) return;
+    if (!row.attempted) {
+      await this.store.deleteRecipe(id);
+      return;
+    }
+    await this.store.saveRecipe({ ...row, status: 'pending', message: null, pendingOp: 'delete' });
+    await this.syncPending();
+  }
+
+  async discardRecipe(id: string): Promise<void> {
+    await this.store.deleteRecipe(id);
+  }
+
+  /** AC-nutrition-005-04 y 09: registra unas raciones de una receta; la entrada copia los valores de esa cantidad. */
+  async saveRecipeEntry(
+    input: { date: string; meal: string; servings: string; recipeId: string }, existingId?: string,
+  ): Promise<SaveEntryResult> {
+    const issues: EntryIssue[] = [];
+    const date = input.date.trim();
+    if (!isRealDate(date)) issues.push({ field: 'date', message: 'La fecha debe tener el formato AAAA-MM-DD.' });
+    else if (date < EARLIEST_DATE) issues.push({ field: 'date', message: 'La fecha no es válida.' });
+    else if (date > addDays(this.today(), 1)) issues.push({ field: 'date', message: 'La fecha no puede ser futura.' });
+
+    const meal = normalizeMeal(input.meal);
+    if (meal.length < 1 || meal.length > MEAL_MAX_LENGTH) {
+      issues.push({ field: 'meal', message: `La comida lleva entre 1 y ${MEAL_MAX_LENGTH} caracteres.` });
+    }
+
+    const servingsText = input.servings.trim().replace(',', '.');
+    const servings = /^\d+(\.\d{1,2})?$/.test(servingsText) ? Number(servingsText) : Number.NaN;
+    if (!(servings >= MIN_SERVINGS && servings <= MAX_SERVINGS)) {
+      issues.push({ field: 'grams', message: 'Las raciones van de 0,25 a 20, con hasta dos decimales.' });
+    }
+
+    const recipe = await this.store.getRecipe(input.recipeId);
+    if (!recipe || !isVisible(recipe)) issues.push({ field: 'food', message: 'Elige una receta de tu lista.' });
+    if (issues.length > 0 || !recipe) return { ok: false, issues };
+
+    const eaten = scaleRecipe(recipeTotal(recipe.ingredients), recipe.servings, servings);
+    const existing = existingId ? await this.store.getFoodEntry(existingId) : null;
+    const entry: LocalFoodEntry = {
+      id: existingId ?? this.newId(), date, meal, foodId: null, grams: 0, name: recipe.name,
+      kcal: eaten.kcal, proteinG: eaten.proteinG, fatG: eaten.fatG, carbsG: eaten.carbsG,
+      fiberG: eaten.fiberG, sugarsG: eaten.sugarsG, sodiumMg: eaten.sodiumMg, recipeId: recipe.id, servings,
+      status: 'pending', message: null, pendingOp: 'upsert', attempted: existing?.attempted ?? false,
+    };
+    await this.store.saveFoodEntry(entry);
+    await this.syncPending();
+    return { ok: true, entry: (await this.store.getFoodEntry(entry.id)) ?? entry };
+  }
+
+  private async sendRecipeDelete(r: LocalRecipe): Promise<boolean> {
+    if ((await this.remote.deleteRecipe(r.id)) === 'retry') return false;
+    await this.store.deleteRecipe(r.id);
+    return true;
+  }
+
+  private async sendRecipe(recipe: LocalRecipe): Promise<boolean> {
+    const sending = { ...recipe, attempted: true };
+    await this.store.saveRecipe(sending);
+    const result = await this.remote.putRecipe({ id: sending.id, name: sending.name, servings: sending.servings, ingredients: sending.ingredients });
+    if (result.kind === 'retry') return false;
+
+    const current = await this.store.getRecipe(recipe.id);
+    const same = (a: LocalRecipe, b: LocalRecipe) => JSON.stringify([a.name, a.servings, a.ingredients]) === JSON.stringify([b.name, b.servings, b.ingredients]);
+    if (!current || current.pendingOp !== 'upsert' || !same(current, sending)) return true;
+    await this.store.saveRecipe(
+      result.kind === 'ok'
+        ? { ...current, status: 'synced', message: null, pendingOp: null }
+        : { ...current, status: 'rejected', message: result.reason },
+    );
+    return true;
+  }
+
   // ---------- agua (SPEC-nutrition-004) ----------
 
   /** AC-06, 09 y 10: suma agua al día; se guarda en el teléfono con un id del dispositivo y se envía en cuanto hay conexión. */
@@ -416,13 +560,16 @@ export class NutritionService {
     const { foods, entries } = await this.store.getPendingNutrition();
     const override = await this.getPending();
     const water = await this.store.getPendingWater();
+    const recipes = await this.store.getPendingRecipes();
     const stages: (() => Promise<boolean>)[] = [
       ...(override ? [() => this.sendOverride(override)] : []),
       ...water.filter((w) => w.pendingOp === 'delete').map((w) => () => this.sendWaterDelete(w)),
       ...entries.filter((e) => e.pendingOp === 'delete').map((e) => () => this.sendEntryDelete(e)),
       ...foods.filter((f) => f.pendingOp === 'upsert').map((f) => () => this.sendFood(f)),
+      ...recipes.filter((r) => r.pendingOp === 'upsert').map((r) => () => this.sendRecipe(r)),
       ...entries.filter((e) => e.pendingOp === 'upsert').sort((a, b) => a.date.localeCompare(b.date)).map((e) => () => this.sendEntry(e)),
       ...water.filter((w) => w.pendingOp === 'upsert').map((w) => () => this.sendWater(w)),
+      ...recipes.filter((r) => r.pendingOp === 'delete').map((r) => () => this.sendRecipeDelete(r)),
       ...foods.filter((f) => f.pendingOp === 'delete').map((f) => () => this.sendFoodDelete(f)),
     ];
     for (const stage of stages) if (!(await stage())) break;
@@ -463,11 +610,13 @@ export class NutritionService {
     await this.store.saveFoodEntry(sending);
     const result = await this.remote.putFoodEntry({
       id: sending.id, date: sending.date, meal: sending.meal, foodId: sending.foodId, grams: sending.grams,
+      recipeId: sending.recipeId, servings: sending.servings,
     });
     if (result.kind === 'retry') return false;
 
     const current = await this.store.getFoodEntry(entry.id);
-    const same = (a: LocalFoodEntry, b: LocalFoodEntry) => a.date === b.date && a.meal === b.meal && a.foodId === b.foodId && a.grams === b.grams;
+    const same = (a: LocalFoodEntry, b: LocalFoodEntry) => a.date === b.date && a.meal === b.meal && a.foodId === b.foodId && a.grams === b.grams
+      && a.recipeId === b.recipeId && a.servings === b.servings;
     if (!current || current.pendingOp !== 'upsert' || !same(current, sending)) return true;
     await this.store.saveFoodEntry(
       result.kind === 'ok'
@@ -520,6 +669,12 @@ export class NutritionService {
     if (foods.every((f) => f.status === 'synced' && f.pendingOp === null)) {
       const served = await this.remote.fetchFoods();
       if (served) await this.store.replaceSyncedFoods(served);
+    }
+
+    const recipes = await this.store.getRecipes();
+    if (recipes.every((r) => r.status === 'synced' && r.pendingOp === null)) {
+      const served = await this.remote.fetchRecipes();
+      if (served) await this.store.replaceSyncedRecipes(served);
     }
 
     const water = await this.store.getWater(date);

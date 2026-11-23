@@ -87,6 +87,7 @@ export default function NutritionScreen() {
       </View>
 
       <Button title="Añadir alimento" onPress={() => router.push('/food/add')} testID="add-food" />
+      <Button title="Mis recetas" variant="secondary" onPress={() => router.push('/recipes')} testID="go-recipes" />
 
       {view.meals.length === 0 && <Muted>Aún no has registrado nada hoy.</Muted>}
 
@@ -197,7 +198,9 @@ function EntryRow(
   const statusColor = entry.status === 'synced' ? colors.success : entry.status === 'rejected' ? colors.danger : colors.warning;
   return (
     <View testID={`entry-${entry.id}`} style={styles.entry}>
-      <Body style={styles.bold}>{`${entry.name} · ${entry.grams} g`}</Body>
+      <Body style={styles.bold}>
+        {entry.recipeId ? `${entry.name} · ${String(entry.servings ?? '').replace('.', ',')} raciones` : `${entry.name} · ${entry.grams} g`}
+      </Body>
       <Body>{`${entry.kcal} kcal · P ${grams(entry.proteinG)} · G ${grams(entry.fatG)} · C ${grams(entry.carbsG)}`}</Body>
       {conflicts.length > 0 && (
         <Body testID={`entry-allergen-${entry.id}`} style={{ color: colors.danger }}>{`⚠ Contiene ${conflicts.map(allergenLabel).join(', ')}`}</Body>

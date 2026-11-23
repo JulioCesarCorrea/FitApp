@@ -1,6 +1,6 @@
 // Migraciones de fitness.db. Sin dependencias de React Native: se prueban en Node con una base simulada.
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** Lo mínimo que necesitamos de expo-sqlite para migrar. */
 export interface MigrationDb {
@@ -144,6 +144,19 @@ const V8 = `
   CREATE INDEX IF NOT EXISTS idx_water_local_date ON water_local (date);
 `;
 
+// SPEC-nutrition-005: recetas (JSON con nombre, raciones e ingredientes) y la receta de cada entrada.
+const V9_ENTRY_COLUMNS: [string, string][] = [['recipe_id', 'TEXT'], ['servings', 'REAL']];
+const V9 = `
+  CREATE TABLE IF NOT EXISTS recipes_local (
+    id TEXT PRIMARY KEY NOT NULL,
+    json TEXT NOT NULL,
+    status TEXT NOT NULL,
+    message TEXT,
+    pending_op TEXT,
+    attempted INTEGER NOT NULL DEFAULT 0
+  );
+`;
+
 async function addMissingColumns(db: MigrationDb, table: string, columns: [string, string][]): Promise<void> {
   for (const [name, definition] of columns) {
     const found = await db.getFirstAsync<{ n: number }>(
@@ -167,6 +180,10 @@ export async function migrate(db: MigrationDb): Promise<void> {
     await addMissingColumns(db, 'foods_local', V8_FOOD_COLUMNS);
     await addMissingColumns(db, 'food_entries_local', V8_ENTRY_COLUMNS);
     await db.execAsync(V8);
+  }
+  if (current < 9) {
+    await addMissingColumns(db, 'food_entries_local', V9_ENTRY_COLUMNS);
+    await db.execAsync(V9);
   }
 
   // Nunca se baja la versión: solo se sube cuando se aplicó algo.

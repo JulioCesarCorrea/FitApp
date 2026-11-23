@@ -2,7 +2,7 @@ import { reasonFrom } from '../api';
 import { authedFetch, type Authorizer } from './authedFetch';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerWater,
+  AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerRecipe, ServerWater,
   Suggestion, SuggestionsApi, TargetsResponse,
 } from './types';
 
@@ -188,6 +188,22 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi {
     return day.meals.flatMap((m) => m.entries);
   }
 
+  async fetchRecipes(): Promise<ServerRecipe[] | null> {
+    const res = await this.request('GET', '/recipes');
+    return res?.ok ? ((await res.json()) as ServerRecipe[]) : null;
+  }
+
+  async putRecipe(recipe: ServerRecipe): Promise<PutLogResult> {
+    // La API solo necesita el alimento y los gramos de cada ingrediente: copia los valores ella.
+    const body = { name: recipe.name, servings: recipe.servings, ingredients: recipe.ingredients.map((i) => ({ foodId: i.foodId, grams: i.grams })) };
+    return this.putResult(await this.request('PUT', `/recipes/${recipe.id}`, body));
+  }
+
+  async deleteRecipe(id: string): Promise<'ok' | 'retry'> {
+    const res = await this.request('DELETE', `/recipes/${id}`);
+    return res?.ok ? 'ok' : 'retry';
+  }
+
   async fetchDayWater(date: string): Promise<ServerWater[] | null> {
     const res = await this.request('GET', `/nutrition/day?date=${encodeURIComponent(date)}`);
     if (!res?.ok) return null;
@@ -204,7 +220,7 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi {
     return res?.ok ? 'ok' : 'retry';
   }
 
-  async putFoodEntry(entry: Pick<ServerFoodEntry, 'id' | 'date' | 'meal' | 'foodId' | 'grams'>): Promise<PutLogResult> {
+  async putFoodEntry(entry: Pick<ServerFoodEntry, 'id' | 'date' | 'meal' | 'foodId' | 'grams' | 'recipeId' | 'servings'>): Promise<PutLogResult> {
     const { id, ...body } = entry;
     return this.putResult(await this.request('PUT', `/food-entries/${id}`, body));
   }

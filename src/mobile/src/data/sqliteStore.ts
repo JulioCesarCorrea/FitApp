@@ -9,6 +9,7 @@ import {
   type LocalExerciseLog,
   type LocalFood,
   type LocalFoodEntry,
+  type LocalRecipe,
   type LocalWater,
   type LocalPlanEntry,
   type LocalProfile,
@@ -17,6 +18,7 @@ import {
   type ServerExerciseLog,
   type ServerFood,
   type ServerFoodEntry,
+  type ServerRecipe,
   type ServerWater,
   type SyncStatus,
 } from './types';
@@ -235,11 +237,11 @@ export class SqliteStore implements LocalStore {
     const db = await getDb();
     await db.runAsync(
       `INSERT OR REPLACE INTO food_entries_local
-         (id, date, meal, food_id, grams, name, kcal, protein_g, fat_g, carbs_g, fiber_g, sugars_g, sodium_mg,
+         (id, date, meal, food_id, grams, name, kcal, protein_g, fat_g, carbs_g, fiber_g, sugars_g, sodium_mg, recipe_id, servings,
           status, message, pending_op, attempted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       e.id, e.date, e.meal, e.foodId, e.grams, e.name, e.kcal, e.proteinG, e.fatG, e.carbsG,
-      e.fiberG ?? null, e.sugarsG ?? null, e.sodiumMg ?? null, e.status, e.message, e.pendingOp, e.attempted ? 1 : 0,
+      e.fiberG ?? null, e.sugarsG ?? null, e.sodiumMg ?? null, e.recipeId ?? null, e.servings ?? null, e.status, e.message, e.pendingOp, e.attempted ? 1 : 0,
     );
   }
 
@@ -264,11 +266,53 @@ export class SqliteStore implements LocalStore {
       for (const e of entries) {
         await db.runAsync(
           `INSERT OR IGNORE INTO food_entries_local
-             (id, date, meal, food_id, grams, name, kcal, protein_g, fat_g, carbs_g, fiber_g, sugars_g, sodium_mg,
+             (id, date, meal, food_id, grams, name, kcal, protein_g, fat_g, carbs_g, fiber_g, sugars_g, sodium_mg, recipe_id, servings,
               status, message, pending_op, attempted)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
           e.id, e.date, e.meal, e.foodId, e.grams, e.name, e.kcal, e.proteinG, e.fatG, e.carbsG,
-          e.fiberG ?? null, e.sugarsG ?? null, e.sodiumMg ?? null,
+          e.fiberG ?? null, e.sugarsG ?? null, e.sodiumMg ?? null, e.recipeId ?? null, e.servings ?? null,
+        );
+      }
+    });
+  }
+
+  async getRecipes(): Promise<LocalRecipe[]> {
+    const db = await getDb();
+    return (await db.getAllAsync<RecipeRow>('SELECT * FROM recipes_local')).map(toRecipe);
+  }
+
+  async getRecipe(id: string): Promise<LocalRecipe | null> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<RecipeRow>('SELECT * FROM recipes_local WHERE id = ?', id);
+    return row ? toRecipe(row) : null;
+  }
+
+  async saveRecipe(r: LocalRecipe): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO recipes_local (id, json, status, message, pending_op, attempted) VALUES (?, ?, ?, ?, ?, ?)`,
+      r.id, recipeJson(r), r.status, r.message, r.pendingOp, r.attempted ? 1 : 0,
+    );
+  }
+
+  async deleteRecipe(id: string): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('DELETE FROM recipes_local WHERE id = ?', id);
+  }
+
+  async getPendingRecipes(): Promise<LocalRecipe[]> {
+    const db = await getDb();
+    return (await db.getAllAsync<RecipeRow>(`SELECT * FROM recipes_local WHERE pending_op IS NOT NULL AND status = 'pending'`)).map(toRecipe);
+  }
+
+  async replaceSyncedRecipes(recipes: ServerRecipe[]): Promise<void> {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`DELETE FROM recipes_local WHERE pending_op IS NULL AND status = 'synced'`);
+      for (const r of recipes) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO recipes_local (id, json, status, message, pending_op, attempted) VALUES (?, ?, 'synced', NULL, NULL, 1)`,
+          r.id, recipeJson(r),
         );
       }
     });
@@ -321,7 +365,7 @@ export class SqliteStore implements LocalStore {
     await db.withTransactionAsync(async () => {
       for (const table of [
         'plan_entries_local', 'plan_day_state', 'equipment_local', 'exercise_logs_local', 'profile_local', 'weight_queue',
-        'foods_local', 'food_entries_local', 'water_local',
+        'foods_local', 'food_entries_local', 'water_local', 'recipes_local',
       ]) {
         await db.runAsync(`DELETE FROM ${table}`);
       }
@@ -340,6 +384,7 @@ export class SqliteStore implements LocalStore {
       (await count(`SELECT COUNT(*) AS n FROM foods_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM food_entries_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM water_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
+      (await count(`SELECT COUNT(*) AS n FROM recipes_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM settings WHERE key = 'stagnationThresholdStatus' AND value = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM weight_queue WHERE status = 'pending'`))
     );
@@ -423,11 +468,30 @@ interface EntryRow {
   fiber_g: number | null;
   sugars_g: number | null;
   sodium_mg: number | null;
+  recipe_id: string | null;
+  servings: number | null;
   status: SyncStatus;
   message: string | null;
   pending_op: 'upsert' | 'delete' | null;
   attempted: number;
 }
+
+interface RecipeRow {
+  id: string;
+  json: string;
+  status: SyncStatus;
+  message: string | null;
+  pending_op: 'upsert' | 'delete' | null;
+  attempted: number;
+}
+
+const toRecipe = (r: RecipeRow): LocalRecipe => {
+  const body = JSON.parse(r.json) as Pick<LocalRecipe, 'name' | 'servings' | 'ingredients'>;
+  return { id: r.id, ...body, status: r.status, message: r.message, pendingOp: r.pending_op, attempted: r.attempted === 1 };
+};
+
+const recipeJson = (r: Pick<LocalRecipe, 'name' | 'servings' | 'ingredients'>): string =>
+  JSON.stringify({ name: r.name, servings: r.servings, ingredients: r.ingredients });
 
 interface WaterRow {
   id: string;
@@ -454,7 +518,7 @@ const toFood = (r: FoodRow): LocalFood => ({
 const toEntryRow = (r: EntryRow): LocalFoodEntry => ({
   id: r.id, date: r.date, meal: r.meal, foodId: r.food_id, grams: r.grams, name: r.name, kcal: r.kcal, proteinG: r.protein_g,
   fatG: r.fat_g, carbsG: r.carbs_g, fiberG: r.fiber_g ?? null, sugarsG: r.sugars_g ?? null, sodiumMg: r.sodium_mg ?? null,
-  status: r.status, message: r.message, pendingOp: r.pending_op, attempted: r.attempted === 1,
+  recipeId: r.recipe_id ?? null, servings: r.servings ?? null, status: r.status, message: r.message, pendingOp: r.pending_op, attempted: r.attempted === 1,
 });
 
 const toLog = (r: LogRow): LocalExerciseLog => ({

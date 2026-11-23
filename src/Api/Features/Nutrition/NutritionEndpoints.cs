@@ -99,10 +99,38 @@ public static class NutritionEndpoints
                     PutEntryResult.Saved saved => Results.Ok(saved.Entry),
                     PutEntryResult.UnknownFood => Results.Problem(
                         statusCode: StatusCodes.Status422UnprocessableEntity, title: "El alimento no existe en tu lista."),
+                    PutEntryResult.UnknownRecipe => Results.Problem(
+                        statusCode: StatusCodes.Status422UnprocessableEntity, title: "La receta no existe en tu lista."),
                     _ => Results.NotFound(),
                 };
             })
             .AddEndpointFilter<ValidationFilter<FoodEntryRequest>>();
+
+        app.MapGet("/recipes", async (ICurrentUser user, RecipeHandler handler, CancellationToken ct) =>
+            user.Id is not { } userId ? Results.Unauthorized() : Results.Ok(await handler.ListAsync(userId, ct)));
+
+        app.MapPut("/recipes/{id:guid}", async (Guid id, RecipeRequest request, ICurrentUser user, RecipeHandler handler, CancellationToken ct) =>
+            {
+                if (user.Id is not { } userId) return Results.Unauthorized();
+
+                return await handler.PutAsync(userId, id, request, ct) switch
+                {
+                    PutRecipeResult.Saved { Created: true } saved => Results.Created($"/recipes/{id}", saved.Recipe),
+                    PutRecipeResult.Saved saved => Results.Ok(saved.Recipe),
+                    PutRecipeResult.UnknownFood => Results.Problem(
+                        statusCode: StatusCodes.Status422UnprocessableEntity, title: "Algún ingrediente no existe en tu lista de alimentos."),
+                    _ => Results.NotFound(),
+                };
+            })
+            .AddEndpointFilter<ValidationFilter<RecipeRequest>>();
+
+        app.MapDelete("/recipes/{id:guid}", async (Guid id, ICurrentUser user, RecipeHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+
+            await handler.DeleteAsync(userId, id, ct);
+            return Results.NoContent();
+        });
 
         app.MapPut("/water-entries/{id:guid}", async (Guid id, WaterRequest request, ICurrentUser user, WaterHandler handler, CancellationToken ct) =>
             {

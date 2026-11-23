@@ -14,6 +14,14 @@ public sealed record MicroPortion(decimal? FiberG, decimal? SugarsG, int? Sodium
 /// <summary>Calorías y macros de una cantidad concreta de un alimento (calorías enteras, macros con un decimal).</summary>
 public sealed record Portion(int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
 
+/// <summary>Valores por 100 g de un ingrediente y sus gramos (SPEC-nutrition-005).</summary>
+public sealed record IngredientValues(
+    decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g,
+    decimal? FiberPer100g, decimal? SugarsPer100g, int? SodiumMgPer100g, int Grams);
+
+/// <summary>Calorías y macros de una receta o de unas raciones; fibra, azúcares y sodio null = sin dato.</summary>
+public sealed record RecipeValues(int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG, decimal? FiberG, decimal? SugarsG, int? SodiumMg);
+
 /// <summary>Reglas deterministas de nutrición (P1, P4). Los vectores de tests/Api.Tests/Nutrition/nutrition-vectors.json las fijan (ADR-0004).</summary>
 public static class NutritionRules
 {
@@ -89,6 +97,39 @@ public static class NutritionRules
         fiberPer100g is { } f ? Math.Round(Tenths(f) * (decimal)grams / 100m, MidpointRounding.AwayFromZero) / 10m : null,
         sugarsPer100g is { } s ? Math.Round(Tenths(s) * (decimal)grams / 100m, MidpointRounding.AwayFromZero) / 10m : null,
         sodiumMgPer100g is { } na ? (int)Math.Round(na * (decimal)grams / 100m, MidpointRounding.AwayFromZero) : null);
+
+    /// <summary>
+    /// SPEC-nutrition-005, AC-03: suma de los ingredientes, cada uno redondeado como una entrada (<see cref="PortionOf"/> y
+    /// <see cref="MicrosOf"/>). Si algún ingrediente no tiene fibra, azúcares o sodio, ese total queda sin dato.
+    /// </summary>
+    public static RecipeValues RecipeTotal(IEnumerable<IngredientValues> ingredients)
+    {
+        var parts = ingredients
+            .Select(i => (Portion: PortionOf(i.KcalPer100g, i.ProteinPer100g, i.FatPer100g, i.CarbsPer100g, i.Grams),
+                          Micros: MicrosOf(i.FiberPer100g, i.SugarsPer100g, i.SodiumMgPer100g, i.Grams)))
+            .ToList();
+        return new RecipeValues(
+            parts.Sum(p => p.Portion.Kcal), parts.Sum(p => p.Portion.ProteinG), parts.Sum(p => p.Portion.FatG), parts.Sum(p => p.Portion.CarbsG),
+            parts.Any(p => p.Micros.FiberG is null) ? null : parts.Sum(p => p.Micros.FiberG!.Value),
+            parts.Any(p => p.Micros.SugarsG is null) ? null : parts.Sum(p => p.Micros.SugarsG!.Value),
+            parts.Any(p => p.Micros.SodiumMg is null) ? null : parts.Sum(p => p.Micros.SodiumMg!.Value));
+    }
+
+    /// <summary>
+    /// Valores de unas raciones de una receta de <paramref name="recipeServings"/> raciones: total × comidas / raciones, con las
+    /// mismas reglas de redondeo (calorías y sodio enteros, macros con un decimal). Con 1 ración da los valores «por ración».
+    /// </summary>
+    public static RecipeValues ScaleRecipe(RecipeValues total, int recipeServings, decimal servings)
+    {
+        var factor = servings / recipeServings;
+        decimal OneDecimal(decimal v) => Math.Round(v * 10m * factor, MidpointRounding.AwayFromZero) / 10m;
+        return new RecipeValues(
+            (int)Math.Round(total.Kcal * factor, MidpointRounding.AwayFromZero),
+            OneDecimal(total.ProteinG), OneDecimal(total.FatG), OneDecimal(total.CarbsG),
+            total.FiberG is { } f ? OneDecimal(f) : null,
+            total.SugarsG is { } s ? OneDecimal(s) : null,
+            total.SodiumMg is { } n ? (int)Math.Round(n * factor, MidpointRounding.AwayFromZero) : null);
+    }
 
     private static decimal Tenths(decimal value) => Math.Round(value * 10m, MidpointRounding.AwayFromZero);
 }
