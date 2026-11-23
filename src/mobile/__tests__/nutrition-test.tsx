@@ -257,3 +257,65 @@ describe('Pestaña Nutrición (SPEC-nutrition-001)', () => {
     await waitFor(() => expect(screen.queryByTestId('entry-food-1')).not.toBeOnTheScreen());
   });
 });
+
+describe('Objetivo ajustado a mano (SPEC-nutrition-002)', () => {
+  it('AC-nutrition-002-09: ajusta las calorías, ve «Ajustado por ti» y vuelve al valor calculado', async () => {
+    await openNutrition();
+    expect(await screen.findByTestId('nutrition-target')).toHaveTextContent(has('Objetivo: 2500 kcal'));
+    expect(screen.queryByTestId('nutrition-manual')).not.toBeOnTheScreen();
+
+    await press(screen.getByTestId('override-edit'));
+    await type('Calorías al día', '2000');
+    await press(screen.getByTestId('override-save'));
+
+    await waitFor(() => expect(screen.getByTestId('nutrition-target')).toHaveTextContent(has('Objetivo: 2000 kcal')));
+    expect(screen.getByTestId('nutrition-manual')).toHaveTextContent('Ajustado por ti');
+    expect(screen.getByTestId('nutrition-calculated')).toHaveTextContent(has('serían 2500 kcal'));
+    expect(fakes.remote.overridePuts).toEqual([2000]);
+
+    await press(screen.getByTestId('override-clear'));
+
+    await waitFor(() => expect(screen.getByTestId('nutrition-target')).toHaveTextContent(has('Objetivo: 2500 kcal')));
+    expect(screen.queryByTestId('nutrition-manual')).not.toBeOnTheScreen();
+    expect(fakes.remote.overrideDeletes).toBe(1);
+  });
+
+  it('AC-nutrition-002-09: unas calorías fuera de rango se explican y no se envían', async () => {
+    await openNutrition();
+
+    await press(await screen.findByTestId('override-edit'));
+    await type('Calorías al día', '700');
+    await press(screen.getByTestId('override-save'));
+
+    expect(await screen.findByTestId('override-error')).toHaveTextContent('Las calorías van de 800 a 6000.');
+    expect(fakes.remote.overridePuts).toEqual([]);
+  });
+
+  it('AC-nutrition-002-10: sin conexión se ve al instante, queda pendiente y se envía al volver la conexión', async () => {
+    await openNutrition();
+    await screen.findByTestId('nutrition-target');
+    fakes.remote.online = false;
+
+    await press(screen.getByTestId('override-edit'));
+    await type('Calorías al día', '2000');
+    await press(screen.getByTestId('override-save'));
+
+    await waitFor(() => expect(screen.getByTestId('nutrition-target')).toHaveTextContent(has('Objetivo: 2000 kcal')));
+    expect(screen.getByTestId('nutrition-override-pending')).toBeOnTheScreen();
+    expect(fakes.remote.overridePuts).toEqual([]);
+
+    fakes.remote.online = true;
+    await fakes.deps.nutrition.syncPending();
+
+    expect(fakes.remote.overridePuts).toEqual([2000]);
+  });
+
+  it('AC-nutrition-002-09: sin objetivo calculado (falta el peso) no ofrece ajustar', async () => {
+    fakes.remote.targets = { kind: 'missing', what: 'peso' };
+    await openNutrition();
+
+    expect(await screen.findByTestId('nutrition-missing')).toBeOnTheScreen();
+    expect(screen.queryByTestId('override-edit')).not.toBeOnTheScreen();
+  });
+});
+

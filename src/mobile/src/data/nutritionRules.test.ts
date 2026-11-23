@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import vectors from '../../../../tests/Api.Tests/Nutrition/nutrition-vectors.json';
-import { fold, mealOrder, normalizeMeal, portionOf, sumPortions } from './nutritionRules';
+import { fold, macrosFor, mealOrder, normalizeMeal, portionOf, sumPortions } from './nutritionRules';
 
 // Los mismos casos que ejecuta la API (NutritionTests.cs): ADR-0004. El objetivo diario solo lo calcula la API.
 
@@ -9,6 +9,14 @@ describe('vectores compartidos con la API (SPEC-nutrition-001)', () => {
     const p = portionOf(c.kcalPer100g, c.proteinPer100g, c.fatPer100g, c.carbsPer100g, c.grams);
 
     expect(p).toEqual(c.expected);
+  });
+});
+
+describe('vectores compartidos con la API (SPEC-nutrition-002)', () => {
+  it.each(vectors.override)('AC-nutrition-002-03 reparto de macros con calorías ajustadas: $name', (c) => {
+    const m = macrosFor(c.calories, c.weightKg, c.goal as 'bajar_grasa' | 'ganar_musculo' | 'mantener');
+
+    expect(m).toEqual(c.expected);
   });
 });
 

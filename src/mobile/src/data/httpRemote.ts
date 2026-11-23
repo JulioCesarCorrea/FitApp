@@ -157,6 +157,15 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi {
     return null;
   }
 
+  async putTargetOverride(calories: number): Promise<PutLogResult> {
+    return this.putResult(await this.request('PUT', '/nutrition/targets/override', { calories }));
+  }
+
+  async deleteTargetOverride(): Promise<'ok' | 'retry'> {
+    const res = await this.request('DELETE', '/nutrition/targets/override');
+    return res?.ok ? 'ok' : 'retry';
+  }
+
   async fetchFoods(): Promise<ServerFood[] | null> {
     const res = await this.request('GET', '/foods');
     return res?.ok ? ((await res.json()) as ServerFood[]) : null;

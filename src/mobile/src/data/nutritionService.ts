@@ -1,8 +1,15 @@
-import { fold, MAX_GRAMS, MEAL_MAX_LENGTH, MIN_GRAMS, mealOrder, normalizeMeal, portionOf, sumPortions, type Portion } from './nutritionRules';
+import {
+  fold, macrosFor, MAX_GRAMS, MAX_OVERRIDE_CALORIES, MEAL_MAX_LENGTH, MIN_GRAMS, MIN_OVERRIDE_CALORIES, mealOrder, normalizeMeal,
+  portionOf, sumPortions, type Portion,
+} from './nutritionRules';
 import type { LocalFood, LocalFoodEntry, LocalStore, NutritionApi, NutritionTarget, ServerFood } from './types';
 
 const TARGET_KEY = 'nutritionTarget';
 const MISSING_KEY = 'nutritionMissing';
+/** Cambio del objetivo que aún no llegó a la API (SPEC-nutrition-002): `{ op: 'put', calories }` o `{ op: 'delete' }`. */
+const OVERRIDE_PENDING_KEY = 'nutritionOverridePending';
+
+type PendingOverride = { op: 'put'; calories: number } | { op: 'delete' };
 const EARLIEST_DATE = '2000-01-01';
 
 /** Lo que escribe la persona al crear un alimento, sin interpretar. */
@@ -38,9 +45,14 @@ export interface MealGroup {
   entries: LocalFoodEntry[];
 }
 
-/** Objetivo que se muestra: el último recibido de la API (con su fecha), lo que falta, o nada sabido. */
+export type SetOverrideResult = { ok: true } | { ok: false; message: string };
+
+/**
+ * Objetivo que se muestra: el último recibido de la API (con su fecha), lo que falta, o nada sabido. `pending` indica que
+ * hay un ajuste hecho en el teléfono que todavía no llegó a la API (SPEC-nutrition-002, AC-10).
+ */
 export type TargetState =
-  | { kind: 'target'; target: NutritionTarget; calculatedAt: string }
+  | { kind: 'target'; target: NutritionTarget; calculatedAt: string; pending: boolean }
   | { kind: 'missing'; what: 'perfil' | 'peso' }
   | { kind: 'unknown' };
 
@@ -241,6 +253,51 @@ export class NutritionService {
     await this.store.deleteFood(id);
   }
 
+  // ---------- objetivo ajustado (SPEC-nutrition-002) ----------
+
+  /** AC-nutrition-002-09 y 10: fija las calorías diarias. Se aplica al instante en el teléfono y se envía en cuanto hay conexión. */
+  async setOverride(text: string): Promise<SetOverrideResult> {
+    const clean = text.trim();
+    const calories = /^\d+$/.test(clean) ? Number(clean) : Number.NaN;
+    if (!(calories >= MIN_OVERRIDE_CALORIES && calories <= MAX_OVERRIDE_CALORIES)) {
+      return { ok: false, message: `Las calorías van de ${MIN_OVERRIDE_CALORIES} a ${MAX_OVERRIDE_CALORIES}.` };
+    }
+    if ((await this.getTargetState()).kind !== 'target') {
+      return { ok: false, message: 'Para ajustar tu objetivo hace falta que antes se calcule (perfil y peso).' };
+    }
+    await this.setPending({ op: 'put', calories });
+    await this.syncPending();
+    return { ok: true };
+  }
+
+  /** AC-nutrition-002-09: vuelve al valor calculado; igual que el ajuste, primero en el teléfono. */
+  async clearOverride(): Promise<void> {
+    await this.setPending({ op: 'delete' });
+    await this.syncPending();
+  }
+
+  private async getPending(): Promise<PendingOverride | null> {
+    const stored = await this.store.getSetting(OVERRIDE_PENDING_KEY);
+    return stored ? (JSON.parse(stored) as PendingOverride) : null;
+  }
+
+  private setPending(pending: PendingOverride | null): Promise<void> {
+    return this.store.setSetting(OVERRIDE_PENDING_KEY, pending ? JSON.stringify(pending) : '');
+  }
+
+  /** Envía el último cambio pendiente; si mientras tanto la persona hizo otro, se queda para la siguiente pasada. */
+  private async sendOverride(pending: PendingOverride): Promise<boolean> {
+    const accepted = pending.op === 'put'
+      ? await this.remote.putTargetOverride(pending.calories)
+      : { kind: (await this.remote.deleteTargetOverride()) === 'ok' ? 'ok' : 'retry' } as const;
+    if (accepted.kind === 'retry') return false;
+
+    // 'rejected' solo ocurre si falta perfil o peso, o el valor es inválido: no hay nada que reintentar y se muestra el de la API.
+    const current = await this.getPending();
+    if (JSON.stringify(current) === JSON.stringify(pending)) await this.setPending(null);
+    return true;
+  }
+
   // ---------- envío ----------
 
   syncPending(): Promise<void> {
@@ -252,7 +309,9 @@ export class NutritionService {
   /** Borrados de entradas, alimentos nuevos, entradas nuevas y borrados de alimentos; se detiene ante un error de red. */
   private async doSync(): Promise<void> {
     const { foods, entries } = await this.store.getPendingNutrition();
+    const override = await this.getPending();
     const stages: (() => Promise<boolean>)[] = [
+      ...(override ? [() => this.sendOverride(override)] : []),
       ...entries.filter((e) => e.pendingOp === 'delete').map((e) => () => this.sendEntryDelete(e)),
       ...foods.filter((f) => f.pendingOp === 'upsert').map((f) => () => this.sendFood(f)),
       ...entries.filter((e) => e.pendingOp === 'upsert').sort((a, b) => a.date.localeCompare(b.date)).map((e) => () => this.sendEntry(e)),
@@ -358,6 +417,8 @@ export class NutritionService {
   }
 
   async refreshTarget(): Promise<void> {
+    // Con un ajuste pendiente (no llegó a la API) manda el del teléfono: una respuesta vieja no lo pisa (AC-nutrition-002-10).
+    if ((await this.getPending()) !== null) return;
     const response = await this.remote.fetchTargets();
     if (response === null) return; // sin conexión: se conserva el último
     if (response.kind === 'ok') {
@@ -375,6 +436,21 @@ export class NutritionService {
     const stored = await this.store.getSetting(TARGET_KEY);
     if (!stored) return { kind: 'unknown' };
     const parsed = JSON.parse(stored) as { target: NutritionTarget; calculatedAt: string };
-    return { kind: 'target', target: parsed.target, calculatedAt: parsed.calculatedAt };
+
+    const pending = await this.getPending();
+    if (!pending) return { kind: 'target', target: parsed.target, calculatedAt: parsed.calculatedAt, pending: false };
+
+    // Ajuste hecho sin conexión: calorías elegidas (o las calculadas) y macros con las mismas reglas que la API, usando
+    // el peso del último objetivo recibido y la meta del perfil local (AC-nutrition-002-03 y 10).
+    const profile = (await this.store.getProfile()).profile;
+    if (!profile) return { kind: 'target', target: parsed.target, calculatedAt: parsed.calculatedAt, pending: true };
+    const calories = pending.op === 'put' ? pending.calories : parsed.target.calculatedCalories;
+    const macros = macrosFor(calories, parsed.target.weightKg, profile.goal);
+    return {
+      kind: 'target',
+      calculatedAt: parsed.calculatedAt,
+      pending: true,
+      target: { ...parsed.target, calories, ...macros, source: pending.op === 'put' ? 'manual' : 'calculated' },
+    };
   }
 }
