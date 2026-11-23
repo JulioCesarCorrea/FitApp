@@ -253,7 +253,7 @@ export class MemoryStore implements LocalStore {
     this.logs.clear();
     this.pendingWeights = 0;
     for (const key of [...this.settings.keys()]) {
-      if (key.startsWith('stagnation') || key.startsWith('nutrition') || key === 'localUserId') this.settings.delete(key);
+      if (key.startsWith('stagnation') || key.startsWith('nutrition') || key === 'reminders' || key === 'localUserId') this.settings.delete(key);
     }
   }
 

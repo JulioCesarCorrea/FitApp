@@ -34,7 +34,14 @@
       ],
       "expo-router",
       "expo-image",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": false
+        }
+      ],
+      "expo-status-bar"
     ],
     "scheme": "fitnessapp"
   }

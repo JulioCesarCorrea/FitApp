@@ -6,9 +6,11 @@ import { HttpAuthRemote } from './authRemote';
 import { AuthService } from './authService';
 import { HttpRemote } from './httpRemote';
 import { NutritionService } from './nutritionService';
+import { NotificationsScheduler } from './notificationsScheduler';
 import { OpenFoodFactsClient } from './openFoodFacts';
 import { PlanService } from './planService';
 import { ProfileService } from './profileService';
+import { ReminderService } from './reminderService';
 import { RestrictionService } from './restrictionService';
 import { SecureTokenStore } from './secureTokenStore';
 import { SessionService, todayLocal } from './sessionService';
@@ -32,6 +34,8 @@ export interface Deps {
   suggestions: SuggestionService;
   nutrition: NutritionService;
   weights: WeightSource;
+  /** Recordatorios locales (SPEC-notify-001). */
+  reminders: ReminderService;
   /** Consulta de productos por código de barras (Open Food Facts). */
   products: ProductLookup;
 }
@@ -49,6 +53,7 @@ export async function createDeps(): Promise<Deps> {
     await weights.add(weightKg);
     await syncPending(weights, postWeight).catch(() => {});
   };
+  const weights: WeightSource = { list: async () => (await openStore()).listAll() };
   const service = new PlanService(store, remote, newId);
   return {
     store,
@@ -60,7 +65,8 @@ export async function createDeps(): Promise<Deps> {
     restrictions: new RestrictionService(remote, newId, () => todayLocal()),
     suggestions: new SuggestionService(remote, service),
     nutrition: new NutritionService(store, remote, newId),
-    weights: { list: async () => (await openStore()).listAll() },
+    weights,
+    reminders: new ReminderService(store, new NotificationsScheduler(), () => weights.list(), () => auth.getState().status === 'signedIn'),
     products: new OpenFoodFactsClient(),
   };
 }

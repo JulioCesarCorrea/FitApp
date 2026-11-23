@@ -34,6 +34,10 @@ export default function MoreScreen() {
         </View>
       </View>
 
+      <Title>Recordatorios</Title>
+      <Muted>Avisos en este teléfono para entrenar, registrar comidas y pesarte.</Muted>
+      <Button title="Recordatorios" variant="secondary" testID="go-reminders" onPress={() => router.push('/reminders')} />
+
       <Title>Progreso</Title>
       <Muted>Cómo evolucionan tu peso y tu entrenamiento.</Muted>
       <View style={styles.row}>
