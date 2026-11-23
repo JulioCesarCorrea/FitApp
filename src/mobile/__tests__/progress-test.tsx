@@ -1,6 +1,8 @@
 import { configure, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { createDeps } from '../src/data/deps';
+import { localDate } from '../src/data/nutritionService';
+import type { NutritionTarget, ServerNutritionHistory } from '../src/data/types';
 import type { LocalWeight } from '../src/sync';
 import { createFakes } from './support';
 
@@ -82,3 +84,59 @@ describe('Progreso de peso (SPEC-progress-002)', () => {
     expect(screen.queryByTestId('weight-summary')).not.toBeOnTheScreen();
   });
 });
+
+describe('Progreso de nutrición (SPEC-nutrition-006)', () => {
+  const dayAgo = (n: number) => localDate(new Date(Date.now() - n * 86_400_000));
+  const logged = (daysAgo: number, kcal: number) => ({ date: dayAgo(daysAgo), logged: true, kcal, proteinG: 120, fatG: 60, carbsG: 250 });
+  const TARGET: NutritionTarget = {
+    calories: 2000, proteinG: 145, fatG: 56, carbsG: 229, basalKcal: 1800, weightKg: 80.5, weightDate: '2026-11-12',
+    calculatedCalories: 2000, source: 'calculated',
+  };
+  const history = (days: ServerNutritionHistory['days'], targets: NutritionTarget | null = TARGET): ServerNutritionHistory => ({ days, targets });
+
+  async function openNutritionProgress() {
+    (createDeps as jest.Mock).mockResolvedValue(fakes.deps);
+    await renderRouter('./src/app', { initialUrl: '/progress/nutrition' });
+  }
+
+  it('AC-nutrition-006-08: muestra el gráfico semanal con las calorías contra el objetivo, los macros y la adherencia', async () => {
+    fakes.remote.serverHistory = history([logged(1, 2000), logged(2, 2100), logged(3, 1000)]);
+    await openNutritionProgress();
+
+    const chart = await screen.findByTestId('nutrition-chart');
+
+    expect(chart.props.accessibilityLabel).toMatch(/Calorías medias por semana/);
+    expect(screen.getByTestId('history-adherence')).toHaveTextContent(/de 3 días registrados dentro de ±10 % de 2000 kcal/);
+    expect(screen.getByText(/Objetivo de hoy: 2000 kcal/)).toBeOnTheScreen();
+    expect(screen.getAllByText(/Semana del .*kcal · P 120 g · G 60 g · C 250 g de media/).length).toBeGreaterThan(0);
+  });
+
+  it('AC-nutrition-006-08: el selector de semanas cambia el periodo', async () => {
+    fakes.remote.serverHistory = history([logged(1, 2000), logged(40, 1800)]);
+    await openNutritionProgress();
+    await screen.findByTestId('nutrition-chart');
+    expect(screen.getByTestId('nutrition-chart').props.accessibilityLabel).toMatch(/1800 kcal/); // 8 semanas por defecto: hace 40 días cae dentro
+
+    await fireEvent.press(screen.getByTestId('weeks-4'));
+
+    await waitFor(() => expect(screen.getByTestId('nutrition-chart').props.accessibilityLabel).not.toMatch(/1800 kcal/));
+  });
+
+  it('AC-nutrition-006-09: sin conexión y sin nada guardado lo avisa y no inventa datos', async () => {
+    fakes.remote.online = false;
+    await openNutritionProgress();
+
+    expect(await screen.findByTestId('history-offline')).toBeOnTheScreen();
+    expect(screen.getByTestId('history-empty')).toBeOnTheScreen();
+    expect(screen.queryByTestId('nutrition-chart')).not.toBeOnTheScreen();
+  });
+
+  it('AC-nutrition-006-06: sin objetivo muestra el consumo sin adherencia', async () => {
+    fakes.remote.serverHistory = history([logged(1, 2000)], null);
+    await openNutritionProgress();
+
+    expect(await screen.findByTestId('history-no-target')).toBeOnTheScreen();
+    expect(screen.queryByTestId('history-adherence')).not.toBeOnTheScreen();
+  });
+});
+

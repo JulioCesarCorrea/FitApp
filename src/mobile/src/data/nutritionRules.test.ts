@@ -6,6 +6,8 @@ import {
 
 // Los mismos casos que ejecuta la API (NutritionTests.cs): ADR-0004. El objetivo diario solo lo calcula la API.
 
+import { weeklyIntake } from './nutritionHistory';
+
 describe('vectores compartidos con la API (SPEC-nutrition-001)', () => {
   it.each(vectors.portions)('AC-nutrition-001-02 redondeo por cantidad: $name', (c) => {
     const p = portionOf(c.kcalPer100g, c.proteinPer100g, c.fatPer100g, c.carbsPer100g, c.grams);
@@ -76,5 +78,11 @@ describe('reglas de lo comido', () => {
   it('AC-nutrition-001-08 la búsqueda no distingue mayúsculas ni acentos', () => {
     expect(fold('  PLÁTANO ')).toBe('platano');
     expect(fold('Yogur')).toBe('yogur');
+  });
+});
+
+describe('vectores compartidos con la API (SPEC-nutrition-006)', () => {
+  it.each(vectors.weekly)('AC-nutrition-006-03 promedios semanales y adherencia: $name', (c) => {
+    expect(weeklyIntake(c.days, c.targetKcal)).toEqual(c.expected);
   });
 });

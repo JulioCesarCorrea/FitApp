@@ -26,8 +26,10 @@ public sealed class NutritionVectorsTests
     private sealed record RecipeCase(
         string Name, int Servings, IngredientValues[] Ingredients, RecipeValues ExpectedTotal, decimal EatenServings, RecipeValues ExpectedEntry,
         RecipeValues ExpectedPerServing);
+    private sealed record WeeklyCase(string Name, int? TargetKcal, DayIntake[] Days, WeekIntake[] Expected);
     private sealed record Vectors(
-        TargetCase[] Targets, FloorCase[] Floor, PortionCase[] Portions, OverrideCase[] Override, MicroCase[] Micros, RecipeCase[] Recipes);
+        TargetCase[] Targets, FloorCase[] Floor, PortionCase[] Portions, OverrideCase[] Override, MicroCase[] Micros, RecipeCase[] Recipes,
+        WeeklyCase[] Weekly);
 
     private static readonly Vectors All = JsonSerializer.Deserialize<Vectors>(
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Nutrition", "nutrition-vectors.json")),
@@ -39,6 +41,17 @@ public sealed class NutritionVectorsTests
     public static TheoryData<string> OverrideNames() => [.. All.Override.Select(t => t.Name)];
     public static TheoryData<string> MicroNames() => [.. All.Micros.Select(t => t.Name)];
     public static TheoryData<string> RecipeNames() => [.. All.Recipes.Select(t => t.Name)];
+    public static TheoryData<string> WeeklyNames() => [.. All.Weekly.Select(t => t.Name)];
+
+    // SPEC-nutrition-006, AC-03
+    [Theory]
+    [MemberData(nameof(WeeklyNames))]
+    public void AC_nutrition_006_03_vectores_de_los_promedios_semanales_y_la_adherencia(string name)
+    {
+        var c = All.Weekly.Single(w => w.Name == name);
+
+        Assert.Equal(c.Expected, NutritionHistory.Weekly(c.Days, c.TargetKcal));
+    }
 
     // SPEC-nutrition-005, AC-03
     [Theory]
@@ -1047,5 +1060,97 @@ public sealed class NutritionApiTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.UnprocessableEntity, register.StatusCode);
         Assert.Empty((await Recipes(other))!);
         Assert.Equal("Gachas", Assert.Single((await Recipes(owner))!).Name);
+    }
+
+    // ---------- SPEC-nutrition-006: historial semanal de nutrición ----------
+
+    private static Task<NutritionHistoryDto?> History(HttpClient c, DateOnly from, DateOnly to) =>
+        c.GetFromJsonAsync<NutritionHistoryDto>($"/nutrition/history?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+
+    private static Task<NutritionWeeklyDto?> Weekly(HttpClient c, int weeks = 12) => c.GetFromJsonAsync<NutritionWeeklyDto>($"/nutrition/weekly?weeks={weeks}");
+
+    // AC-nutrition-006-01 y 04
+    [Fact]
+    public async Task AC_nutrition_006_01_el_historial_trae_lo_consumido_cada_dia_y_los_dias_sin_entradas_van_sin_registro()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        await Complete(client);
+        var oats = await PutFood(client, Food()); // 389 kcal por 100 g
+        await PutEntry(client, Guid.NewGuid(), oats, grams: 100, date: Today.AddDays(-2));
+        await PutEntry(client, Guid.NewGuid(), oats, grams: 50, date: Today.AddDays(-2));
+
+        var history = (await History(client, Today.AddDays(-3), Today))!;
+
+        Assert.Equal(4, history.Days.Count);
+        Assert.Equal((true, 584), (history.Days[1].Logged, history.Days[1].Kcal)); // 389 + 195
+        Assert.All(new[] { 0, 2, 3 }.Select(i => history.Days[i]), d => Assert.Equal((false, 0), (d.Logged, d.Kcal))); // sin registro: no es un cero registrado
+        Assert.NotNull(history.Targets);
+    }
+
+    // AC-nutrition-006-05
+    [Theory]
+    [InlineData("/nutrition/history")]
+    [InlineData("/nutrition/history?from=2026-11-10&to=2026-11-01")]
+    [InlineData("/nutrition/history?from=2026-01-01&to=2026-06-01")] // más de 92 días
+    [InlineData("/nutrition/history?from=ayer&to=hoy")]
+    [InlineData("/nutrition/weekly?weeks=0")]
+    [InlineData("/nutrition/weekly?weeks=53")]
+    public async Task AC_nutrition_006_05_rangos_invalidos_responden_400(string url)
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync(url)).StatusCode);
+    }
+
+    // AC-nutrition-006-02
+    [Fact]
+    public async Task AC_nutrition_006_02_el_resumen_semanal_promedia_solo_los_dias_con_registro_y_cuenta_los_dias_dentro_del_margen()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        await Complete(client, goal: "mantener");
+        var target = (await Targets(client))!.Calories;
+        var food = await PutFood(client, Food(name: "Calorías", kcal: 100, protein: 0, fat: 0, carbs: 0));
+        var lastMonday = Today.AddDays(-(((int)Today.DayOfWeek + 6) % 7) - 7);
+        // Dos días de la semana pasada: uno justo en el objetivo y otro muy por debajo (100 kcal).
+        await PutEntry(client, Guid.NewGuid(), food, grams: target, date: lastMonday);
+        await PutEntry(client, Guid.NewGuid(), food, grams: 100, date: lastMonday.AddDays(1));
+
+        var weekly = (await Weekly(client))!;
+
+        var week = weekly.Weeks.Single(w => w.WeekStart == lastMonday);
+        Assert.Equal((2, 1), (week.DaysLogged, week.DaysOnTarget));
+        Assert.Equal((target + 100 + 1) / 2, week.AvgKcal); // promedio solo de los dos días con registro, la mitad hacia arriba
+        Assert.Equal(target, weekly.Targets!.Calories);
+    }
+
+    // AC-nutrition-006-06
+    [Fact]
+    public async Task AC_nutrition_006_06_sin_objetivo_calculable_trae_el_consumo_sin_adherencia()
+    {
+        var client = api.ClientFor(Guid.NewGuid()); // sin perfil ni peso
+        var food = await PutFood(client, Food());
+        await PutEntry(client, Guid.NewGuid(), food, grams: 100);
+
+        var weekly = (await Weekly(client))!;
+        var history = (await History(client, Today.AddDays(-1), Today))!;
+
+        Assert.Null(weekly.Targets);
+        Assert.Null(Assert.Single(weekly.Weeks).DaysOnTarget);
+        Assert.Null(history.Targets);
+    }
+
+    // AC-nutrition-006-07 (P7)
+    [Fact]
+    public async Task AC_nutrition_006_07_el_historial_solo_cuenta_las_entradas_de_la_persona()
+    {
+        var owner = api.ClientFor(Guid.NewGuid());
+        var other = api.ClientFor(Guid.NewGuid());
+        await PutEntry(owner, Guid.NewGuid(), await PutFood(owner, Food()), grams: 100);
+        await PutEntry(other, Guid.NewGuid(), await PutFood(other, Food()), grams: 500);
+
+        var history = (await History(owner, Today, Today))!;
+
+        Assert.Equal(389, Assert.Single(history.Days).Kcal);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await api.CreateClient().GetAsync("/nutrition/weekly")).StatusCode);
     }
 }

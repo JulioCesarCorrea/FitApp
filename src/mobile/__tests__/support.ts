@@ -10,7 +10,7 @@ import { portionOf, recipeTotal, scaleRecipe } from '../src/data/nutritionRules'
 import { SuggestionService } from '../src/data/suggestionService';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, NutritionApi, ProductLookup, ProductLookupResult, RemoteApi, RestrictionItem, ServerFood, ServerFoodEntry, ServerRecipe, ServerWater,
+  AcceptSuggestionResult, NutritionApi, ProductLookup, ProductLookupResult, RemoteApi, RestrictionItem, ServerFood, ServerFoodEntry, ServerNutritionHistory, ServerRecipe, ServerWater,
   Suggestion, SuggestionsApi, TargetsResponse,
 } from '../src/data/types';
 
@@ -53,6 +53,8 @@ export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi {
   serverWater: ServerWater[];
   /** SPEC-nutrition-005: las recetas que «tiene el servidor». */
   serverRecipes: ServerRecipe[];
+  /** SPEC-nutrition-006: lo que responde el historial del servidor (null = no responde). */
+  serverHistory: ServerNutritionHistory | null;
   /** SPEC-nutrition-002: ajustes recibidos y borrados del ajuste. */
   overridePuts: number[];
   overrideDeletes: number;
@@ -166,6 +168,7 @@ export function createFakes(
     targets: TARGETS,
     serverWater: [],
     serverRecipes: [],
+    serverHistory: null,
     overridePuts: [],
     overrideDeletes: 0,
     foodResult: null,
@@ -257,6 +260,7 @@ export function createFakes(
       remote.serverEntries = remote.serverEntries.filter((e) => e.id !== id);
       return 'ok';
     },
+    fetchNutritionHistory: async () => (remote.online ? remote.serverHistory : null),
     fetchRecipes: async () => (remote.online ? remote.serverRecipes.map((r) => structuredClone(r)) : null),
     putRecipe: async (recipe) => {
       if (!remote.online) return { kind: 'retry' };

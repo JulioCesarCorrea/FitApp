@@ -1261,5 +1261,225 @@
         "sodiumMg": 20
       }
     }
+  ],
+  "weekly": [
+    {
+      "name": "un día registrado en una semana",
+      "targetKcal": 2000,
+      "days": [
+        {
+          "date": "2026-11-10",
+          "kcal": 2100,
+          "proteinG": 140.5,
+          "fatG": 70.2,
+          "carbsG": 230.0
+        }
+      ],
+      "expected": [
+        {
+          "weekStart": "2026-11-09",
+          "daysLogged": 1,
+          "avgKcal": 2100,
+          "avgProteinG": 140.5,
+          "avgFatG": 70.2,
+          "avgCarbsG": 230.0,
+          "daysOnTarget": 1
+        }
+      ]
+    },
+    {
+      "name": "varios días con promedio redondeado .5 hacia arriba",
+      "targetKcal": 2000,
+      "days": [
+        {
+          "date": "2026-11-09",
+          "kcal": 1999,
+          "proteinG": 100.1,
+          "fatG": 50.5,
+          "carbsG": 200.5
+        },
+        {
+          "date": "2026-11-10",
+          "kcal": 2000,
+          "proteinG": 100.2,
+          "fatG": 50.5,
+          "carbsG": 200.5
+        }
+      ],
+      "expected": [
+        {
+          "weekStart": "2026-11-09",
+          "daysLogged": 2,
+          "avgKcal": 2000,
+          "avgProteinG": 100.2,
+          "avgFatG": 50.5,
+          "avgCarbsG": 200.5,
+          "daysOnTarget": 2
+        }
+      ]
+    },
+    {
+      "name": "dentro de más o menos 10 por ciento: los bordes cuentan",
+      "targetKcal": 2000,
+      "days": [
+        {
+          "date": "2026-11-09",
+          "kcal": 1800,
+          "proteinG": 100,
+          "fatG": 50,
+          "carbsG": 200
+        },
+        {
+          "date": "2026-11-10",
+          "kcal": 2200,
+          "proteinG": 100,
+          "fatG": 50,
+          "carbsG": 200
+        },
+        {
+          "date": "2026-11-11",
+          "kcal": 1799,
+          "proteinG": 100,
+          "fatG": 50,
+          "carbsG": 200
+        },
+        {
+          "date": "2026-11-12",
+          "kcal": 2201,
+          "proteinG": 100,
+          "fatG": 50,
+          "carbsG": 200
+        }
+      ],
+      "expected": [
+        {
+          "weekStart": "2026-11-09",
+          "daysLogged": 4,
+          "avgKcal": 2000,
+          "avgProteinG": 100.0,
+          "avgFatG": 50.0,
+          "avgCarbsG": 200.0,
+          "daysOnTarget": 2
+        }
+      ]
+    },
+    {
+      "name": "dos semanas con huecos entre días",
+      "targetKcal": 2500,
+      "days": [
+        {
+          "date": "2026-11-08",
+          "kcal": 2600,
+          "proteinG": 150,
+          "fatG": 80,
+          "carbsG": 300
+        },
+        {
+          "date": "2026-11-09",
+          "kcal": 2400,
+          "proteinG": 140,
+          "fatG": 70,
+          "carbsG": 290
+        },
+        {
+          "date": "2026-11-15",
+          "kcal": 2500,
+          "proteinG": 145,
+          "fatG": 75,
+          "carbsG": 295
+        }
+      ],
+      "expected": [
+        {
+          "weekStart": "2026-11-02",
+          "daysLogged": 1,
+          "avgKcal": 2600,
+          "avgProteinG": 150.0,
+          "avgFatG": 80.0,
+          "avgCarbsG": 300.0,
+          "daysOnTarget": 1
+        },
+        {
+          "weekStart": "2026-11-09",
+          "daysLogged": 2,
+          "avgKcal": 2450,
+          "avgProteinG": 142.5,
+          "avgFatG": 72.5,
+          "avgCarbsG": 292.5,
+          "daysOnTarget": 2
+        }
+      ]
+    },
+    {
+      "name": "sin objetivo no hay adherencia",
+      "targetKcal": null,
+      "days": [
+        {
+          "date": "2026-11-09",
+          "kcal": 2000,
+          "proteinG": 100,
+          "fatG": 50,
+          "carbsG": 200
+        },
+        {
+          "date": "2026-11-10",
+          "kcal": 2100,
+          "proteinG": 110,
+          "fatG": 55,
+          "carbsG": 210
+        }
+      ],
+      "expected": [
+        {
+          "weekStart": "2026-11-09",
+          "daysLogged": 2,
+          "avgKcal": 2050,
+          "avgProteinG": 105.0,
+          "avgFatG": 52.5,
+          "avgCarbsG": 205.0,
+          "daysOnTarget": null
+        }
+      ]
+    },
+    {
+      "name": "semana que cruza fin de mes",
+      "targetKcal": 1800,
+      "days": [
+        {
+          "date": "2026-10-29",
+          "kcal": 1850,
+          "proteinG": 120,
+          "fatG": 60,
+          "carbsG": 180
+        },
+        {
+          "date": "2026-11-02",
+          "kcal": 1700,
+          "proteinG": 110,
+          "fatG": 55,
+          "carbsG": 170
+        }
+      ],
+      "expected": [
+        {
+          "weekStart": "2026-10-26",
+          "daysLogged": 1,
+          "avgKcal": 1850,
+          "avgProteinG": 120.0,
+          "avgFatG": 60.0,
+          "avgCarbsG": 180.0,
+          "daysOnTarget": 1
+        },
+        {
+          "weekStart": "2026-11-02",
+          "daysLogged": 1,
+          "avgKcal": 1700,
+          "avgProteinG": 110.0,
+          "avgFatG": 55.0,
+          "avgCarbsG": 170.0,
+          "daysOnTarget": 1
+        }
+      ]
+    }
   ]
 }

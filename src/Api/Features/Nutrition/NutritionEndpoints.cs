@@ -46,6 +46,29 @@ public static class NutritionEndpoints
             return Results.NoContent();
         });
 
+        app.MapGet("/nutrition/history", async (string? from, string? to, ICurrentUser user, NutritionHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+            if (!DateOnly.TryParseExact(from, "yyyy-MM-dd", out var start) || !DateOnly.TryParseExact(to, "yyyy-MM-dd", out var end)
+                || end < start || end.DayNumber - start.DayNumber + 1 > NutritionHandler.MaxHistoryDays)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["range"] = [$"Indica from y to (AAAA-MM-DD), con from no posterior a to y como máximo {NutritionHandler.MaxHistoryDays} días."],
+                });
+
+            return Results.Ok(await handler.HistoryAsync(userId, start, end, ct));
+        });
+
+        app.MapGet("/nutrition/weekly", async (int? weeks, ICurrentUser user, NutritionHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+            var count = weeks ?? 12;
+            if (count < 1 || count > NutritionHandler.MaxHistoryWeeks)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["weeks"] = [$"Las semanas van de 1 a {NutritionHandler.MaxHistoryWeeks}."] });
+
+            return Results.Ok(await handler.WeeklyAsync(userId, count, ct));
+        });
+
         app.MapGet("/nutrition/day", async (string? date, ICurrentUser user, NutritionHandler handler, CancellationToken ct) =>
         {
             if (user.Id is not { } userId) return Results.Unauthorized();

@@ -87,6 +87,7 @@ export default function NutritionScreen() {
       </View>
 
       <Button title="Añadir alimento" onPress={() => router.push('/food/add')} testID="add-food" />
+      <Button title="Progreso" variant="secondary" onPress={() => router.push('/progress/nutrition')} testID="go-nutrition-progress" />
       <Button title="Mis recetas" variant="secondary" onPress={() => router.push('/recipes')} testID="go-recipes" />
 
       {view.meals.length === 0 && <Muted>Aún no has registrado nada hoy.</Muted>}
