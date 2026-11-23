@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MemoryStore } from './memoryStore';
-import { NutritionService, parseFood, type RawFoodInput } from './nutritionService';
-import { macrosFor, microsOf, portionOf } from './nutritionRules';
+import { NutritionService, parseFood, type RawFoodInput, type RawRecipeInput } from './nutritionService';
+import { macrosFor, microsOf, portionOf, recipeTotal, scaleRecipe } from './nutritionRules';
 import type {
-  LocalProfile, NutritionApi, NutritionTarget, PutLogResult, ServerFood, ServerFoodEntry, ServerWater, TargetsResponse,
+  LocalProfile, NutritionApi, NutritionTarget, PutLogResult, ServerFood, ServerFoodEntry, ServerRecipe, ServerWater, TargetsResponse,
 } from './types';
 
 const TODAY = '2026-11-13';
@@ -24,9 +24,11 @@ interface Fake extends NutritionApi {
   foods: Map<string, ServerFood>;
   entries: Map<string, ServerFoodEntry>;
   water: Map<string, ServerWater>;
+  recipes: Map<string, ServerRecipe>;
   targets: TargetsResponse;
   foodResult: PutLogResult | null;
   entryResult: PutLogResult | null;
+  recipeResult: PutLogResult | null;
 }
 
 function fakeRemote(): Fake {
@@ -36,9 +38,11 @@ function fakeRemote(): Fake {
     foods: new Map(),
     entries: new Map(),
     water: new Map(),
+    recipes: new Map(),
     targets: { kind: 'ok', target: TARGET },
     foodResult: null,
     entryResult: null,
+    recipeResult: null,
     fetchTargets: async () => (r.online ? r.targets : null),
     putTargetOverride: async (calories) => {
       if (!r.online) return { kind: 'retry' };
@@ -57,6 +61,20 @@ function fakeRemote(): Fake {
         const t = r.targets.target;
         r.targets = { kind: 'ok', target: { ...t, calories: t.calculatedCalories, ...macrosFor(t.calculatedCalories, t.weightKg, 'mantener'), source: 'calculated' } };
       }
+      return 'ok';
+    },
+    fetchRecipes: async () => (r.online ? [...r.recipes.values()].map((x) => structuredClone(x)) : null),
+    putRecipe: async (recipe) => {
+      if (!r.online) return { kind: 'retry' };
+      r.calls.push(`putRecipe:${recipe.id}`);
+      if (r.recipeResult) return r.recipeResult;
+      r.recipes.set(recipe.id, structuredClone(recipe));
+      return { kind: 'ok' };
+    },
+    deleteRecipe: async (id) => {
+      if (!r.online) return 'retry';
+      r.calls.push(`deleteRecipe:${id}`);
+      r.recipes.delete(id);
       return 'ok';
     },
     fetchDayWater: async (date) => (r.online ? [...r.water.values()].filter((w) => w.date === date) : null),
@@ -91,6 +109,16 @@ function fakeRemote(): Fake {
       if (!r.online) return { kind: 'retry' };
       r.calls.push(`putEntry:${entry.id}`);
       if (r.entryResult) return r.entryResult;
+      if (entry.recipeId) {
+        const recipe = r.recipes.get(entry.recipeId);
+        if (!recipe) return { kind: 'rejected', reason: 'La receta no existe en tu lista.' };
+        const eaten = scaleRecipe(recipeTotal(recipe.ingredients), recipe.servings, entry.servings ?? 1);
+        r.entries.set(entry.id, {
+          ...entry, name: recipe.name, kcal: eaten.kcal, proteinG: eaten.proteinG, fatG: eaten.fatG, carbsG: eaten.carbsG,
+          fiberG: eaten.fiberG, sugarsG: eaten.sugarsG, sodiumMg: eaten.sodiumMg,
+        });
+        return { kind: 'ok' };
+      }
       const food = r.foods.get(entry.foodId ?? '');
       if (!food) return { kind: 'rejected', reason: 'El alimento no existe en tu lista.' };
       r.entries.set(entry.id, {
@@ -667,5 +695,130 @@ describe('agua (SPEC-nutrition-004)', () => {
     remote.water.set('w1', { id: 'w1', date: TODAY, ml: 300 });
 
     expect((await service.loadDay(TODAY)).waterMl).toBe(300);
+  });
+});
+
+describe('recetas (SPEC-nutrition-005)', () => {
+  const recipeInput = (foodId: string, over: Partial<RawRecipeInput> = {}): RawRecipeInput => ({
+    name: 'Gachas', servings: '2', ingredients: [{ foodId, grams: '200' }], ...over,
+  });
+  const saveRecipe = async (input: RawRecipeInput, id?: string) => {
+    const result = await service.saveRecipe(input, id);
+    if (!result.ok) throw new Error(`no se guardó: ${result.issues.map((i) => i.message).join(' ')}`);
+    return result.recipe;
+  };
+
+  it('AC-nutrition-005-01 guarda primero en el teléfono con un id del dispositivo, copia los valores del alimento y lo envía', async () => {
+    const oats = await saveFood();
+
+    const recipe = await saveRecipe(recipeInput(oats.id));
+
+    expect(recipe).toMatchObject({ name: 'Gachas', servings: 2, status: 'synced', pendingOp: null });
+    expect(recipe.ingredients).toEqual([expect.objectContaining({ foodId: oats.id, name: 'Avena', grams: 200, kcalPer100g: 389 })]);
+    expect(remote.recipes.get(recipe.id)?.ingredients[0].grams).toBe(200);
+  });
+
+  it.each<[Partial<RawRecipeInput>, string]>([
+    [{ name: ' ' }, 'name'],
+    [{ name: 'x'.repeat(81) }, 'name'],
+    [{ servings: '0' }, 'servings'],
+    [{ servings: '51' }, 'servings'],
+    [{ servings: '1,5' }, 'servings'],
+    [{ ingredients: [] }, 'ingredients'],
+    [{ ingredients: [{ foodId: 'f', grams: '0' }] }, 'grams'],
+    [{ ingredients: [{ foodId: 'f', grams: '5001' }] }, 'grams'],
+    [{ ingredients: [{ foodId: 'inexistente', grams: '10' }] }, 'food'],
+  ])('AC-nutrition-005-02 rechaza %j (campo %s) sin guardar nada', async (over, field) => {
+    const oats = await saveFood();
+    const input = recipeInput(oats.id, over);
+    if (over.ingredients?.[0]?.foodId === 'f') input.ingredients = [{ foodId: oats.id, grams: over.ingredients[0].grams }];
+
+    const result = await service.saveRecipe(input);
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? [] : result.issues.map((i) => i.field)).toContain(field);
+    expect(await store.getRecipes()).toEqual([]);
+  });
+
+  it('AC-nutrition-005-02 un alimento no puede repetirse en la receta', async () => {
+    const oats = await saveFood();
+
+    const result = await service.saveRecipe(recipeInput(oats.id, { ingredients: [{ foodId: oats.id, grams: '50' }, { foodId: oats.id, grams: '60' }] }));
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('AC-nutrition-005-04 registrar raciones copia los valores de esa cantidad y se envía con la receta primero', async () => {
+    const oats = await saveFood();
+    const recipe = await saveRecipe(recipeInput(oats.id)); // 778 kcal, 2 raciones
+
+    const saved = await service.saveRecipeEntry({ date: TODAY, meal: 'desayuno', servings: '1,5', recipeId: recipe.id });
+
+    if (!saved.ok) throw new Error('no se guardó');
+    expect(saved.entry).toMatchObject({ name: 'Gachas', foodId: null, grams: 0, recipeId: recipe.id, servings: 1.5, kcal: 584, status: 'synced' });
+    expect(remote.entries.get(saved.entry.id)).toMatchObject({ kcal: 584, recipeId: recipe.id, servings: 1.5 });
+    expect((await service.loadDay(TODAY)).totals.kcal).toBe(584);
+  });
+
+  it.each(['0,2', '21', '1,234', 'abc', ''])('AC-nutrition-005-04 rechaza las raciones «%s»', async (servings) => {
+    const oats = await saveFood();
+    const recipe = await saveRecipe(recipeInput(oats.id));
+
+    const result = await service.saveRecipeEntry({ date: TODAY, meal: 'cena', servings, recipeId: recipe.id });
+
+    expect(result.ok).toBe(false);
+    expect(await store.getFoodEntries(TODAY)).toEqual([]);
+  });
+
+  it('AC-nutrition-005-04 cambiar o borrar la receta no reescribe lo ya comido', async () => {
+    const oats = await saveFood();
+    const recipe = await saveRecipe(recipeInput(oats.id));
+    const saved = await service.saveRecipeEntry({ date: TODAY, meal: 'cena', servings: '1', recipeId: recipe.id });
+    if (!saved.ok) throw new Error('no se guardó');
+
+    await saveRecipe(recipeInput(oats.id, { name: 'Gachas ligeras', ingredients: [{ foodId: oats.id, grams: '20' }] }), recipe.id);
+    await service.deleteRecipe(recipe.id);
+
+    const [entry] = await store.getFoodEntries(TODAY);
+    expect(entry).toMatchObject({ name: 'Gachas', kcal: 389, recipeId: recipe.id });
+    expect(await service.listRecipes()).toEqual([]);
+  });
+
+  it('AC-nutrition-005-09 sin conexión crea y registra en el teléfono y al volver la conexión envía la receta antes que la entrada', async () => {
+    const oats = await saveFood();
+    remote.online = false;
+    const recipe = await saveRecipe(recipeInput(oats.id));
+    const saved = await service.saveRecipeEntry({ date: TODAY, meal: 'cena', servings: '1', recipeId: recipe.id });
+    if (!saved.ok) throw new Error('no se guardó');
+
+    expect((await service.loadDay(TODAY)).totals.kcal).toBe(389);
+    remote.online = true;
+    remote.calls.length = 0;
+    await service.syncPending();
+
+    expect(remote.calls).toEqual([`putRecipe:${recipe.id}`, `putEntry:${saved.entry.id}`]);
+    expect((await store.getRecipe(recipe.id))?.status).toBe('synced');
+  });
+
+  it('AC-nutrition-005-09 con conexión trae del servidor las recetas que el teléfono no tenía', async () => {
+    remote.recipes.set('r1', {
+      id: 'r1', name: 'Tortilla', servings: 2,
+      ingredients: [{ foodId: null, name: 'Huevo', grams: 120, kcalPer100g: 143, proteinPer100g: 12.6, fatPer100g: 9.5, carbsPer100g: 0.7, fiberPer100g: 0, sugarsPer100g: 0.4, sodiumMgPer100g: 142 }],
+    });
+
+    await service.loadDay(TODAY);
+
+    expect((await service.listRecipes()).map((r) => r.name)).toEqual(['Tortilla']);
+  });
+
+  it('AC-nutrition-005-02 una receta rechazada por la API se muestra rechazada y se puede descartar', async () => {
+    const oats = await saveFood();
+    remote.recipeResult = { kind: 'rejected', reason: 'Algún ingrediente no existe en tu lista de alimentos.' };
+
+    const recipe = await saveRecipe(recipeInput(oats.id));
+
+    expect(recipe.status).toBe('rejected');
+    await service.discardRecipe(recipe.id);
+    expect(await service.listRecipes()).toEqual([]);
   });
 });

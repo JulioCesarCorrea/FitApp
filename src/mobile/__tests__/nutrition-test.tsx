@@ -3,7 +3,7 @@ import { renderRouter } from 'expo-router/testing-library';
 import { createDeps } from '../src/data/deps';
 import { portionOf } from '../src/data/nutritionRules';
 import { localDate } from '../src/data/nutritionService';
-import type { ServerFood, ServerFoodEntry } from '../src/data/types';
+import type { ServerFood, ServerFoodEntry, ServerRecipe } from '../src/data/types';
 import { createFakes, PROFILE_DATA } from './support';
 
 // La app real abre SQLite, la cámara y la API por HTTP; en estas pruebas se sustituyen por versiones en memoria.
@@ -470,3 +470,101 @@ describe('Agua y micronutrientes (SPEC-nutrition-004)', () => {
     expect((await fakes.store.getFoods())[0]).toMatchObject({ fiberPer100g: 3.5, sugarsPer100g: 20, sodiumMgPer100g: 400 });
   });
 });
+
+describe('Recetas (SPEC-nutrition-005)', () => {
+  const GACHAS: ServerRecipe = {
+    id: 'r-gachas', name: 'Gachas', servings: 2,
+    ingredients: [{
+      foodId: 'f-oats', name: 'Avena', grams: 200, kcalPer100g: 389, proteinPer100g: 16.9, fatPer100g: 6.9, carbsPer100g: 66.3,
+      fiberPer100g: null, sugarsPer100g: null, sodiumMgPer100g: null,
+    }],
+  };
+
+  it('AC-nutrition-005-08: crea una receta con sus ingredientes, ve los valores por ración y la guarda en la API', async () => {
+    fakes.remote.serverFoods = [OATS];
+    await openNutrition();
+    await press(await screen.findByTestId('go-recipes'));
+    await press(await screen.findByTestId('new-recipe'));
+    await type('Nombre de la receta', 'Gachas');
+    await type('Número de raciones', '2');
+    await press(await screen.findByTestId('pick-food-f-oats'));
+    await type('Gramos de Avena', '200');
+    expect(await screen.findByTestId('recipe-preview')).toHaveTextContent(has('Por ración: 389 kcal'));
+
+    await press(screen.getByTestId('save-recipe'));
+
+    expect(await screen.findByTestId('recipe-values-' + (await fakes.store.getRecipes())[0].id)).toHaveTextContent(has('Por ración: 389 kcal'));
+    expect(fakes.remote.serverRecipes).toHaveLength(1);
+    expect(fakes.remote.serverRecipes[0]).toMatchObject({ name: 'Gachas', servings: 2 });
+  });
+
+  it('AC-nutrition-005-02: una receta sin ingredientes se explica y no se guarda', async () => {
+    await openNutrition();
+    await press(await screen.findByTestId('go-recipes'));
+    await press(await screen.findByTestId('new-recipe'));
+    await type('Nombre de la receta', 'Vacía');
+
+    await press(await screen.findByTestId('save-recipe'));
+
+    expect(await screen.findByTestId('recipe-issues')).toHaveTextContent(has('entre 1 y 40 ingredientes'));
+    expect(await fakes.store.getRecipes()).toEqual([]);
+  });
+
+  it('AC-nutrition-005-08: registra una receta en una comida del día y aparece con sus raciones y sus totales', async () => {
+    fakes.remote.serverFoods = [OATS];
+    fakes.remote.serverRecipes = [GACHAS];
+    await openNutrition();
+    await press(await screen.findByTestId('add-food'));
+    await press(await screen.findByTestId('recipe-r-gachas'));
+    expect(await screen.findByTestId('selected-recipe')).toHaveTextContent(has('Gachas'));
+    await type('Raciones', '1,5');
+
+    await press(screen.getByTestId('save-entry'));
+
+    expect(await screen.findByTestId('meal-desayuno')).toHaveTextContent(has('Gachas · 1,5 raciones'));
+    expect(screen.getByTestId('nutrition-totals')).toHaveTextContent(has('Consumido: 584 kcal'));
+    expect(fakes.remote.serverEntries[0]).toMatchObject({ name: 'Gachas', recipeId: 'r-gachas', servings: 1.5, kcal: 584 });
+  });
+
+  it('AC-nutrition-005-09: sin conexión crea y registra en el teléfono y todo llega a la API al volver la conexión', async () => {
+    fakes.remote.serverFoods = [OATS];
+    await openNutrition();
+    await screen.findByTestId('add-food');
+    fakes.remote.online = false;
+    await press(screen.getByTestId('go-recipes'));
+    await press(await screen.findByTestId('new-recipe'));
+    await type('Nombre de la receta', 'Gachas');
+    await type('Número de raciones', '2');
+    await press(await screen.findByTestId('pick-food-f-oats'));
+    await type('Gramos de Avena', '200');
+    await press(screen.getByTestId('save-recipe'));
+    await screen.findByTestId('new-recipe');
+    expect(fakes.remote.serverRecipes).toEqual([]);
+
+    fakes.remote.online = true;
+    await fakes.deps.nutrition.syncPending();
+
+    expect(fakes.remote.serverRecipes.map((r) => r.name)).toEqual(['Gachas']);
+  });
+
+  it('AC-nutrition-005-05: una receta con un alimento eliminado lo marca como tal', async () => {
+    fakes.remote.serverRecipes = [{ ...GACHAS, ingredients: [{ ...GACHAS.ingredients[0], foodId: null }] }];
+    await openNutrition();
+
+    await press(await screen.findByTestId('go-recipes'));
+
+    expect(await screen.findByTestId('recipe-r-gachas')).toHaveTextContent(has('Avena \(alimento eliminado\) 200 g'));
+  });
+
+  it('AC-nutrition-005-08: borra una receta y desaparece de la lista y de la API', async () => {
+    fakes.remote.serverRecipes = [GACHAS];
+    await openNutrition();
+    await press(await screen.findByTestId('go-recipes'));
+
+    await press(await screen.findByTestId('delete-recipe-r-gachas'));
+
+    await waitFor(() => expect(screen.queryByTestId('recipe-r-gachas')).not.toBeOnTheScreen());
+    expect(fakes.remote.serverRecipes).toEqual([]);
+  });
+});
+

@@ -172,11 +172,42 @@ export interface LocalFoodEntry {
   fiberG: number | null;
   sugarsG: number | null;
   sodiumMg: number | null;
+  /** Receta registrada (SPEC-nutrition-005): con ella `grams` es 0 y vale `servings`. */
+  recipeId: string | null;
+  servings: number | null;
   status: SyncStatus;
   message: string | null;
   pendingOp: 'upsert' | 'delete' | null;
   attempted: boolean;
 }
+
+/** Ingrediente de una receta con la copia de los valores del alimento al guardarla (SPEC-nutrition-005). */
+export interface LocalIngredient {
+  /** null = el alimento se borró («alimento eliminado»). */
+  foodId: string | null;
+  name: string;
+  grams: number;
+  kcalPer100g: number;
+  proteinPer100g: number;
+  fatPer100g: number;
+  carbsPer100g: number;
+  fiberPer100g: number | null;
+  sugarsPer100g: number | null;
+  sodiumMgPer100g: number | null;
+}
+
+export interface LocalRecipe {
+  id: string;
+  name: string;
+  servings: number;
+  ingredients: LocalIngredient[];
+  status: SyncStatus;
+  message: string | null;
+  pendingOp: 'upsert' | 'delete' | null;
+  attempted: boolean;
+}
+
+export type ServerRecipe = Pick<LocalRecipe, 'id' | 'name' | 'servings' | 'ingredients'>;
 
 /** Agua bebida en un día, en mililitros (SPEC-nutrition-004). */
 export interface LocalWater {
@@ -200,7 +231,7 @@ export type ServerFood = Pick<
 export type ServerFoodEntry = Pick<
   LocalFoodEntry,
   'id' | 'date' | 'meal' | 'foodId' | 'grams' | 'name' | 'kcal' | 'proteinG' | 'fatG' | 'carbsG'
-> & Partial<Pick<LocalFoodEntry, 'fiberG' | 'sugarsG' | 'sodiumMg'>>;
+> & Partial<Pick<LocalFoodEntry, 'fiberG' | 'sugarsG' | 'sodiumMg' | 'recipeId' | 'servings'>>;
 
 /** Objetivo diario que calcula la API. */
 export interface NutritionTarget {
@@ -231,8 +262,12 @@ export interface NutritionApi {
   deleteFood(id: string): Promise<'ok' | 'retry'>;
   /** Las entradas del día, ya sin agrupar. */
   fetchDayEntries(date: string): Promise<ServerFoodEntry[] | null>;
-  putFoodEntry(entry: Pick<ServerFoodEntry, 'id' | 'date' | 'meal' | 'foodId' | 'grams'>): Promise<PutLogResult>;
+  putFoodEntry(entry: Pick<ServerFoodEntry, 'id' | 'date' | 'meal' | 'foodId' | 'grams' | 'recipeId' | 'servings'>): Promise<PutLogResult>;
   deleteFoodEntry(id: string): Promise<'ok' | 'retry'>;
+  /** SPEC-nutrition-005: recetas propias (null = sin conexión o error), y su alta y baja. */
+  fetchRecipes(): Promise<ServerRecipe[] | null>;
+  putRecipe(recipe: ServerRecipe): Promise<PutLogResult>;
+  deleteRecipe(id: string): Promise<'ok' | 'retry'>;
   /** SPEC-nutrition-004: el agua del día (null = sin conexión o error), y su alta y baja. */
   fetchDayWater(date: string): Promise<ServerWater[] | null>;
   putWaterEntry(water: ServerWater): Promise<PutLogResult>;
@@ -313,6 +348,14 @@ export interface LocalStore {
   getPendingNutrition(): Promise<{ foods: LocalFood[]; entries: LocalFoodEntry[] }>;
   /** Sustituye las entradas ya sincronizadas del día por lo que dice el servidor; conserva las pendientes. */
   replaceSyncedFoodEntries(date: string, entries: ServerFoodEntry[]): Promise<void>;
+  /** Recetas propias, también las que esperan borrarse (SPEC-nutrition-005). */
+  getRecipes(): Promise<LocalRecipe[]>;
+  getRecipe(id: string): Promise<LocalRecipe | null>;
+  saveRecipe(recipe: LocalRecipe): Promise<void>;
+  deleteRecipe(id: string): Promise<void>;
+  getPendingRecipes(): Promise<LocalRecipe[]>;
+  /** Sustituye las recetas ya sincronizadas por lo que dice el servidor; conserva las que esperan envío. */
+  replaceSyncedRecipes(recipes: ServerRecipe[]): Promise<void>;
   /** Agua del día, también la que espera borrarse (SPEC-nutrition-004). */
   getWater(date: string): Promise<LocalWater[]>;
   getWaterEntry(id: string): Promise<LocalWater | null>;

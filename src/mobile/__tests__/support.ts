@@ -5,11 +5,11 @@ import { RestrictionService } from '../src/data/restrictionService';
 import { PlanService } from '../src/data/planService';
 import { SessionService } from '../src/data/sessionService';
 import { NutritionService } from '../src/data/nutritionService';
-import { portionOf } from '../src/data/nutritionRules';
+import { portionOf, recipeTotal, scaleRecipe } from '../src/data/nutritionRules';
 import { SuggestionService } from '../src/data/suggestionService';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, NutritionApi, ProductLookup, ProductLookupResult, RemoteApi, RestrictionItem, ServerFood, ServerFoodEntry, ServerWater,
+  AcceptSuggestionResult, NutritionApi, ProductLookup, ProductLookupResult, RemoteApi, RestrictionItem, ServerFood, ServerFoodEntry, ServerRecipe, ServerWater,
   Suggestion, SuggestionsApi, TargetsResponse,
 } from '../src/data/types';
 
@@ -50,6 +50,8 @@ export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi {
   targets: TargetsResponse;
   /** SPEC-nutrition-004: el agua que «tiene el servidor» y sus llamadas. */
   serverWater: ServerWater[];
+  /** SPEC-nutrition-005: las recetas que «tiene el servidor». */
+  serverRecipes: ServerRecipe[];
   /** SPEC-nutrition-002: ajustes recibidos y borrados del ajuste. */
   overridePuts: number[];
   overrideDeletes: number;
@@ -162,6 +164,7 @@ export function createFakes(
     serverEntries: [],
     targets: TARGETS,
     serverWater: [],
+    serverRecipes: [],
     overridePuts: [],
     overrideDeletes: 0,
     foodResult: null,
@@ -229,6 +232,18 @@ export function createFakes(
     putFoodEntry: async (entry) => {
       if (!remote.online) return { kind: 'retry' };
       if (remote.entryResult) return remote.entryResult;
+      if (entry.recipeId) {
+        const recipe = remote.serverRecipes.find((r) => r.id === entry.recipeId);
+        if (!recipe) return { kind: 'rejected', reason: 'La receta no existe en tu lista.' };
+        remote.entryPuts.push(entry.id);
+        const eaten = scaleRecipe(recipeTotal(recipe.ingredients), recipe.servings, entry.servings ?? 1);
+        remote.serverEntries = [
+          ...remote.serverEntries.filter((e) => e.id !== entry.id),
+          { ...entry, name: recipe.name, kcal: eaten.kcal, proteinG: eaten.proteinG, fatG: eaten.fatG, carbsG: eaten.carbsG,
+            fiberG: eaten.fiberG, sugarsG: eaten.sugarsG, sodiumMg: eaten.sodiumMg },
+        ];
+        return { kind: 'ok' };
+      }
       const food = remote.serverFoods.find((f) => f.id === entry.foodId);
       if (!food) return { kind: 'rejected', reason: 'El alimento no existe en tu lista.' };
       remote.entryPuts.push(entry.id);
@@ -239,6 +254,17 @@ export function createFakes(
     deleteFoodEntry: async (id) => {
       if (!remote.online) return 'retry';
       remote.serverEntries = remote.serverEntries.filter((e) => e.id !== id);
+      return 'ok';
+    },
+    fetchRecipes: async () => (remote.online ? remote.serverRecipes.map((r) => structuredClone(r)) : null),
+    putRecipe: async (recipe) => {
+      if (!remote.online) return { kind: 'retry' };
+      remote.serverRecipes = [...remote.serverRecipes.filter((r) => r.id !== recipe.id), structuredClone(recipe)];
+      return { kind: 'ok' };
+    },
+    deleteRecipe: async (id) => {
+      if (!remote.online) return 'retry';
+      remote.serverRecipes = remote.serverRecipes.filter((r) => r.id !== id);
       return 'ok';
     },
     fetchDayWater: async (date) => (remote.online ? remote.serverWater.filter((w) => w.date === date) : null),

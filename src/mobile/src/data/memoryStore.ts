@@ -8,6 +8,7 @@ import {
   type LocalExerciseLog,
   type LocalFood,
   type LocalFoodEntry,
+  type LocalRecipe,
   type LocalWater,
   type LocalPlanEntry,
   type LocalProfile,
@@ -16,6 +17,7 @@ import {
   type ServerExerciseLog,
   type ServerFood,
   type ServerFoodEntry,
+  type ServerRecipe,
   type ServerWater,
   type SyncStatus,
 } from './types';
@@ -30,6 +32,7 @@ export class MemoryStore implements LocalStore {
   private foods = new Map<string, LocalFood>();
   private foodEntries = new Map<string, LocalFoodEntry>();
   private water = new Map<string, LocalWater>();
+  private recipes = new Map<string, LocalRecipe>();
   private profile: ProfileState = { profile: null, status: 'synced', message: null };
 
   /** Los pesos viven en otra tabla (db.ts); las pruebas fijan aquí cuántos hay pendientes. */
@@ -173,7 +176,36 @@ export class MemoryStore implements LocalStore {
     for (const e of entries) {
       if (this.foodEntries.get(e.id)?.pendingOp) continue;
       this.foodEntries.set(e.id, {
-        ...e, fiberG: e.fiberG ?? null, sugarsG: e.sugarsG ?? null, sodiumMg: e.sodiumMg ?? null, status: 'synced', message: null, pendingOp: null, attempted: true });
+        ...e, fiberG: e.fiberG ?? null, sugarsG: e.sugarsG ?? null, sodiumMg: e.sodiumMg ?? null, recipeId: e.recipeId ?? null, servings: e.servings ?? null, status: 'synced', message: null, pendingOp: null, attempted: true });
+    }
+  }
+
+  async getRecipes() {
+    return [...this.recipes.values()].map((r) => structuredClone(r));
+  }
+
+  async getRecipe(id: string) {
+    const r = this.recipes.get(id);
+    return r ? structuredClone(r) : null;
+  }
+
+  async saveRecipe(recipe: LocalRecipe) {
+    this.recipes.set(recipe.id, structuredClone(recipe));
+  }
+
+  async deleteRecipe(id: string) {
+    this.recipes.delete(id);
+  }
+
+  async getPendingRecipes() {
+    return [...this.recipes.values()].filter((r) => r.pendingOp !== null && r.status === 'pending').map((r) => structuredClone(r));
+  }
+
+  async replaceSyncedRecipes(recipes: ServerRecipe[]) {
+    for (const [id, r] of this.recipes) if (r.pendingOp === null && r.status === 'synced') this.recipes.delete(id);
+    for (const r of recipes) {
+      if (this.recipes.get(r.id)?.pendingOp) continue;
+      this.recipes.set(r.id, { ...structuredClone(r), status: 'synced', message: null, pendingOp: null, attempted: true });
     }
   }
 
@@ -211,6 +243,7 @@ export class MemoryStore implements LocalStore {
     this.foods.clear();
     this.foodEntries.clear();
     this.water.clear();
+    this.recipes.clear();
     this.days.clear();
     this.equipment = { profile: null, status: 'synced', message: null };
     this.logs.clear();
@@ -226,7 +259,8 @@ export class MemoryStore implements LocalStore {
     const logs = [...this.logs.values()].filter((l) => l.pendingOp !== null && l.status === 'pending').length
       + [...this.foods.values()].filter((f) => f.pendingOp !== null && f.status === 'pending').length
       + [...this.foodEntries.values()].filter((e) => e.pendingOp !== null && e.status === 'pending').length
-      + [...this.water.values()].filter((w) => w.pendingOp !== null && w.status === 'pending').length;
+      + [...this.water.values()].filter((w) => w.pendingOp !== null && w.status === 'pending').length
+      + [...this.recipes.values()].filter((r) => r.pendingOp !== null && r.status === 'pending').length;
     const threshold = this.settings.get('stagnationThresholdStatus') === 'pending' ? 1 : 0;
     const profile = this.profile.profile !== null && this.profile.status === 'pending' ? 1 : 0;
     return days + equipment + logs + threshold + profile + this.pendingWeights;

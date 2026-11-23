@@ -58,7 +58,7 @@ describe('migraciones de fitness.db (SPEC-mobile-002 y SPEC-mobile-003)', () => 
 
     expect([...state.tables].sort()).toEqual([
       'catalog_cache', 'equipment_local', 'exercise_logs_local', 'food_entries_local', 'foods_local', 'plan_day_state',
-      'plan_entries_local', 'profile_local', 'settings', 'water_local', 'weight_queue',
+      'plan_entries_local', 'profile_local', 'recipes_local', 'settings', 'water_local', 'weight_queue',
     ]);
     expect(state.version).toBe(SCHEMA_VERSION);
   });
@@ -145,14 +145,14 @@ describe('migraciones de fitness.db (SPEC-mobile-002 y SPEC-mobile-003)', () => 
     await migrate(db);
 
     // allergens: SPEC-nutrition-003 (V7); fibra, azúcares y sodio: SPEC-nutrition-004 (V8)
-    expect([...state.columns].sort()).toEqual(['allergens', 'fiber_g', 'fiber_per_100g', 'methodology', 'reps_per_set', 'sodium_mg', 'sodium_mg_per_100g', 'sugars_g', 'sugars_per_100g']);
+    expect([...state.columns].sort()).toEqual(['allergens', 'fiber_g', 'fiber_per_100g', 'methodology', 'recipe_id', 'reps_per_set', 'servings', 'sodium_mg', 'sodium_mg_per_100g', 'sugars_g', 'sugars_per_100g']);
     expect(state.executed.some((sql) => /DROP|DELETE|UPDATE/i.test(sql))).toBe(false);
     expect(state.executed.find((sql) => sql.includes('methodology'))).toContain("DEFAULT 'heavy_duty_personalizado'");
     expect(state.version).toBe(SCHEMA_VERSION);
   });
 
   it('AC-training-004-14 con las columnas ya creadas (una rama antigua bajó la versión): no falla ni las repite', async () => {
-    const { db, state } = fakeDb(4, ['exercise_logs_local'], ['allergens', 'fiber_g', 'fiber_per_100g', 'methodology', 'reps_per_set', 'sodium_mg', 'sodium_mg_per_100g', 'sugars_g', 'sugars_per_100g']);
+    const { db, state } = fakeDb(4, ['exercise_logs_local'], ['allergens', 'fiber_g', 'fiber_per_100g', 'methodology', 'recipe_id', 'reps_per_set', 'servings', 'sodium_mg', 'sodium_mg_per_100g', 'sugars_g', 'sugars_per_100g']);
 
     await expect(migrate(db)).resolves.toBeUndefined();
 
@@ -195,11 +195,33 @@ describe('agua y micronutrientes (SPEC-nutrition-004)', () => {
   });
 
   it('AC-nutrition-004-10 con todo ya creado (una rama antigua bajó la versión): no falla ni repite columnas', async () => {
-    const { db, state } = fakeDb(7, ['foods_local', 'food_entries_local', 'water_local'], ['allergens', 'fiber_g', 'fiber_per_100g', 'methodology', 'reps_per_set', 'sodium_mg', 'sodium_mg_per_100g', 'sugars_g', 'sugars_per_100g']);
+    const { db, state } = fakeDb(7, ['foods_local', 'food_entries_local', 'water_local'], ['allergens', 'fiber_g', 'fiber_per_100g', 'methodology', 'recipe_id', 'reps_per_set', 'servings', 'sodium_mg', 'sodium_mg_per_100g', 'sugars_g', 'sugars_per_100g']);
 
     await expect(migrate(db)).resolves.toBeUndefined();
 
     expect(state.executed.some((sql) => sql.includes('ALTER TABLE'))).toBe(false);
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+});
+
+describe('recetas (SPEC-nutrition-005)', () => {
+  it('AC-nutrition-005-09 base con el agua (versión 8): añade la tabla de recetas y la receta de cada entrada sin perder datos', async () => {
+    const { db, state } = fakeDb(8, ['foods_local', 'food_entries_local', 'water_local'], ['methodology', 'reps_per_set', 'allergens']);
+
+    await migrate(db);
+
+    expect(state.tables.has('recipes_local')).toBe(true);
+    expect(state.columns.has('recipe_id')).toBe(true);
+    expect(state.columns.has('servings')).toBe(true);
+    expect(state.executed.some((sql) => /DROP|DELETE|UPDATE/i.test(sql))).toBe(false);
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+
+  it('AC-nutrition-005-09 con todo ya creado (una rama antigua bajó la versión): no falla', async () => {
+    const { db, state } = fakeDb(8, ['food_entries_local', 'recipes_local'], ['recipe_id', 'servings']);
+
+    await expect(migrate(db)).resolves.toBeUndefined();
+
     expect(state.version).toBe(SCHEMA_VERSION);
   });
 });

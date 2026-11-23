@@ -8,7 +8,7 @@ import { useDeps } from '../../data/DataContext';
 import { ALLERGENS, allergenLabel, allergensFromOff } from '../../data/allergens';
 import { FIXED_MEALS } from '../../data/nutritionRules';
 import { localDate, type FoodIssue, type RawFoodInput } from '../../data/nutritionService';
-import type { LocalFood, ScannedProduct } from '../../data/types';
+import type { LocalFood, LocalRecipe, ScannedProduct } from '../../data/types';
 import { useTheme } from '../../theme';
 
 const OTHER = 'otra';
@@ -57,7 +57,11 @@ export default function AddFoodScreen() {
   const [conflicts, setConflicts] = useState<string[]>([]);
   const [confirmed, setConfirmed] = useState(false);
   const [offHadAllergens, setOffHadAllergens] = useState(false);
-  const [editing, setEditing] = useState<{ name: string; foodId: string | null; date: string } | null>(null);
+  const [editing, setEditing] = useState<{ name: string; foodId: string | null; recipeId: string | null; date: string } | null>(null);
+  // SPEC-nutrition-005: recetas propias; con una elegida la cantidad son raciones.
+  const [recipes, setRecipes] = useState<LocalRecipe[]>([]);
+  const [selectedRecipe, setSelectedRecipe] = useState<LocalRecipe | null>(null);
+  useEffect(() => { void nutrition.listRecipes().then(setRecipes); }, [nutrition]);
 
   const [listConflicts, setListConflicts] = useState<Record<string, string[]>>({});
   useEffect(() => {
@@ -79,8 +83,8 @@ export default function AddFoodScreen() {
     if (!entryId) return;
     void store.getFoodEntry(entryId).then((e) => {
       if (!e) return;
-      setEditing({ name: e.name, foodId: e.foodId, date: e.date });
-      setGrams(String(e.grams));
+      setEditing({ name: e.name, foodId: e.foodId, recipeId: e.recipeId, date: e.date });
+      setGrams(e.recipeId ? String(e.servings ?? '').replace('.', ',') : String(e.grams));
       const fixed = (FIXED_MEALS as readonly string[]).includes(e.meal);
       setMealKey(fixed ? e.meal : OTHER);
       setFreeMeal(fixed ? '' : e.meal);
@@ -145,10 +149,12 @@ export default function AddFoodScreen() {
       setConfirmed(true);
       return;
     }
+    const recipeId = editing ? editing.recipeId : selectedRecipe?.id;
     const foodId = editing ? editing.foodId : selected?.id;
-    const result = await nutrition.saveEntry(
-      { date: editing?.date ?? localDate(), meal, grams, foodId: foodId ?? '' }, entryId,
-    );
+    const date = editing?.date ?? localDate();
+    const result = recipeId
+      ? await nutrition.saveRecipeEntry({ date, meal, servings: grams, recipeId }, entryId)
+      : await nutrition.saveEntry({ date, meal, grams, foodId: foodId ?? '' }, entryId);
     if (!result.ok) {
       setProblems(result.issues.map((i) => i.message));
       return;
@@ -156,7 +162,8 @@ export default function AddFoodScreen() {
     router.back();
   };
 
-  const chosenLabel = editing ? editing.name : selected?.name;
+  const chosenLabel = editing ? editing.name : (selectedRecipe ?? selected)?.name;
+  const byServings = editing ? editing.recipeId !== null : selectedRecipe !== null;
   const canPickFood = !editing;
 
   return (
@@ -183,6 +190,12 @@ export default function AddFoodScreen() {
             <View testID="allergen-warning" style={[styles.card, { borderColor: colors.danger }]}>
               <Body style={{ color: colors.danger, fontWeight: '700' }}>{`Ojo: contiene ${labels(conflicts)}, que figura en tus alergias.`}</Body>
               <Muted>Es orientativo: revisa siempre el etiquetado del producto.</Muted>
+            </View>
+          )}
+          {selectedRecipe && (
+            <View style={[styles.card, { borderColor: colors.primary, backgroundColor: colors.surface }]} testID="selected-recipe">
+              <Body style={styles.bold}>{selectedRecipe.name}</Body>
+              <Muted>{`Receta de ${selectedRecipe.servings} raciones`}</Muted>
             </View>
           )}
           {notice && <Body testID="food-notice" style={{ color: colors.warning }}>{notice}</Body>}
@@ -229,7 +242,7 @@ export default function AddFoodScreen() {
                   testID={`food-${f.id}`}
                   accessibilityRole="button"
                   accessibilityLabel={f.name}
-                  onPress={() => { setSelected(f); setNotice(null); }}
+                  onPress={() => { setSelected(f); setSelectedRecipe(null); setNotice(null); }}
                   style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}
                 >
                   <Text style={{ color: colors.text, fontWeight: '600' }}>{f.name}</Text>
@@ -240,6 +253,21 @@ export default function AddFoodScreen() {
                 </Pressable>
               ))}
               {foods.length === 0 && <Muted>Aún no tienes alimentos con ese nombre.</Muted>}
+              {recipes.length > 0 && <Muted>Tus recetas</Muted>}
+              {recipes.map((r) => (
+                <Pressable
+                  key={r.id}
+                  testID={`recipe-${r.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Receta ${r.name}`}
+                  onPress={() => { setSelectedRecipe(r); setSelected(null); setNotice(null); }}
+                  style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                >
+                  <Text style={{ color: colors.text, fontWeight: '600' }}>{r.name}</Text>
+                  <Muted>{`Receta · ${r.servings} raciones`}</Muted>
+                </Pressable>
+              ))}
+              <Button title="Gestionar recetas" variant="secondary" testID="manage-recipes" onPress={() => router.push('/recipes')} />
               <Button title="Escanear código de barras" variant="secondary" testID="scan-food" onPress={() => setMode('scan')} />
               <Button
                 title="Crear alimento a mano"
@@ -254,7 +282,12 @@ export default function AddFoodScreen() {
 
       {mode === 'pick' && (
         <>
-          <Field label="Cantidad en gramos" value={grams} onChangeText={setGrams} keyboardType="number-pad" />
+          <Field
+            label={byServings ? 'Raciones' : 'Cantidad en gramos'}
+            value={grams}
+            onChangeText={setGrams}
+            keyboardType={byServings ? 'decimal-pad' : 'number-pad'}
+          />
           {problems.length > 0 && (
             <View testID="entry-issues" style={styles.issues}>
               {problems.map((p) => <Body key={p} style={{ color: colors.danger }}>{p}</Body>)}

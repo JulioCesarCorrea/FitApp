@@ -70,6 +70,75 @@ export function sumMicros(items: Micros[]): MicroTotals {
   };
 }
 
+export const MIN_SERVINGS = 0.25;
+export const MAX_SERVINGS = 20;
+export const MAX_RECIPE_SERVINGS = 50;
+export const MAX_INGREDIENTS = 40;
+
+export interface IngredientValues {
+  kcalPer100g: number;
+  proteinPer100g: number;
+  fatPer100g: number;
+  carbsPer100g: number;
+  fiberPer100g: number | null;
+  sugarsPer100g: number | null;
+  sodiumMgPer100g: number | null;
+  grams: number;
+}
+
+/** Calorías y macros de una receta o de unas raciones; fibra, azúcares y sodio null = sin dato. */
+export interface RecipeValues {
+  kcal: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+  fiberG: number | null;
+  sugarsG: number | null;
+  sodiumMg: number | null;
+}
+
+/**
+ * Suma de los ingredientes, cada uno redondeado como una entrada (SPEC-nutrition-005, AC-03; copia de NutritionRules.RecipeTotal).
+ * Si algún ingrediente no tiene fibra, azúcares o sodio, ese total queda sin dato.
+ */
+export function recipeTotal(ingredients: IngredientValues[]): RecipeValues {
+  const parts = ingredients.map((i) => ({
+    p: portionOf(i.kcalPer100g, i.proteinPer100g, i.fatPer100g, i.carbsPer100g, i.grams),
+    m: microsOf(i.fiberPer100g, i.sugarsPer100g, i.sodiumMgPer100g, i.grams),
+  }));
+  const sumTenths = (pick: (x: (typeof parts)[number]) => number) => parts.reduce((acc, x) => acc + tenths(pick(x)), 0) / 10;
+  const sumOptional = (pick: (x: (typeof parts)[number]) => number | null): number | null =>
+    parts.some((x) => pick(x) === null) ? null : sumTenths((x) => pick(x) ?? 0);
+  return {
+    kcal: parts.reduce((acc, x) => acc + x.p.kcal, 0),
+    proteinG: sumTenths((x) => x.p.proteinG),
+    fatG: sumTenths((x) => x.p.fatG),
+    carbsG: sumTenths((x) => x.p.carbsG),
+    fiberG: sumOptional((x) => x.m.fiberG),
+    sugarsG: sumOptional((x) => x.m.sugarsG),
+    sodiumMg: parts.some((x) => x.m.sodiumMg === null) ? null : parts.reduce((acc, x) => acc + (x.m.sodiumMg ?? 0), 0),
+  };
+}
+
+/**
+ * Valores de unas raciones de una receta de `recipeServings` raciones: total × comidas / raciones (copia de ScaleRecipe). Se calcula
+ * con enteros (centésimas de ración y décimas de gramo) para dar exactamente lo mismo que la API; con 1 ración, el valor por ración.
+ */
+export function scaleRecipe(total: RecipeValues, recipeServings: number, servings: number): RecipeValues {
+  const hundredths = Math.round(servings * 100);
+  const divisor = 100 * recipeServings;
+  const oneDecimal = (v: number | null): number | null => (v === null ? null : Math.round((tenths(v) * hundredths) / divisor) / 10);
+  return {
+    kcal: Math.round((total.kcal * hundredths) / divisor),
+    proteinG: oneDecimal(total.proteinG) as number,
+    fatG: oneDecimal(total.fatG) as number,
+    carbsG: oneDecimal(total.carbsG) as number,
+    fiberG: oneDecimal(total.fiberG),
+    sugarsG: oneDecimal(total.sugarsG),
+    sodiumMg: total.sodiumMg === null ? null : Math.round((total.sodiumMg * hundredths) / divisor),
+  };
+}
+
 export const MIN_WATER_ML = 1;
 export const MAX_WATER_ML = 5000;
 /** Meta de referencia, no un objetivo médico (P8). */
