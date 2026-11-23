@@ -1,4 +1,6 @@
 import { allergenConflicts, normalizeAllergens } from './allergens';
+import { weeklyIntake, type DayIntake, type WeekIntake } from './nutritionHistory';
+import { addDays as addDaysIso, mondayOf } from './weightStats';
 import {
   fold, macrosFor, MAX_GRAMS, MAX_INGREDIENTS, MAX_OVERRIDE_CALORIES, MAX_RECIPE_SERVINGS, MAX_SERVINGS, MAX_WATER_ML, MEAL_MAX_LENGTH,
   microsOf, MIN_GRAMS, MIN_OVERRIDE_CALORIES, MIN_SERVINGS, MIN_WATER_ML, mealOrder, normalizeMeal, portionOf, recipeTotal, scaleRecipe,
@@ -12,6 +14,8 @@ const TARGET_KEY = 'nutritionTarget';
 const MISSING_KEY = 'nutritionMissing';
 /** Cambio del objetivo que aún no llegó a la API (SPEC-nutrition-002): `{ op: 'put', calories }` o `{ op: 'delete' }`. */
 const OVERRIDE_PENDING_KEY = 'nutritionOverridePending';
+/** Último historial recibido de la API (SPEC-nutrition-006), para verlo sin conexión. */
+const HISTORY_KEY = 'nutritionHistory';
 
 type PendingOverride = { op: 'put'; calories: number } | { op: 'delete' };
 const EARLIEST_DATE = '2000-01-01';
@@ -55,6 +59,19 @@ export interface RecipeIssue {
   field: 'name' | 'servings' | 'ingredients' | 'grams' | 'food';
   message: string;
 }
+
+export interface HistoryView {
+  /** Semanas ISO con algún día registrado, de la más antigua a la más reciente. */
+  weeks: WeekIntake[];
+  /** Días con registro (los demás no cuentan en los promedios). */
+  days: DayIntake[];
+  /** Calorías del objetivo vigente (el de hoy para todo el rango); null si no se conoce. */
+  targetKcal: number | null;
+  /** El servidor no respondió: se usa el último historial recibido y lo que hay en el teléfono. */
+  offline: boolean;
+}
+
+export const MAX_HISTORY_WEEKS = 12;
 
 export type SaveRecipeResult = { ok: true; recipe: LocalRecipe } | { ok: false; issues: RecipeIssue[] };
 
@@ -367,6 +384,45 @@ export class NutritionService {
     const current = await this.getPending();
     if (JSON.stringify(current) === JSON.stringify(pending)) await this.setPending(null);
     return true;
+  }
+
+  // ---------- historial (SPEC-nutrition-006) ----------
+
+  /**
+   * AC-nutrition-006-08 y 09: lo consumido en las últimas semanas. Con conexión trae el historial de la API y lo guarda;
+   * sin ella usa el último recibido. Los días de los que el teléfono tiene entradas mandan sobre eso (incluye lo pendiente de
+   * enviar y lo que se borró aquí). El objetivo es el último recibido de la API (el de hoy para todo el rango).
+   */
+  async loadHistory(weeks: number): Promise<HistoryView> {
+    const count = Math.min(Math.max(1, Math.floor(weeks)), MAX_HISTORY_WEEKS);
+    await this.syncPending();
+    const today = this.today();
+    const from = addDaysIso(mondayOf(today), -7 * (count - 1));
+
+    const fetched = await this.remote.fetchNutritionHistory(from, today);
+    if (fetched) await this.store.setSetting(HISTORY_KEY, JSON.stringify(fetched));
+    const source = fetched ?? (JSON.parse((await this.store.getSetting(HISTORY_KEY)) || 'null') as typeof fetched);
+
+    const byDate = new Map<string, DayIntake>();
+    for (const d of source?.days ?? []) {
+      if (d.logged && d.date >= from && d.date <= today) byDate.set(d.date, { date: d.date, kcal: d.kcal, proteinG: d.proteinG, fatG: d.fatG, carbsG: d.carbsG });
+    }
+    for (let date = from; date <= today; date = addDaysIso(date, 1)) {
+      const local = await this.store.getFoodEntries(date);
+      if (local.length === 0) continue;
+      const live = local.filter((e) => isVisible(e) && e.status !== 'rejected');
+      if (live.length === 0) {
+        byDate.delete(date);
+        continue;
+      }
+      const totals = sumPortions(live);
+      byDate.set(date, { date, kcal: totals.kcal, proteinG: totals.proteinG, fatG: totals.fatG, carbsG: totals.carbsG });
+    }
+
+    const state = await this.getTargetState();
+    const targetKcal = source?.targets?.calories ?? (state.kind === 'target' ? state.target.calories : null);
+    const days = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+    return { weeks: weeklyIntake(days, targetKcal), days, targetKcal, offline: fetched === null };
   }
 
   // ---------- recetas (SPEC-nutrition-005) ----------

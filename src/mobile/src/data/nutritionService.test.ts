@@ -3,7 +3,7 @@ import { MemoryStore } from './memoryStore';
 import { NutritionService, parseFood, type RawFoodInput, type RawRecipeInput } from './nutritionService';
 import { macrosFor, microsOf, portionOf, recipeTotal, scaleRecipe } from './nutritionRules';
 import type {
-  LocalProfile, NutritionApi, NutritionTarget, PutLogResult, ServerFood, ServerFoodEntry, ServerRecipe, ServerWater, TargetsResponse,
+  LocalProfile, NutritionApi, NutritionTarget, PutLogResult, ServerFood, ServerFoodEntry, ServerNutritionHistory, ServerRecipe, ServerWater, TargetsResponse,
 } from './types';
 
 const TODAY = '2026-11-13';
@@ -29,6 +29,7 @@ interface Fake extends NutritionApi {
   foodResult: PutLogResult | null;
   entryResult: PutLogResult | null;
   recipeResult: PutLogResult | null;
+  history: ServerNutritionHistory | null;
 }
 
 function fakeRemote(): Fake {
@@ -43,6 +44,7 @@ function fakeRemote(): Fake {
     foodResult: null,
     entryResult: null,
     recipeResult: null,
+    history: null,
     fetchTargets: async () => (r.online ? r.targets : null),
     putTargetOverride: async (calories) => {
       if (!r.online) return { kind: 'retry' };
@@ -63,6 +65,7 @@ function fakeRemote(): Fake {
       }
       return 'ok';
     },
+    fetchNutritionHistory: async () => (r.online ? r.history : null),
     fetchRecipes: async () => (r.online ? [...r.recipes.values()].map((x) => structuredClone(x)) : null),
     putRecipe: async (recipe) => {
       if (!r.online) return { kind: 'retry' };
@@ -820,5 +823,71 @@ describe('recetas (SPEC-nutrition-005)', () => {
     expect(recipe.status).toBe('rejected');
     await service.discardRecipe(recipe.id);
     expect(await service.listRecipes()).toEqual([]);
+  });
+});
+
+describe('historial de nutrición (SPEC-nutrition-006)', () => {
+  // TODAY = jueves 2026-11-13; la semana ISO empieza el lunes 2026-11-09 y la anterior el 2026-11-02.
+  const day = (date: string, kcal: number, logged = true) => ({ date, logged, kcal, proteinG: kcal / 20, fatG: kcal / 40, carbsG: kcal / 10 });
+
+  it('AC-nutrition-006-08 con conexión usa el historial de la API, con el objetivo de hoy, y los días sin registro no cuentan', async () => {
+    remote.history = {
+      days: [day('2026-11-02', 2000), day('2026-11-03', 2200), day('2026-11-04', 0, false), day('2026-11-09', 1000)],
+      targets: { ...TARGET, calories: 2000 },
+    };
+
+    const view = await service.loadHistory(4);
+
+    expect(view.offline).toBe(false);
+    expect(view.targetKcal).toBe(2000);
+    expect(view.weeks.map((w) => [w.weekStart, w.daysLogged, w.avgKcal, w.daysOnTarget])).toEqual([
+      ['2026-11-02', 2, 2100, 2],
+      ['2026-11-09', 1, 1000, 0],
+    ]);
+  });
+
+  it('AC-nutrition-006-09 sin conexión usa el último historial recibido', async () => {
+    remote.history = { days: [day('2026-11-09', 1800)], targets: { ...TARGET, calories: 2000 } };
+    await service.loadHistory(4);
+    remote.online = false;
+
+    const view = await service.loadHistory(4);
+
+    expect(view.offline).toBe(true);
+    expect(view.weeks).toMatchObject([{ weekStart: '2026-11-09', avgKcal: 1800 }]);
+    expect(view.targetKcal).toBe(2000);
+  });
+
+  it('AC-nutrition-006-09 lo que hay en el teléfono manda sobre el historial: entradas pendientes y borradas', async () => {
+    const oats = await saveFood(); // 389 kcal por 100 g
+    remote.history = { days: [day('2026-11-09', 1800), day('2026-11-10', 2000)], targets: null };
+    remote.online = false;
+    const saved = await service.saveEntry({ date: '2026-11-09', meal: 'cena', grams: '100', foodId: oats.id });
+    if (!saved.ok) throw new Error('no se guardó');
+    // El 10 el teléfono tiene una entrada que se borró aquí (pendiente de enviar el borrado).
+    await store.saveFoodEntry({
+      ...saved.entry, id: 'borrada', date: '2026-11-10', status: 'pending', pendingOp: 'delete', attempted: true,
+    });
+
+    const view = await service.loadHistory(4);
+
+    expect(view.days.map((d) => [d.date, d.kcal])).toEqual([['2026-11-09', 389]]);
+  });
+
+  it('AC-nutrition-006-06 sin objetivo conocido no hay adherencia', async () => {
+    remote.history = { days: [day('2026-11-09', 1800)], targets: null };
+    remote.targets = { kind: 'missing', what: 'peso' };
+
+    const view = await service.loadHistory(4);
+
+    expect(view.targetKcal).toBeNull();
+    expect(view.weeks[0].daysOnTarget).toBeNull();
+  });
+
+  it('AC-nutrition-006-08 las semanas pedidas se limitan a 1–12', async () => {
+    remote.history = { days: [day('2026-08-01', 2000)], targets: null };
+
+    expect((await service.loadHistory(52)).weeks).toEqual([]); // 12 semanas: desde el lunes 2026-08-24
+    expect((await service.loadHistory(0)).weeks).toEqual([]);
   });
 });

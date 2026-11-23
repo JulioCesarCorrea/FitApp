@@ -2,7 +2,7 @@ import { reasonFrom } from '../api';
 import { authedFetch, type Authorizer } from './authedFetch';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerRecipe, ServerWater,
+  AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerNutritionHistory, ServerRecipe, ServerWater,
   Suggestion, SuggestionsApi, TargetsResponse,
 } from './types';
 
@@ -186,6 +186,11 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi {
     if (!res?.ok) return null;
     const day = (await res.json()) as { meals: { entries: ServerFoodEntry[] }[] };
     return day.meals.flatMap((m) => m.entries);
+  }
+
+  async fetchNutritionHistory(from: string, to: string): Promise<ServerNutritionHistory | null> {
+    const res = await this.request('GET', `/nutrition/history?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    return res?.ok ? ((await res.json()) as ServerNutritionHistory) : null;
   }
 
   async fetchRecipes(): Promise<ServerRecipe[] | null> {

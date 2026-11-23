@@ -250,6 +250,21 @@ export interface NutritionTarget {
 
 export type TargetsResponse = { kind: 'ok'; target: NutritionTarget } | { kind: 'missing'; what: 'perfil' | 'peso' };
 
+/** Un día del historial de nutrición (SPEC-nutrition-006); sin `logged` el día no tiene entradas. */
+export interface ServerHistoryDay {
+  date: string;
+  logged: boolean;
+  kcal: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+}
+
+export interface ServerNutritionHistory {
+  days: ServerHistoryDay[];
+  targets: NutritionTarget | null;
+}
+
 /** Parte de la API de nutrición; aparte de RemoteApi para no tocar los demás módulos. */
 export interface NutritionApi {
   fetchTargets(): Promise<TargetsResponse | null>; // null = sin conexión o error
@@ -264,6 +279,8 @@ export interface NutritionApi {
   fetchDayEntries(date: string): Promise<ServerFoodEntry[] | null>;
   putFoodEntry(entry: Pick<ServerFoodEntry, 'id' | 'date' | 'meal' | 'foodId' | 'grams' | 'recipeId' | 'servings'>): Promise<PutLogResult>;
   deleteFoodEntry(id: string): Promise<'ok' | 'retry'>;
+  /** SPEC-nutrition-006: lo consumido cada día del rango y el objetivo vigente (null = sin conexión o error). */
+  fetchNutritionHistory(from: string, to: string): Promise<ServerNutritionHistory | null>;
   /** SPEC-nutrition-005: recetas propias (null = sin conexión o error), y su alta y baja. */
   fetchRecipes(): Promise<ServerRecipe[] | null>;
   putRecipe(recipe: ServerRecipe): Promise<PutLogResult>;
