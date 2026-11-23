@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Content Include="Training\progression-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Training\training-history-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Nutrition\nutrition-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Progress\progress-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Nutrition\allergen-vectors.json" CopyToOutputDirectory="PreserveNewest" />
