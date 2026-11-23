@@ -8,6 +8,9 @@ public sealed record NutritionTarget(int Calories, int ProteinG, int FatG, int C
 /// <summary>Gramos de proteína, grasa y carbohidratos del objetivo diario.</summary>
 public sealed record Macros(int ProteinG, int FatG, int CarbsG);
 
+/// <summary>Fibra, azúcares y sodio de una cantidad concreta; null = sin dato (no es cero). SPEC-nutrition-004.</summary>
+public sealed record MicroPortion(decimal? FiberG, decimal? SugarsG, int? SodiumMg);
+
 /// <summary>Calorías y macros de una cantidad concreta de un alimento (calorías enteras, macros con un decimal).</summary>
 public sealed record Portion(int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
 
@@ -77,6 +80,15 @@ public static class NutritionRules
         Math.Round(Tenths(proteinPer100g) * (decimal)grams / 100m, MidpointRounding.AwayFromZero) / 10m,
         Math.Round(Tenths(fatPer100g) * (decimal)grams / 100m, MidpointRounding.AwayFromZero) / 10m,
         Math.Round(Tenths(carbsPer100g) * (decimal)grams / 100m, MidpointRounding.AwayFromZero) / 10m);
+
+    /// <summary>
+    /// SPEC-nutrition-004, AC-03: fibra y azúcares con un decimal y sodio en mg enteros, con el mismo cálculo por enteros que
+    /// <see cref="PortionOf"/>. Un valor sin dato en el alimento queda sin dato en la entrada.
+    /// </summary>
+    public static MicroPortion MicrosOf(decimal? fiberPer100g, decimal? sugarsPer100g, int? sodiumMgPer100g, int grams) => new(
+        fiberPer100g is { } f ? Math.Round(Tenths(f) * (decimal)grams / 100m, MidpointRounding.AwayFromZero) / 10m : null,
+        sugarsPer100g is { } s ? Math.Round(Tenths(s) * (decimal)grams / 100m, MidpointRounding.AwayFromZero) / 10m : null,
+        sodiumMgPer100g is { } na ? (int)Math.Round(na * (decimal)grams / 100m, MidpointRounding.AwayFromZero) : null);
 
     private static decimal Tenths(decimal value) => Math.Round(value * 10m, MidpointRounding.AwayFromZero);
 }

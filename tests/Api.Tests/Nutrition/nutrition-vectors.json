@@ -548,56 +548,88 @@
       "calories": 2000,
       "weightKg": 80.5,
       "goal": "mantener",
-      "expected": { "proteinG": 145, "fatG": 56, "carbsG": 229 }
+      "expected": {
+        "proteinG": 145,
+        "fatG": 56,
+        "carbsG": 229
+      }
     },
     {
       "name": "bajar_grasa usa 2,0 g/kg y los carbohidratos .5 redondean hacia arriba",
       "calories": 1800,
       "weightKg": 80.5,
       "goal": "bajar_grasa",
-      "expected": { "proteinG": 161, "fatG": 50, "carbsG": 177 }
+      "expected": {
+        "proteinG": 161,
+        "fatG": 50,
+        "carbsG": 177
+      }
     },
     {
       "name": "ganar_musculo, 2500 kcal, 70 kg",
       "calories": 2500,
       "weightKg": 70.0,
       "goal": "ganar_musculo",
-      "expected": { "proteinG": 126, "fatG": 69, "carbsG": 344 }
+      "expected": {
+        "proteinG": 126,
+        "fatG": 69,
+        "carbsG": 344
+      }
     },
     {
       "name": "calorías mínimas con mucho peso: los carbohidratos quedan en 0",
       "calories": 800,
       "weightKg": 120.0,
       "goal": "mantener",
-      "expected": { "proteinG": 216, "fatG": 22, "carbsG": 0 }
+      "expected": {
+        "proteinG": 216,
+        "fatG": 22,
+        "carbsG": 0
+      }
     },
     {
       "name": "calorías máximas, bajar_grasa",
       "calories": 6000,
       "weightKg": 50.5,
       "goal": "bajar_grasa",
-      "expected": { "proteinG": 101, "fatG": 167, "carbsG": 1023 }
+      "expected": {
+        "proteinG": 101,
+        "fatG": 167,
+        "carbsG": 1023
+      }
     },
     {
       "name": "mantener, 1500 kcal, 62.3 kg",
       "calories": 1500,
       "weightKg": 62.3,
       "goal": "mantener",
-      "expected": { "proteinG": 112, "fatG": 42, "carbsG": 169 }
+      "expected": {
+        "proteinG": 112,
+        "fatG": 42,
+        "carbsG": 169
+      }
     },
     {
       "name": "la proteína .5 redondea hacia arriba",
       "calories": 2000,
       "weightKg": 62.5,
       "goal": "mantener",
-      "expected": { "proteinG": 113, "fatG": 56, "carbsG": 261 }
+      "expected": {
+        "proteinG": 113,
+        "fatG": 56,
+        "carbsG": 261
+      }
     },
     {
       "name": "la grasa .5 redondea hacia arriba",
       "calories": 1818,
       "weightKg": 70.0,
       "goal": "mantener",
-      "expected": { "proteinG": 126, "fatG": 51, "carbsG": 214 }
+      "expected": {
+        "proteinG": 126,
+        "fatG": 51,
+        "carbsG": 214
+      }
     }
   ],
   "portions": [
@@ -711,6 +743,128 @@
         "proteinG": 0.0,
         "fatG": 0.0,
         "carbsG": 0.2
+      }
+    }
+  ],
+  "micros": [
+    {
+      "name": "100 g devuelven los valores por 100 g",
+      "fiberPer100g": 3.5,
+      "sugarsPer100g": 12.0,
+      "sodiumMgPer100g": 400,
+      "grams": 100,
+      "expected": {
+        "fiberG": 3.5,
+        "sugarsG": 12.0,
+        "sodiumMg": 400
+      }
+    },
+    {
+      "name": "50 g de un alimento con todos los datos",
+      "fiberPer100g": 6.7,
+      "sugarsPer100g": 1.2,
+      "sodiumMgPer100g": 1250,
+      "grams": 50,
+      "expected": {
+        "fiberG": 3.4,
+        "sugarsG": 0.6,
+        "sodiumMg": 625
+      }
+    },
+    {
+      "name": "un decimal .5 redondea hacia arriba (fibra)",
+      "fiberPer100g": 2.5,
+      "sugarsPer100g": 0.5,
+      "sodiumMgPer100g": 10,
+      "grams": 30,
+      "expected": {
+        "fiberG": 0.8,
+        "sugarsG": 0.2,
+        "sodiumMg": 3
+      }
+    },
+    {
+      "name": "el sodio .5 redondea hacia arriba",
+      "fiberPer100g": 0.0,
+      "sugarsPer100g": 0.0,
+      "sodiumMgPer100g": 25,
+      "grams": 50,
+      "expected": {
+        "fiberG": 0.0,
+        "sugarsG": 0.0,
+        "sodiumMg": 13
+      }
+    },
+    {
+      "name": "sin ningún dato todo queda sin dato (no cero)",
+      "fiberPer100g": null,
+      "sugarsPer100g": null,
+      "sodiumMgPer100g": null,
+      "grams": 80,
+      "expected": {
+        "fiberG": null,
+        "sugarsG": null,
+        "sodiumMg": null
+      }
+    },
+    {
+      "name": "solo sodio: lo demás queda sin dato",
+      "fiberPer100g": null,
+      "sugarsPer100g": null,
+      "sodiumMgPer100g": 800,
+      "grams": 25,
+      "expected": {
+        "fiberG": null,
+        "sugarsG": null,
+        "sodiumMg": 200
+      }
+    },
+    {
+      "name": "solo fibra: lo demás queda sin dato",
+      "fiberPer100g": 8.2,
+      "sugarsPer100g": null,
+      "sodiumMgPer100g": null,
+      "grams": 120,
+      "expected": {
+        "fiberG": 9.8,
+        "sugarsG": null,
+        "sodiumMg": null
+      }
+    },
+    {
+      "name": "cantidad máxima",
+      "fiberPer100g": 100.0,
+      "sugarsPer100g": 100.0,
+      "sodiumMgPer100g": 40000,
+      "grams": 5000,
+      "expected": {
+        "fiberG": 5000.0,
+        "sugarsG": 5000.0,
+        "sodiumMg": 2000000
+      }
+    },
+    {
+      "name": "cantidad mínima",
+      "fiberPer100g": 1.1,
+      "sugarsPer100g": 2.2,
+      "sodiumMgPer100g": 3,
+      "grams": 1,
+      "expected": {
+        "fiberG": 0.0,
+        "sugarsG": 0.0,
+        "sodiumMg": 0
+      }
+    },
+    {
+      "name": "ceros declarados son cero, no sin dato",
+      "fiberPer100g": 0.0,
+      "sugarsPer100g": 0.0,
+      "sodiumMgPer100g": 0,
+      "grams": 200,
+      "expected": {
+        "fiberG": 0.0,
+        "sugarsG": 0.0,
+        "sodiumMg": 0
       }
     }
   ]

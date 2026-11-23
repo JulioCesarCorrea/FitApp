@@ -12,11 +12,12 @@ namespace FitnessApp.Api.Features.Nutrition;
 public sealed record FoodRequest(
     string Name, string? Brand, string? Barcode,
     decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g, string Source,
-    string[]? Allergens = null);
+    string[]? Allergens = null, decimal? FiberPer100g = null, decimal? SugarsPer100g = null, int? SodiumMgPer100g = null);
 
 public sealed record FoodDto(
     Guid Id, string Name, string? Brand, string? Barcode,
-    decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g, string Source, string[] Allergens);
+    decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g, string Source, string[] Allergens,
+    decimal? FiberPer100g, decimal? SugarsPer100g, int? SodiumMgPer100g);
 
 /// <summary>SPEC-nutrition-003, AC-04: alérgenos del alimento que coinciden con las alergias del perfil.</summary>
 public sealed record FoodConflictsDto(string[] Conflicts);
@@ -24,7 +25,12 @@ public sealed record FoodConflictsDto(string[] Conflicts);
 public sealed record FoodEntryRequest(DateOnly Date, string Meal, Guid FoodId, int Grams);
 
 public sealed record FoodEntryDto(
-    Guid Id, DateOnly Date, string Meal, Guid? FoodId, int Grams, string Name, int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
+    Guid Id, DateOnly Date, string Meal, Guid? FoodId, int Grams, string Name, int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG,
+    decimal? FiberG = null, decimal? SugarsG = null, int? SodiumMg = null);
+
+public sealed record WaterRequest(DateOnly Date, int Ml);
+
+public sealed record WaterDto(Guid Id, DateOnly Date, int Ml);
 
 /// <param name="CalculatedCalories">Calorías que darían las reglas de la spec14, aunque la persona haya ajustado las suyas (la app las usa para volver al calculado sin conexión).</param>
 /// <param name="Source">«calculated» (reglas de la spec14) o «manual» (calorías ajustadas por la persona, SPEC-nutrition-002).</param>
@@ -46,12 +52,16 @@ public sealed class TargetOverrideRequestValidator : AbstractValidator<TargetOve
 
 public sealed record NutritionTotals(int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
 
+/// <param name="Partial">Alguna entrada no tenía fibra, azúcares o sodio: esos totales no la cuentan (SPEC-nutrition-004, AC-05).</param>
+public sealed record DayTotals(
+    int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG, decimal FiberG, decimal SugarsG, int SodiumMg, int WaterMl, bool Partial);
+
 public sealed record MealDto(string Name, List<FoodEntryDto> Entries);
 
 /// <param name="Targets">Null si falta el perfil o el peso.</param>
 /// <param name="Remaining">Objetivo menos lo consumido; negativo si se pasó. Null sin objetivo.</param>
 public sealed record NutritionDayDto(
-    DateOnly Date, List<MealDto> Meals, NutritionTotals Totals, NutritionTargetDto? Targets, NutritionTotals? Remaining);
+    DateOnly Date, List<MealDto> Meals, DayTotals Totals, NutritionTargetDto? Targets, NutritionTotals? Remaining, List<WaterDto> Water);
 
 public static class Meals
 {
@@ -89,6 +99,18 @@ public sealed partial class FoodRequestValidator : AbstractValidator<FoodRequest
             RuleFor(x => field(x)).PrecisionScale(7, 1, ignoreTrailingZeros: true).WithMessage("Los valores admiten como máximo un decimal.");
         RuleFor(x => x).Must(x => x.ProteinPer100g + x.FatPer100g + x.CarbsPer100g <= 100m)
             .WithMessage("Proteína, grasa y carbohidratos no pueden sumar más de 100 g por 100 g.");
+        RuleFor(x => x.FiberPer100g).InclusiveBetween(0m, 100m).When(x => x.FiberPer100g is not null)
+            .WithMessage("La fibra por 100 g va de 0 a 100 g.");
+        RuleFor(x => x.SugarsPer100g).InclusiveBetween(0m, 100m).When(x => x.SugarsPer100g is not null)
+            .WithMessage("Los azúcares por 100 g van de 0 a 100 g.");
+        RuleFor(x => x.SodiumMgPer100g).InclusiveBetween(0, 40000).When(x => x.SodiumMgPer100g is not null)
+            .WithMessage("El sodio por 100 g va de 0 a 40000 mg.");
+        RuleFor(x => x.FiberPer100g).PrecisionScale(7, 1, ignoreTrailingZeros: true).When(x => x.FiberPer100g is not null)
+            .WithMessage("Los valores admiten como máximo un decimal.");
+        RuleFor(x => x.SugarsPer100g).PrecisionScale(7, 1, ignoreTrailingZeros: true).When(x => x.SugarsPer100g is not null)
+            .WithMessage("Los valores admiten como máximo un decimal.");
+        RuleFor(x => x).Must(x => x.SugarsPer100g is null || x.SugarsPer100g <= x.CarbsPer100g)
+            .WithMessage("Los azúcares no pueden superar los carbohidratos.");
         RuleFor(x => x.Source).Must(s => s is "manual" or "openfoodfacts").WithMessage("El origen es manual u openfoodfacts.");
         RuleFor(x => x.Allergens).Must(a => a is null || a.Length <= Allergens.MaxPerFood)
             .WithMessage($"Un alimento lleva como máximo {Allergens.MaxPerFood} alérgenos.");
@@ -161,6 +183,9 @@ public sealed class FoodHandler(AppDbContext db, TimeProvider clock)
         existing.CarbsPer100g = request.CarbsPer100g;
         existing.Source = request.Source;
         existing.Allergens = Allergens.Normalize(request.Allergens);
+        existing.FiberPer100g = request.FiberPer100g;
+        existing.SugarsPer100g = request.SugarsPer100g;
+        existing.SodiumMgPer100g = request.SodiumMgPer100g;
 
         try
         {
@@ -202,7 +227,8 @@ public sealed class FoodHandler(AppDbContext db, TimeProvider clock)
     }
 
     public static FoodDto ToDto(Food f) =>
-        new(f.Id, f.Name, f.Brand, f.Barcode, f.KcalPer100g, f.ProteinPer100g, f.FatPer100g, f.CarbsPer100g, f.Source, f.Allergens);
+        new(f.Id, f.Name, f.Brand, f.Barcode, f.KcalPer100g, f.ProteinPer100g, f.FatPer100g, f.CarbsPer100g, f.Source, f.Allergens,
+            f.FiberPer100g, f.SugarsPer100g, f.SodiumMgPer100g);
 
     private static string Fold(string text) =>
         new string(text.Normalize(NormalizationForm.FormD)
@@ -239,6 +265,10 @@ public sealed class FoodEntryHandler(AppDbContext db, TimeProvider clock)
         existing.ProteinG = portion.ProteinG;
         existing.FatG = portion.FatG;
         existing.CarbsG = portion.CarbsG;
+        var micros = NutritionRules.MicrosOf(food.FiberPer100g, food.SugarsPer100g, food.SodiumMgPer100g, request.Grams);
+        existing.FiberG = micros.FiberG;
+        existing.SugarsG = micros.SugarsG;
+        existing.SodiumMg = micros.SodiumMg;
 
         try
         {
@@ -258,7 +288,57 @@ public sealed class FoodEntryHandler(AppDbContext db, TimeProvider clock)
     public async Task DeleteAsync(Guid userId, Guid id, CancellationToken ct) =>
         await db.FoodEntries.Where(e => e.Id == id && e.UserId == userId).ExecuteDeleteAsync(ct);
 
-    public static FoodEntryDto ToDto(FoodEntry e) => new(e.Id, e.Date, e.Meal, e.FoodId, e.Grams, e.Name, e.Kcal, e.ProteinG, e.FatG, e.CarbsG);
+    public static FoodEntryDto ToDto(FoodEntry e) =>
+        new(e.Id, e.Date, e.Meal, e.FoodId, e.Grams, e.Name, e.Kcal, e.ProteinG, e.FatG, e.CarbsG, e.FiberG, e.SugarsG, e.SodiumMg);
+}
+
+public sealed class WaterRequestValidator : AbstractValidator<WaterRequest>
+{
+    private static readonly DateOnly Earliest = new(2000, 1, 1);
+
+    public WaterRequestValidator(TimeProvider clock)
+    {
+        RuleFor(x => x.Date).Must(d => d >= Earliest).WithMessage("La fecha no es válida.")
+            .Must(d => d <= DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime).AddDays(1)).WithMessage("La fecha no puede ser futura.");
+        RuleFor(x => x.Ml).InclusiveBetween(1, 5000).WithMessage("Los mililitros van de 1 a 5000.");
+    }
+}
+
+/// <summary>Casos de uso de SPEC-nutrition-004: agua bebida. Todo filtra por la persona que llama (P7).</summary>
+public sealed class WaterHandler(AppDbContext db, TimeProvider clock)
+{
+    /// <summary>AC-06: crea el registro o reemplaza el que tiene ese id; null si el id es de otra persona.</summary>
+    public async Task<(WaterDto Water, bool Created)?> PutAsync(Guid userId, Guid id, WaterRequest request, CancellationToken ct)
+    {
+        var existing = await db.WaterEntries.FirstOrDefaultAsync(w => w.Id == id, ct);
+        if (existing is not null && existing.UserId != userId) return null;
+
+        var created = existing is null;
+        if (existing is null)
+        {
+            existing = new WaterEntry { Id = id, UserId = userId, CreatedAt = clock.GetUtcNow() };
+            db.WaterEntries.Add(existing);
+        }
+
+        existing.Date = request.Date;
+        existing.Ml = request.Ml;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Carrera: otra petición guardó el mismo id entre la lectura y la escritura; se resuelve como reemplazo.
+            db.ChangeTracker.Clear();
+            return await PutAsync(userId, id, request, ct);
+        }
+
+        return (new WaterDto(existing.Id, existing.Date, existing.Ml), created);
+    }
+
+    /// <summary>AC-06: uno ajeno o inexistente no hace nada.</summary>
+    public async Task DeleteAsync(Guid userId, Guid id, CancellationToken ct) =>
+        await db.WaterEntries.Where(w => w.Id == id && w.UserId == userId).ExecuteDeleteAsync(ct);
 }
 
 /// <summary>Objetivo diario y resumen del día (SPEC-nutrition-001, AC-01, 04, 13).</summary>
@@ -333,14 +413,19 @@ public sealed class NutritionHandler(AppDbContext db, TimeProvider clock)
             .OrderBy(g => Meals.Order(g.Key)).ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
             .Select(g => new MealDto(g.Key, g.OrderBy(e => e.CreatedAt).ThenBy(e => e.Id).Select(FoodEntryHandler.ToDto).ToList()))
             .ToList();
-        var totals = new NutritionTotals(
-            entries.Sum(e => e.Kcal), entries.Sum(e => e.ProteinG), entries.Sum(e => e.FatG), entries.Sum(e => e.CarbsG));
+        var water = await db.WaterEntries.AsNoTracking().Where(w => w.UserId == userId && w.Date == date)
+            .OrderBy(w => w.CreatedAt).ThenBy(w => w.Id).Select(w => new WaterDto(w.Id, w.Date, w.Ml)).ToListAsync(ct);
+        // AC-05: lo que no tiene dato no suma y se avisa con Partial.
+        var totals = new DayTotals(
+            entries.Sum(e => e.Kcal), entries.Sum(e => e.ProteinG), entries.Sum(e => e.FatG), entries.Sum(e => e.CarbsG),
+            entries.Sum(e => e.FiberG ?? 0m), entries.Sum(e => e.SugarsG ?? 0m), entries.Sum(e => e.SodiumMg ?? 0), water.Sum(w => w.Ml),
+            entries.Any(e => e.FiberG is null || e.SugarsG is null || e.SodiumMg is null));
 
         var targets = await TargetsAsync(userId, ct) is TargetsResult.Ok ok ? ok.Target : null;
         var remaining = targets is null
             ? null
             : new NutritionTotals(
                 targets.Calories - totals.Kcal, targets.ProteinG - totals.ProteinG, targets.FatG - totals.FatG, targets.CarbsG - totals.CarbsG);
-        return new NutritionDayDto(date, meals, totals, targets, remaining);
+        return new NutritionDayDto(date, meals, totals, targets, remaining, water);
     }
 }

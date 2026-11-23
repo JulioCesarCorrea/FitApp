@@ -22,6 +22,11 @@ public class Food
     /// <summary>Alérgenos declarados del alimento (SPEC-nutrition-003), con las etiquetas de <see cref="Allergens"/>; vacío = sin dato.</summary>
     public string[] Allergens { get; set; } = [];
 
+    /// <summary>Por 100 g (SPEC-nutrition-004); null = sin dato.</summary>
+    public decimal? FiberPer100g { get; set; }
+    public decimal? SugarsPer100g { get; set; }
+    public int? SodiumMgPer100g { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 }
 
@@ -59,5 +64,20 @@ public class FoodEntry
     public decimal ProteinG { get; set; }
     public decimal FatG { get; set; }
     public decimal CarbsG { get; set; }
+
+    /// <summary>Copia de esa cantidad (SPEC-nutrition-004); null = el alimento no tenía el dato.</summary>
+    public decimal? FiberG { get; set; }
+    public decimal? SugarsG { get; set; }
+    public int? SodiumMg { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>Agua bebida en un día, en mililitros (SPEC-nutrition-004). Clase B.</summary>
+public class WaterEntry
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public DateOnly Date { get; set; }
+    public int Ml { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

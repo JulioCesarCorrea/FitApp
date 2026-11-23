@@ -33,10 +33,13 @@ public sealed record ExportExerciseLog(
 
 public sealed record ExportFood(
     Guid Id, string Name, string? Brand, string? Barcode, decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g,
-    decimal CarbsPer100g, string Source, string[] Allergens);
+    decimal CarbsPer100g, string Source, string[] Allergens, decimal? FiberPer100g, decimal? SugarsPer100g, int? SodiumMgPer100g);
 
 public sealed record ExportFoodEntry(
-    Guid Id, DateOnly Date, string Meal, Guid? FoodId, int Grams, string Name, int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
+    Guid Id, DateOnly Date, string Meal, Guid? FoodId, int Grams, string Name, int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG,
+    decimal? FiberG, decimal? SugarsG, int? SodiumMg);
+
+public sealed record ExportWaterEntry(Guid Id, DateOnly Date, int Ml);
 
 public sealed record AccountExport(
     int Version,
@@ -52,7 +55,8 @@ public sealed record AccountExport(
     List<string> DismissedSuggestions,
     List<ExportFood> Foods,
     List<ExportFoodEntry> FoodEntries,
-    int? NutritionOverrideCalories);
+    int? NutritionOverrideCalories,
+    List<ExportWaterEntry> WaterEntries);
 
 /// <summary>
 /// Entidades con datos de la persona. La exportación y el borrado las recorren y una prueba (AC-account-001-10)
@@ -64,7 +68,7 @@ public static class AccountData
     [
         typeof(AppUser), typeof(RefreshToken), typeof(UserProfile), typeof(UserRestriction), typeof(WeightEntry),
         typeof(PlanEntry), typeof(EquipmentSettings), typeof(TrainingSettings), typeof(ExerciseLogEntry), typeof(SuggestionDismissal),
-        typeof(Food), typeof(FoodEntry), typeof(TargetOverride),
+        typeof(Food), typeof(FoodEntry), typeof(TargetOverride), typeof(WaterEntry),
     ];
 }
 
@@ -78,7 +82,8 @@ public abstract record DeleteAccountResult
 public sealed class AccountHandler(AppDbContext db, PasswordService passwords, TimeProvider clock)
 {
     // 2: añade las calorías ajustadas a mano (SPEC-nutrition-002). 3: añade los alérgenos de los alimentos (SPEC-nutrition-003).
-    public const int ExportVersion = 3;
+    // 4: fibra, azúcares y sodio de alimentos y entradas, y el agua (SPEC-nutrition-004).
+    public const int ExportVersion = 4;
 
     public async Task<AccountExport?> ExportAsync(Guid userId, CancellationToken ct)
     {
@@ -116,18 +121,21 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
             .Select(d => d.Key).ToListAsync(ct);
 
         var foods = await db.Foods.AsNoTracking().Where(f => f.UserId == userId).OrderBy(f => f.Name)
-            .Select(f => new ExportFood(f.Id, f.Name, f.Brand, f.Barcode, f.KcalPer100g, f.ProteinPer100g, f.FatPer100g, f.CarbsPer100g, f.Source, f.Allergens))
+            .Select(f => new ExportFood(f.Id, f.Name, f.Brand, f.Barcode, f.KcalPer100g, f.ProteinPer100g, f.FatPer100g, f.CarbsPer100g, f.Source, f.Allergens,
+                f.FiberPer100g, f.SugarsPer100g, f.SodiumMgPer100g))
             .ToListAsync(ct);
         var foodEntries = await db.FoodEntries.AsNoTracking().Where(e => e.UserId == userId).OrderBy(e => e.Date).ThenBy(e => e.CreatedAt)
-            .Select(e => new ExportFoodEntry(e.Id, e.Date, e.Meal, e.FoodId, e.Grams, e.Name, e.Kcal, e.ProteinG, e.FatG, e.CarbsG))
+            .Select(e => new ExportFoodEntry(e.Id, e.Date, e.Meal, e.FoodId, e.Grams, e.Name, e.Kcal, e.ProteinG, e.FatG, e.CarbsG, e.FiberG, e.SugarsG, e.SodiumMg))
             .ToListAsync(ct);
+        var water = await db.WaterEntries.AsNoTracking().Where(w => w.UserId == userId).OrderBy(w => w.Date).ThenBy(w => w.CreatedAt)
+            .Select(w => new ExportWaterEntry(w.Id, w.Date, w.Ml)).ToListAsync(ct);
 
         var overrideCalories = await db.TargetOverrides.AsNoTracking().Where(o => o.UserId == userId)
             .Select(o => (int?)o.Calories).FirstOrDefaultAsync(ct);
 
         return new AccountExport(
             ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs, dismissed, foods, foodEntries,
-            overrideCalories);
+            overrideCalories, water);
     }
 
     /// <summary>Borra la cuenta y todos sus datos en una sola transacción (AC-account-001-05, 06, 09).</summary>
@@ -147,6 +155,7 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
         await db.FoodEntries.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.Foods.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.TargetOverrides.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.WaterEntries.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.TrainingSettings.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.Profiles.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.RefreshTokens.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);

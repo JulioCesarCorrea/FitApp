@@ -24,6 +24,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Food> Foods => Set<Food>();
     public DbSet<FoodEntry> FoodEntries => Set<FoodEntry>();
     public DbSet<TargetOverride> TargetOverrides => Set<TargetOverride>();
+    public DbSet<WaterEntry> WaterEntries => Set<WaterEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -127,6 +128,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Barcode).HasMaxLength(14);
             e.Property(x => x.Source).HasMaxLength(20);
             e.Property(x => x.Allergens).HasDefaultValueSql("'{}'");
+            e.Property(x => x.FiberPer100g).HasPrecision(7, 1);
+            e.Property(x => x.SugarsPer100g).HasPrecision(7, 1);
             e.Property(x => x.KcalPer100g).HasPrecision(7, 1);
             e.Property(x => x.ProteinPer100g).HasPrecision(7, 1);
             e.Property(x => x.FatPer100g).HasPrecision(7, 1);
@@ -144,9 +147,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.ProteinG).HasPrecision(8, 1);
             e.Property(x => x.FatG).HasPrecision(8, 1);
             e.Property(x => x.CarbsG).HasPrecision(8, 1);
+            e.Property(x => x.FiberG).HasPrecision(8, 1);
+            e.Property(x => x.SugarsG).HasPrecision(8, 1);
             e.HasIndex(x => new { x.UserId, x.Date });
             // Borrar un alimento no borra lo ya comido: la entrada conserva su copia (AC-09).
             e.HasOne<Food>().WithMany().HasForeignKey(x => x.FoodId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<WaterEntry>(e =>
+        {
+            e.ToTable("water_entries");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.Date });
         });
 
         modelBuilder.Entity<TargetOverride>(e =>

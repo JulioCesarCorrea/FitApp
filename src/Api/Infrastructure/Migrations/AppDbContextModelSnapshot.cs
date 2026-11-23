@@ -131,6 +131,10 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .HasPrecision(7, 1)
                         .HasColumnType("numeric(7,1)");
 
+                    b.Property<decimal?>("FiberPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
                     b.Property<decimal>("KcalPer100g")
                         .HasPrecision(7, 1)
                         .HasColumnType("numeric(7,1)");
@@ -144,10 +148,17 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .HasPrecision(7, 1)
                         .HasColumnType("numeric(7,1)");
 
+                    b.Property<int?>("SodiumMgPer100g")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<decimal?>("SugarsPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -181,6 +192,10 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .HasPrecision(8, 1)
                         .HasColumnType("numeric(8,1)");
 
+                    b.Property<decimal?>("FiberG")
+                        .HasPrecision(8, 1)
+                        .HasColumnType("numeric(8,1)");
+
                     b.Property<Guid?>("FoodId")
                         .HasColumnType("uuid");
 
@@ -201,6 +216,13 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .HasColumnType("character varying(80)");
 
                     b.Property<decimal>("ProteinG")
+                        .HasPrecision(8, 1)
+                        .HasColumnType("numeric(8,1)");
+
+                    b.Property<int?>("SodiumMg")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("SugarsG")
                         .HasPrecision(8, 1)
                         .HasColumnType("numeric(8,1)");
 
@@ -231,6 +253,31 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("nutrition_target_overrides", (string)null);
+                });
+
+            modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.WaterEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Ml")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Date");
+
+                    b.ToTable("water_entries", (string)null);
                 });
 
             modelBuilder.Entity("FitnessApp.Api.Domain.Profile.UserProfile", b =>
