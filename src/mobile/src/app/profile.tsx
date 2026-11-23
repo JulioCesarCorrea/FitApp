@@ -73,6 +73,12 @@ export default function ProfileScreen() {
         <Title>Entrenamiento</Title>
         <ExperienceFields draft={draft} onChange={change} />
         <MethodologyFields draft={draft} onChange={change} />
+        {state?.profile && draft.methodology !== state.profile.methodology && (
+          <Body testID="methodology-change-warning" style={{ color: colors.warning }}>
+            Cambiar de método no convierte tu historial: tus sesiones anteriores conservan el suyo y el consejo de carga y el aviso de
+            estancamiento empezarán de cero con el método nuevo. Puedes volver al anterior cuando quieras, pero también empezará de cero.
+          </Body>
+        )}
         <Title>Comida</Title>
         <AllergiesFields draft={draft} onChange={change} />
 

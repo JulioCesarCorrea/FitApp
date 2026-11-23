@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import vectors from '../../../../tests/Api.Tests/Training/progression-vectors.json';
-import { advise, checkStagnation, evaluateFirstSet, loadsFor, type LogSets } from './progression';
+import { advise, checkStagnation, evaluateFirstSet, loadsFor, relevantForMethodology, type LogSets } from './progression';
 import type { EquipmentProfile } from './types';
 
 // Los mismos casos que ejecuta la API (ProgressionVectorsTests.cs): ADR-0004.
@@ -54,5 +54,15 @@ describe('reglas de la serie 1 y mensajes', () => {
   it('AC-mobile-003-09 las cargas con decimales no acumulan error de punto flotante', () => {
     const profile = { dumbbellsKg: [], barsKg: { recta: 20 }, discsKg: [1.25, 0.1], machineStepKg: 5, machineBaseKg: 0 };
     expect(loadsFor(profile, 'Barra', 'Recta', null)).toEqual([20, 20.2, 22.5, 22.7]);
+  });
+});
+
+describe('vectores compartidos con la API (SPEC-training-007)', () => {
+  it.each(vectors.methodologySwitch)('AC-training-007-04 registros que cuentan tras un cambio de metodología: $name', (c) => {
+    const rows = c.logMethodologies.map((methodology, index) => ({ methodology, index }));
+
+    const relevant = relevantForMethodology(rows, (r) => r.methodology, c.current);
+
+    expect(relevant.map((r) => r.index)).toEqual(c.expectedIndexes);
   });
 });

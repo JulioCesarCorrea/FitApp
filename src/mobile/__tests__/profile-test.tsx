@@ -380,6 +380,19 @@ describe('Perfil y restricciones en Más (SPEC-profile-001)', () => {
     expect(fakes.remote.serverProfile).toMatchObject({ methodology: 'normal_4x15' });
   });
 
+  it('AC-training-007-06: al elegir otro método avisa de que el historial no se convierte y el aviso desaparece al volver al anterior', async () => {
+    await openApp('/profile');
+    await waitFor(() => expect(screen.getByLabelText('Nombre o apodo').props.value).toBe('Julio'));
+    expect(screen.queryByTestId('methodology-change-warning')).not.toBeOnTheScreen();
+
+    await press(screen.getByTestId('methodology-normal_4x15'));
+
+    expect(await screen.findByTestId('methodology-change-warning')).toHaveTextContent(has('no convierte tu historial'));
+    expect(screen.getByTestId('methodology-change-warning')).toHaveTextContent(has('empezarán de cero'));
+    await press(screen.getByTestId('methodology-heavy_duty_personalizado'));
+    await waitFor(() => expect(screen.queryByTestId('methodology-change-warning')).not.toBeOnTheScreen());
+  });
+
   it('AC-profile-001-17: valida con las mismas reglas y sin conexión queda pendiente', async () => {
     await openApp('/profile');
     await waitFor(() => expect(screen.getByLabelText('Nombre o apodo').props.value).toBe('Julio'));
