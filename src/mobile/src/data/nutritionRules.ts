@@ -30,6 +30,28 @@ export function portionOf(
   };
 }
 
+export const MIN_OVERRIDE_CALORIES = 800;
+export const MAX_OVERRIDE_CALORIES = 6000;
+
+export interface Macros {
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+}
+
+/**
+ * Reparto de macros para unas calorías (SPEC-nutrition-002, AC-03): proteína por kilo según el objetivo, grasa al 25 % de las
+ * calorías y carbohidratos lo que queda (nunca negativo). Copia de NutritionRules.MacrosFor de la API: la app la usa para
+ * mostrar el ajuste sin conexión. Se calcula con enteros (centésimas de kilo y décimas de g/kg) para dar lo mismo que la API.
+ */
+export function macrosFor(calories: number, weightKg: number, goal: 'bajar_grasa' | 'ganar_musculo' | 'mantener'): Macros {
+  const proteinPerKgTenths = goal === 'bajar_grasa' ? 20 : 18;
+  const proteinG = Math.round((Math.round(weightKg * 100) * proteinPerKgTenths) / 1000);
+  const fatG = Math.round(calories / 36); // 25 % de las calorías entre 9 kcal/g
+  const carbsG = Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4));
+  return { proteinG, fatG, carbsG };
+}
+
 /** Suma de lo comido: las calorías enteras y los macros con un decimal, sin error de punto flotante. */
 export function sumPortions(items: Portion[]): Portion {
   const sum = (pick: (p: Portion) => number) => items.reduce((acc, p) => acc + tenths(pick(p)), 0) / 10;

@@ -542,6 +542,64 @@
       "expected": 2000
     }
   ],
+  "override": [
+    {
+      "name": "mantener, 2000 kcal, 80.5 kg",
+      "calories": 2000,
+      "weightKg": 80.5,
+      "goal": "mantener",
+      "expected": { "proteinG": 145, "fatG": 56, "carbsG": 229 }
+    },
+    {
+      "name": "bajar_grasa usa 2,0 g/kg y los carbohidratos .5 redondean hacia arriba",
+      "calories": 1800,
+      "weightKg": 80.5,
+      "goal": "bajar_grasa",
+      "expected": { "proteinG": 161, "fatG": 50, "carbsG": 177 }
+    },
+    {
+      "name": "ganar_musculo, 2500 kcal, 70 kg",
+      "calories": 2500,
+      "weightKg": 70.0,
+      "goal": "ganar_musculo",
+      "expected": { "proteinG": 126, "fatG": 69, "carbsG": 344 }
+    },
+    {
+      "name": "calorías mínimas con mucho peso: los carbohidratos quedan en 0",
+      "calories": 800,
+      "weightKg": 120.0,
+      "goal": "mantener",
+      "expected": { "proteinG": 216, "fatG": 22, "carbsG": 0 }
+    },
+    {
+      "name": "calorías máximas, bajar_grasa",
+      "calories": 6000,
+      "weightKg": 50.5,
+      "goal": "bajar_grasa",
+      "expected": { "proteinG": 101, "fatG": 167, "carbsG": 1023 }
+    },
+    {
+      "name": "mantener, 1500 kcal, 62.3 kg",
+      "calories": 1500,
+      "weightKg": 62.3,
+      "goal": "mantener",
+      "expected": { "proteinG": 112, "fatG": 42, "carbsG": 169 }
+    },
+    {
+      "name": "la proteína .5 redondea hacia arriba",
+      "calories": 2000,
+      "weightKg": 62.5,
+      "goal": "mantener",
+      "expected": { "proteinG": 113, "fatG": 56, "carbsG": 261 }
+    },
+    {
+      "name": "la grasa .5 redondea hacia arriba",
+      "calories": 1818,
+      "weightKg": 70.0,
+      "goal": "mantener",
+      "expected": { "proteinG": 126, "fatG": 51, "carbsG": 214 }
+    }
+  ],
   "portions": [
     {
       "name": "100 g devuelven los valores por 100 g",

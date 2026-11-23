@@ -23,6 +23,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SuggestionDismissal> SuggestionDismissals => Set<SuggestionDismissal>();
     public DbSet<Food> Foods => Set<Food>();
     public DbSet<FoodEntry> FoodEntries => Set<FoodEntry>();
+    public DbSet<TargetOverride> TargetOverrides => Set<TargetOverride>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -145,6 +146,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.UserId, x.Date });
             // Borrar un alimento no borra lo ya comido: la entrada conserva su copia (AC-09).
             e.HasOne<Food>().WithMany().HasForeignKey(x => x.FoodId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<TargetOverride>(e =>
+        {
+            e.ToTable("nutrition_target_overrides");
+            e.HasKey(x => x.UserId);
         });
 
         modelBuilder.Entity<SuggestionDismissal>(e =>

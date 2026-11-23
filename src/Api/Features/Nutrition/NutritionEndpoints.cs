@@ -21,6 +21,31 @@ public static class NutritionEndpoints
             };
         });
 
+        app.MapPut("/nutrition/targets/override", async (
+                TargetOverrideRequest request, ICurrentUser user, NutritionHandler handler, CancellationToken ct) =>
+            {
+                if (user.Id is not { } userId) return Results.Unauthorized();
+
+                return await handler.SetOverrideAsync(userId, request.Calories, ct) switch
+                {
+                    TargetsResult.Ok ok => Results.Ok(ok.Target),
+                    TargetsResult.Missing missing => Results.Problem(
+                        statusCode: StatusCodes.Status422UnprocessableEntity,
+                        title: missing.What == "perfil" ? "Falta completar tu perfil." : "Falta registrar tu peso.",
+                        extensions: new Dictionary<string, object?> { ["missing"] = missing.What }),
+                    _ => Results.NotFound(),
+                };
+            })
+            .AddEndpointFilter<ValidationFilter<TargetOverrideRequest>>();
+
+        app.MapDelete("/nutrition/targets/override", async (ICurrentUser user, NutritionHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+
+            await handler.ClearOverrideAsync(userId, ct);
+            return Results.NoContent();
+        });
+
         app.MapGet("/nutrition/day", async (string? date, ICurrentUser user, NutritionHandler handler, CancellationToken ct) =>
         {
             if (user.Id is not { } userId) return Results.Unauthorized();

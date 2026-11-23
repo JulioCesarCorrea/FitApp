@@ -36,7 +36,10 @@ export const PROFILE: EquipmentProfile = {
 /** Objetivo de ejemplo que «calcula el servidor» (SPEC-nutrition-001). */
 export const TARGETS: TargetsResponse = {
   kind: 'ok',
-  target: { calories: 2500, proteinG: 145, fatG: 69, carbsG: 321, basalKcal: 1800, weightKg: 80.5, weightDate: '2026-11-12' },
+  target: {
+    calories: 2500, proteinG: 145, fatG: 69, carbsG: 321, basalKcal: 1800, weightKg: 80.5, weightDate: '2026-11-12',
+    calculatedCalories: 2500, source: 'calculated',
+  },
 };
 
 export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi {
@@ -45,6 +48,9 @@ export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi {
   serverFoods: ServerFood[];
   serverEntries: ServerFoodEntry[];
   targets: TargetsResponse;
+  /** SPEC-nutrition-002: ajustes recibidos y borrados del ajuste. */
+  overridePuts: number[];
+  overrideDeletes: number;
   foodResult: PutLogResult | null;
   entryResult: PutLogResult | null;
   entryPuts: string[];
@@ -153,6 +159,8 @@ export function createFakes(
     serverFoods: [],
     serverEntries: [],
     targets: TARGETS,
+    overridePuts: [],
+    overrideDeletes: 0,
     foodResult: null,
     entryResult: null,
     entryPuts: [],
@@ -186,6 +194,22 @@ export function createFakes(
       return 'ok';
     },
     fetchTargets: async () => (remote.online ? remote.targets : null),
+    putTargetOverride: async (calories) => {
+      if (!remote.online) return { kind: 'retry' };
+      remote.overridePuts.push(calories);
+      // El «servidor» responde con las calorías ajustadas y los macros que recibió la app en su objetivo de prueba.
+      if (remote.targets.kind === 'ok') remote.targets = { kind: 'ok', target: { ...remote.targets.target, calories, source: 'manual' } };
+      return { kind: 'ok' };
+    },
+    deleteTargetOverride: async () => {
+      if (!remote.online) return 'retry';
+      remote.overrideDeletes += 1;
+      if (remote.targets.kind === 'ok') {
+        const t = remote.targets.target;
+        remote.targets = { kind: 'ok', target: { ...t, calories: t.calculatedCalories, source: 'calculated' } };
+      }
+      return 'ok';
+    },
     fetchFoods: async () => (remote.online ? [...remote.serverFoods] : null),
     putFood: async (food) => {
       if (!remote.online) return { kind: 'retry' };

@@ -1,15 +1,21 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MemoryStore } from './memoryStore';
 import { NutritionService, parseFood, type RawFoodInput } from './nutritionService';
-import { portionOf } from './nutritionRules';
+import { macrosFor, portionOf } from './nutritionRules';
 import type {
-  NutritionApi, NutritionTarget, PutLogResult, ServerFood, ServerFoodEntry, TargetsResponse,
+  LocalProfile, NutritionApi, NutritionTarget, PutLogResult, ServerFood, ServerFoodEntry, TargetsResponse,
 } from './types';
 
 const TODAY = '2026-11-13';
 
 const TARGET: NutritionTarget = {
   calories: 2500, proteinG: 145, fatG: 69, carbsG: 321, basalKcal: 1800, weightKg: 80.5, weightDate: '2026-11-12',
+  calculatedCalories: 2500, source: 'calculated',
+};
+
+const PROFILE: LocalProfile = {
+  displayName: 'Julio', sex: 'masculino', birthDate: '1995-05-20', heightCm: 178, goal: 'mantener', activityLevel: 'ligero',
+  experienceLevel: null, daysPerWeek: null, methodology: 'heavy_duty_personalizado', allergies: [],
 };
 
 interface Fake extends NutritionApi {
@@ -32,6 +38,25 @@ function fakeRemote(): Fake {
     foodResult: null,
     entryResult: null,
     fetchTargets: async () => (r.online ? r.targets : null),
+    putTargetOverride: async (calories) => {
+      if (!r.online) return { kind: 'retry' };
+      r.calls.push(`putOverride:${calories}`);
+      // El «servidor» responde con esas calorías y su reparto de macros.
+      if (r.targets.kind === 'ok') {
+        const t = r.targets.target;
+        r.targets = { kind: 'ok', target: { ...t, calories, ...macrosFor(calories, t.weightKg, 'mantener'), source: 'manual' } };
+      }
+      return { kind: 'ok' };
+    },
+    deleteTargetOverride: async () => {
+      if (!r.online) return 'retry';
+      r.calls.push('deleteOverride');
+      if (r.targets.kind === 'ok') {
+        const t = r.targets.target;
+        r.targets = { kind: 'ok', target: { ...t, calories: t.calculatedCalories, ...macrosFor(t.calculatedCalories, t.weightKg, 'mantener'), source: 'calculated' } };
+      }
+      return 'ok';
+    },
     fetchFoods: async () => (r.online ? [...r.foods.values()] : null),
     putFood: async (food) => {
       if (!r.online) return { kind: 'retry' };
@@ -337,7 +362,7 @@ describe('el día y el objetivo (AC-nutrition-001-13, 15, 18)', () => {
 
     const day = await service.loadDay(TODAY);
 
-    expect(day.target).toEqual({ kind: 'target', target: TARGET, calculatedAt: TODAY });
+    expect(day.target).toEqual({ kind: 'target', target: TARGET, calculatedAt: TODAY, pending: false });
   });
 
   it('AC-nutrition-001-15 sin conexión y sin ningún objetivo guardado no hay objetivo conocido', async () => {
@@ -371,5 +396,106 @@ describe('el día y el objetivo (AC-nutrition-001-13, 15, 18)', () => {
     await service.discardEntry(saved.entry.id);
     remote.entryResult = null;
     expect((await service.loadDay(TODAY)).meals).toEqual([]);
+  });
+});
+
+describe('objetivo ajustado a mano (SPEC-nutrition-002)', () => {
+  const calories = async () => {
+    const state = await service.getTargetState();
+    if (state.kind !== 'target') throw new Error('sin objetivo');
+    return state;
+  };
+
+  beforeEach(async () => {
+    await store.saveProfile(PROFILE);
+    await service.loadDay(TODAY); // con conexión: guarda el objetivo calculado recibido
+  });
+
+  it.each(['', 'abc', '799', '6001', '2000,5', '-2000'])(
+    'AC-nutrition-002-09 rechaza «%s» sin guardar ni enviar nada', async (text) => {
+      const result = await service.setOverride(text);
+
+      expect(result.ok).toBe(false);
+      expect(remote.calls.filter((c) => c.includes('verride'))).toEqual([]);
+      expect((await calories()).target.calories).toBe(2500);
+    },
+  );
+
+  it('AC-nutrition-002-09 con conexión fija las calorías, las envía y muestra «manual» con los macros de la API', async () => {
+    const result = await service.setOverride(' 2000 ');
+    await service.loadDay(TODAY);
+
+    expect(result).toEqual({ ok: true });
+    expect(remote.calls).toContain('putOverride:2000');
+    const state = await calories();
+    expect(state.pending).toBe(false);
+    expect(state.target).toMatchObject({ calories: 2000, source: 'manual', calculatedCalories: 2500, ...macrosFor(2000, 80.5, 'mantener') });
+  });
+
+  it('AC-nutrition-002-10 sin conexión se aplica al instante en el teléfono, con macros recalculados, y queda pendiente', async () => {
+    remote.online = false;
+
+    await service.setOverride('2000');
+
+    const state = await calories();
+    expect(state.pending).toBe(true);
+    expect(state.target).toMatchObject({ calories: 2000, proteinG: 145, fatG: 56, carbsG: 229, source: 'manual' }); // vector: mantener, 80,5 kg
+    expect(remote.calls).toEqual([]);
+  });
+
+  it('AC-nutrition-002-10 al volver la conexión se envía una sola vez y deja de estar pendiente', async () => {
+    remote.online = false;
+    await service.setOverride('2000');
+    remote.online = true;
+
+    await service.loadDay(TODAY);
+    await service.loadDay(TODAY);
+
+    expect(remote.calls.filter((c) => c.startsWith('putOverride'))).toEqual(['putOverride:2000']);
+    expect((await calories()).pending).toBe(false);
+  });
+
+  it('AC-nutrition-002-10 mientras haya un ajuste pendiente una respuesta de la API no lo pisa', async () => {
+    remote.online = false;
+    await service.setOverride('2000');
+    remote.online = true;
+    remote.targets = { kind: 'ok', target: { ...TARGET, calories: 2600, calculatedCalories: 2600 } };
+    await service.refreshTarget();
+
+    expect((await calories()).target.calories).toBe(2000); // el pendiente manda hasta que se envía
+  });
+
+  it('AC-nutrition-002-10 dos ajustes sin conexión: solo el último se envía', async () => {
+    remote.online = false;
+    await service.setOverride('2000');
+    await service.setOverride('2200');
+    remote.online = true;
+
+    await service.syncPending();
+
+    expect(remote.calls.filter((c) => c.startsWith('putOverride'))).toEqual(['putOverride:2200']);
+  });
+
+  it('AC-nutrition-002-09 volver al calculado sin conexión muestra las calorías calculadas y envía el borrado al reconectar', async () => {
+    await service.setOverride('2000');
+    remote.online = false;
+
+    await service.clearOverride();
+
+    const state = await calories();
+    expect(state.pending).toBe(true);
+    expect(state.target).toMatchObject({ calories: 2500, source: 'calculated', ...macrosFor(2500, 80.5, 'mantener') });
+    remote.online = true;
+    await service.syncPending();
+    expect(remote.calls).toContain('deleteOverride');
+    expect((await calories()).pending).toBe(false);
+  });
+
+  it('AC-nutrition-002-09 sin objetivo calculado todavía no se puede ajustar', async () => {
+    const empty = new NutritionService(new MemoryStore(), remote, () => 'x', () => TODAY);
+
+    const result = await empty.setOverride('2000');
+
+    expect(result.ok).toBe(false);
   });
 });

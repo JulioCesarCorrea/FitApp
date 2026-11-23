@@ -5,6 +5,9 @@ namespace FitnessApp.Api.Domain.Nutrition;
 /// <summary>Objetivo diario de calorías y macros (SPEC-nutrition-001). Orientativo: la app no sustituye a un profesional (P8).</summary>
 public sealed record NutritionTarget(int Calories, int ProteinG, int FatG, int CarbsG, int BasalKcal);
 
+/// <summary>Gramos de proteína, grasa y carbohidratos del objetivo diario.</summary>
+public sealed record Macros(int ProteinG, int FatG, int CarbsG);
+
 /// <summary>Calorías y macros de una cantidad concreta de un alimento (calorías enteras, macros con un decimal).</summary>
 public sealed record Portion(int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
 
@@ -38,6 +41,19 @@ public static class NutritionRules
 
     public static decimal ProteinPerKg(string goal) => goal == "bajar_grasa" ? 2.0m : 1.8m;
 
+    /// <summary>
+    /// Reparto de macros para unas calorías (SPEC-nutrition-002, AC-03): proteína por kilo según el objetivo, grasa al 25 % de
+    /// las calorías y carbohidratos lo que queda (nunca negativo). Lo usan el objetivo calculado y el ajustado a mano.
+    /// </summary>
+    public static Macros MacrosFor(int calories, decimal weightKg, string goal)
+    {
+        var protein = (int)Math.Round(weightKg * ProteinPerKg(goal), MidpointRounding.AwayFromZero);
+        var fat = (int)Math.Round(calories * FatShareOfCalories / KcalPerGramFat, MidpointRounding.AwayFromZero);
+        var carbs = Math.Max(0, (int)Math.Round(
+            (calories - protein * KcalPerGramProtein - fat * KcalPerGramFat) / (decimal)KcalPerGramCarbs, MidpointRounding.AwayFromZero));
+        return new Macros(protein, fat, carbs);
+    }
+
     /// <summary>Objetivo diario desde el perfil y el último peso (AC-01).</summary>
     public static NutritionTarget Target(
         string sex, DateOnly birthDate, int heightCm, string activityLevel, string goal, decimal weightKg, DateOnly today)
@@ -47,12 +63,9 @@ public static class NutritionRules
         var expenditure = basal * ActivityFactors[activityLevel];
         var calories = Calories(expenditure, GoalFactors[goal], basal);
 
-        var protein = (int)Math.Round(weightKg * ProteinPerKg(goal), MidpointRounding.AwayFromZero);
-        var fat = (int)Math.Round(calories * FatShareOfCalories / KcalPerGramFat, MidpointRounding.AwayFromZero);
-        var carbs = Math.Max(0, (int)Math.Round(
-            (calories - protein * KcalPerGramProtein - fat * KcalPerGramFat) / (decimal)KcalPerGramCarbs, MidpointRounding.AwayFromZero));
+        var macros = MacrosFor(calories, weightKg, goal);
 
-        return new NutritionTarget(calories, protein, fat, carbs, (int)Math.Round(basal, MidpointRounding.AwayFromZero));
+        return new NutritionTarget(calories, macros.ProteinG, macros.FatG, macros.CarbsG, (int)Math.Round(basal, MidpointRounding.AwayFromZero));
     }
 
     /// <summary>

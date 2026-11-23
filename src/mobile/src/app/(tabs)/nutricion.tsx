@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Body, Button, Muted, Title } from '../../components/ui';
+import { Body, Button, Field, Muted, Title } from '../../components/ui';
 import { useDeps } from '../../data/DataContext';
 import { useNutritionDay } from '../../data/hooks';
 import { localDate, type TargetState } from '../../data/nutritionService';
@@ -35,6 +35,17 @@ export default function NutritionScreen() {
       <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]} testID="nutrition-summary">
         <Title>Hoy</Title>
         <TargetLines target={target} />
+        {target.kind === 'target' && (
+          <OverrideEditor
+            target={target}
+            onSave={async (text) => {
+              const result = await nutrition.setOverride(text);
+              if (result.ok) await reload();
+              return result;
+            }}
+            onClear={act(() => nutrition.clearOverride())}
+          />
+        )}
         <Body testID="nutrition-totals">
           {`Consumido: ${totals.kcal} kcal · P ${grams(totals.proteinG)} · G ${grams(totals.fatG)} · C ${grams(totals.carbsG)}`}
         </Body>
@@ -85,7 +96,64 @@ function TargetLines({ target }: { target: TargetState }) {
   return (
     <View testID="nutrition-target">
       <Body>{`Objetivo: ${t.calories} kcal · P ${grams(t.proteinG)} · G ${grams(t.fatG)} · C ${grams(t.carbsG)}`}</Body>
+      {t.source === 'manual' && <Body testID="nutrition-manual" style={styles.bold}>Ajustado por ti</Body>}
       <Muted>{`Calculado el ${target.calculatedAt} con ${String(t.weightKg).replace('.', ',')} kg.`}</Muted>
+      {t.source === 'manual' && <Muted testID="nutrition-calculated">{`Según las reglas serían ${t.calculatedCalories} kcal.`}</Muted>}
+      {target.pending && <Muted testID="nutrition-override-pending">Ajuste pendiente de enviar.</Muted>}
+    </View>
+  );
+}
+
+/** AC-nutrition-002-09: ajustar las calorías a mano o volver al valor calculado. */
+function OverrideEditor(
+  { target, onSave, onClear }: {
+    target: Extract<TargetState, { kind: 'target' }>;
+    onSave: (text: string) => Promise<{ ok: true } | { ok: false; message: string }>;
+    onClear: () => void;
+  },
+) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const { colors } = useTheme();
+  const manual = target.target.source === 'manual';
+
+  if (!editing) {
+    return (
+      <View style={styles.row}>
+        <View style={styles.flex}>
+          <Button
+            title="Ajustar calorías"
+            variant="secondary"
+            testID="override-edit"
+            onPress={() => { setText(String(target.target.calories)); setError(null); setEditing(true); }}
+          />
+        </View>
+        {manual && (
+          <View style={styles.flex}>
+            <Button title="Volver al calculado" variant="secondary" testID="override-clear" onPress={onClear} />
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.editor}>
+      <Field label="Calorías al día" keyboardType="number-pad" value={text} onChangeText={setText} testID="override-input" />
+      {error && <Body testID="override-error" style={{ color: colors.danger }}>{error}</Body>}
+      <View style={styles.row}>
+        <View style={styles.flex}>
+          <Button
+            title="Guardar ajuste"
+            testID="override-save"
+            onPress={() => void onSave(text).then((r) => { if (r.ok) setEditing(false); else setError(r.message); })}
+          />
+        </View>
+        <View style={styles.flex}>
+          <Button title="Cancelar" variant="secondary" testID="override-cancel" onPress={() => setEditing(false)} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -123,6 +191,7 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 12, padding: 12, gap: 8 },
   entry: { gap: 4 },
   bold: { fontWeight: '600' },
+  editor: { gap: 8 },
   row: { flexDirection: 'row', gap: 8 },
   flex: { flex: 1 },
 });

@@ -187,6 +187,10 @@ export interface NutritionTarget {
   basalKcal: number;
   weightKg: number;
   weightDate: string;
+  /** Calorías que darían las reglas, aunque la persona haya ajustado las suyas. */
+  calculatedCalories: number;
+  /** calculated = reglas de la API; manual = calorías ajustadas por la persona (SPEC-nutrition-002). */
+  source: 'calculated' | 'manual';
 }
 
 export type TargetsResponse = { kind: 'ok'; target: NutritionTarget } | { kind: 'missing'; what: 'perfil' | 'peso' };
@@ -194,6 +198,10 @@ export type TargetsResponse = { kind: 'ok'; target: NutritionTarget } | { kind: 
 /** Parte de la API de nutrición; aparte de RemoteApi para no tocar los demás módulos. */
 export interface NutritionApi {
   fetchTargets(): Promise<TargetsResponse | null>; // null = sin conexión o error
+  /** SPEC-nutrition-002: fija las calorías diarias a mano. */
+  putTargetOverride(calories: number): Promise<PutLogResult>;
+  /** SPEC-nutrition-002: vuelve al objetivo calculado. */
+  deleteTargetOverride(): Promise<'ok' | 'retry'>;
   fetchFoods(): Promise<ServerFood[] | null>;
   putFood(food: ServerFood): Promise<PutLogResult>;
   deleteFood(id: string): Promise<'ok' | 'retry'>;
