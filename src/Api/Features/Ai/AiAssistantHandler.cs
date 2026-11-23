@@ -5,6 +5,7 @@ using FitnessApp.Api.Domain.Training;
 using FitnessApp.Api.Features.Nutrition;
 using FitnessApp.Api.Features.Training;
 using FitnessApp.Api.Features.Training.Sessions;
+using FitnessApp.Api.Features.Profile;
 using FitnessApp.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,7 +36,8 @@ public abstract record AssistantResult<T>
 /// con reglas deterministas (restricciones P3, alergias, mediciones que existan) y nada se aplica sin que la persona acepte.
 /// </summary>
 public sealed class AiAssistantHandler(
-    AppDbContext db, AiGateway gateway, NutritionHandler nutrition, TrainingHistoryHandler training, FoodEntryHandler entries, TimeProvider clock)
+    AppDbContext db, AiGateway gateway, NutritionHandler nutrition, TrainingHistoryHandler training, FoodEntryHandler entries, ContextHandler context,
+    TimeProvider clock)
 {
     public const string Disclaimer = "Orientativo: la app no diagnostica ni sustituye a un profesional de la salud.";
     public const int ContextWeeks = 8;
@@ -94,7 +96,7 @@ public sealed class AiAssistantHandler(
             sources = ["nutricion_semanal", "nutricion_objetivo", "restricciones"];
         }
 
-        var contract = new AnalysisContract(scope, aggregates, restrictionLabels, allergyTags);
+        var contract = new AnalysisContract(scope, aggregates, restrictionLabels, allergyTags, await context.SummaryAsync(userId, ct));
         var outcome = await gateway.CompleteAsync(
             userId, AiFeatures.Analysis, Estimate(contract) + 600, (model, max) => new AiRequest(model, AnalysisSystem(sources), [new AiMessage("user", AnalysisUser(contract))], max),
             AnalysisVersion, ct);
@@ -112,7 +114,7 @@ public sealed class AiAssistantHandler(
         }
     }
 
-    private static int Estimate(AnalysisContract c) => (c.Aggregates.Length + string.Join(' ', c.RestrictionLabels).Length) / 3 + 300;
+    private static int Estimate(AnalysisContract c) => (c.Aggregates.Length + string.Join(' ', c.RestrictionLabels).Length + (c.PersonalContext?.Length ?? 0)) / 3 + 300;
 
     private static int Estimate(PlanContract c) => (c.Options.Length + string.Join(' ', c.RestrictionLabels).Length) / 3 + 300;
 
@@ -124,7 +126,8 @@ public sealed class AiAssistantHandler(
         "consejos médicos, respeta las restricciones y alergias indicadas y escribe en español, con frases cortas. Máximo 4 secciones.";
 
     private static string AnalysisUser(AnalysisContract c) =>
-        $"Ámbito: {c.Scope}\nDatos: {c.Aggregates}\nRestricciones: {string.Join("; ", c.RestrictionLabels)}\nAlergias: {string.Join(", ", c.AllergyTags)}";
+        $"Ámbito: {c.Scope}\nDatos: {c.Aggregates}\nRestricciones: {string.Join("; ", c.RestrictionLabels)}\nAlergias: {string.Join(", ", c.AllergyTags)}" +
+        (c.PersonalContext is null ? "" : $"\nContexto compartido por la persona: {c.PersonalContext}");
 
     // ---------- propuestas de plan ----------
 

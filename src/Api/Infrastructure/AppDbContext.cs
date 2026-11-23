@@ -26,6 +26,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<FoodEntry> FoodEntries => Set<FoodEntry>();
     public DbSet<TargetOverride> TargetOverrides => Set<TargetOverride>();
     public DbSet<WaterEntry> WaterEntries => Set<WaterEntry>();
+    public DbSet<ContextItem> ContextItems => Set<ContextItem>();
     public DbSet<AiConsent> AiConsents => Set<AiConsent>();
     public DbSet<AiAudit> AiAudits => Set<AiAudit>();
     public DbSet<AiProposal> AiProposals => Set<AiProposal>();
@@ -216,6 +217,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.SugarsPer100g).HasPrecision(7, 1);
             // Borrar un alimento no borra la receta: el ingrediente conserva su copia (AC-05).
             e.HasOne<Food>().WithMany().HasForeignKey(x => x.FoodId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ContextItem>(e =>
+        {
+            e.ToTable("context_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Type).HasMaxLength(20);
+            e.Property(x => x.Name).HasMaxLength(ContextRules.MaxName);
+            e.Property(x => x.Brand).HasMaxLength(ContextRules.MaxBrand);
+            e.Property(x => x.Dose).HasMaxLength(ContextRules.MaxDose);
+            e.Property(x => x.Frequency).HasMaxLength(20);
+            e.Property(x => x.Note).HasMaxLength(ContextRules.MaxNote);
+            e.HasIndex(x => x.UserId);
         });
 
         modelBuilder.Entity<WaterEntry>(e =>
