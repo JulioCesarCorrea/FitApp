@@ -91,6 +91,7 @@ function Navigation() {
           <Stack.Screen name="exercise/[id]" options={{ title: 'Ejercicio', presentation: 'modal' }} />
           <Stack.Screen name="session/[exerciseId]" options={{ title: 'Registrar sesión', presentation: 'modal' }} />
           <Stack.Screen name="food/add" options={{ title: 'Añadir alimento', presentation: 'modal' }} />
+          <Stack.Screen name="chat" options={{ title: 'Preguntas' }} />
           <Stack.Screen name="assistant" options={{ title: 'Análisis y planes' }} />
           <Stack.Screen name="ai" options={{ title: 'Inteligencia artificial' }} />
           <Stack.Screen name="reminders" options={{ title: 'Recordatorios' }} />

@@ -5,6 +5,8 @@ import {
   type DayState,
   type EquipmentProfile,
   type EquipmentState,
+  type LocalChatMessage,
+  type LocalConversation,
   type LocalExerciseLog,
   type LocalFood,
   type LocalFoodEntry,
@@ -33,6 +35,8 @@ export class MemoryStore implements LocalStore {
   private foodEntries = new Map<string, LocalFoodEntry>();
   private water = new Map<string, LocalWater>();
   private recipes = new Map<string, LocalRecipe>();
+  private conversations = new Map<string, LocalConversation>();
+  private chatMessages = new Map<string, LocalChatMessage>();
   private profile: ProfileState = { profile: null, status: 'synced', message: null };
 
   /** Los pesos viven en otra tabla (db.ts); las pruebas fijan aquí cuántos hay pendientes. */
@@ -184,6 +188,37 @@ export class MemoryStore implements LocalStore {
     }
   }
 
+  async getConversations() {
+    return [...this.conversations.values()].map((c) => ({ ...c })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async getChatMessages(conversationId: string) {
+    return [...this.chatMessages.values()].filter((m) => m.conversationId === conversationId).map((m) => ({ ...m }))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async saveConversation(conversation: LocalConversation) {
+    this.conversations.set(conversation.id, { ...conversation });
+  }
+
+  async saveChatMessage(message: LocalChatMessage) {
+    this.chatMessages.set(message.id, { ...message });
+  }
+
+  async deleteChatMessage(id: string) {
+    this.chatMessages.delete(id);
+  }
+
+  async deleteConversation(id: string) {
+    this.conversations.delete(id);
+    for (const [key, m] of this.chatMessages) if (m.conversationId === id) this.chatMessages.delete(key);
+  }
+
+  async deleteAllChat() {
+    this.conversations.clear();
+    this.chatMessages.clear();
+  }
+
   async getRecipes() {
     return [...this.recipes.values()].map((r) => structuredClone(r));
   }
@@ -248,6 +283,8 @@ export class MemoryStore implements LocalStore {
     this.foodEntries.clear();
     this.water.clear();
     this.recipes.clear();
+    this.conversations.clear();
+    this.chatMessages.clear();
     this.days.clear();
     this.equipment = { profile: null, status: 'synced', message: null };
     this.logs.clear();

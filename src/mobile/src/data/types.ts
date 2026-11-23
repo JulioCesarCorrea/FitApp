@@ -319,6 +319,28 @@ export interface ProductLookup {
   lookup(barcode: string): Promise<ProductLookupResult>;
 }
 
+/** Conversación de las preguntas a la IA, guardada solo en el teléfono (SPEC-ai-004). */
+export interface LocalConversation {
+  id: string;
+  title: string;
+  /** ISO 8601. */
+  updatedAt: string;
+}
+
+export interface LocalChatMessage {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant';
+  text: string;
+  /** ISO 8601. */
+  createdAt: string;
+  /** false = respuesta cortada o con error: se muestra pero no se envía como contexto. */
+  complete: boolean;
+  /** Aviso fijo de la API para temas médicos (AC-ai-004-05). */
+  notice: string | null;
+  kind: 'normal' | 'emergency' | 'error';
+}
+
 /** Almacén local (SQLite en la app, memoria en las pruebas). */
 export interface LocalStore {
   getCatalog(): Promise<CatalogSection[] | null>;
@@ -367,6 +389,16 @@ export interface LocalStore {
   getPendingNutrition(): Promise<{ foods: LocalFood[]; entries: LocalFoodEntry[] }>;
   /** Sustituye las entradas ya sincronizadas del día por lo que dice el servidor; conserva las pendientes. */
   replaceSyncedFoodEntries(date: string, entries: ServerFoodEntry[]): Promise<void>;
+  /** Preguntas a la IA guardadas en el teléfono (SPEC-ai-004): de la conversación más reciente a la más antigua. */
+  getConversations(): Promise<LocalConversation[]>;
+  /** Mensajes de una conversación, del más antiguo al más reciente. */
+  getChatMessages(conversationId: string): Promise<LocalChatMessage[]>;
+  saveConversation(conversation: LocalConversation): Promise<void>;
+  saveChatMessage(message: LocalChatMessage): Promise<void>;
+  deleteChatMessage(id: string): Promise<void>;
+  /** Borra la conversación y sus mensajes. */
+  deleteConversation(id: string): Promise<void>;
+  deleteAllChat(): Promise<void>;
   /** Recetas propias, también las que esperan borrarse (SPEC-nutrition-005). */
   getRecipes(): Promise<LocalRecipe[]>;
   getRecipe(id: string): Promise<LocalRecipe | null>;

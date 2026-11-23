@@ -170,3 +170,28 @@ export class AiAssistantService {
     return this.remote.resolveProposal(id, 'reject');
   }
 }
+
+// ---------- preguntas a la IA con streaming (SPEC-ai-004) ----------
+
+/** Eventos de la respuesta en streaming de `POST /ai/chat`. */
+export type ChatEvent =
+  | { type: 'meta'; medical: boolean; category: string | null; notice: string | null }
+  | { type: 'delta'; text: string }
+  | { type: 'done'; usage: { promptTokens: number; completionTokens: number } }
+  | { type: 'error'; code: string; message: string };
+
+export type ChatOutcome =
+  /** El flujo terminó de leerse (el cierre o el error ya se notificaron como eventos). */
+  | { kind: 'stream' }
+  /** Emergencia: la API no llamó a la IA y devuelve un texto fijo (AC-ai-004-06). */
+  | { kind: 'emergency'; category: string; text: string }
+  | { kind: 'offline' }
+  | { kind: 'error'; code: string; message: string; retryAfterSeconds: number | null };
+
+export interface ChatApi {
+  chat(
+    request: { text: string; history: { role: 'user' | 'assistant'; text: string }[]; useMyData: boolean },
+    onEvent: (event: ChatEvent) => void,
+    shouldStop: () => boolean,
+  ): Promise<ChatOutcome>;
+}

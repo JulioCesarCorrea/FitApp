@@ -6,6 +6,8 @@ import {
   type DayState,
   type EquipmentProfile,
   type EquipmentState,
+  type LocalChatMessage,
+  type LocalConversation,
   type LocalExerciseLog,
   type LocalFood,
   type LocalFoodEntry,
@@ -281,6 +283,57 @@ export class SqliteStore implements LocalStore {
     });
   }
 
+  async getConversations(): Promise<LocalConversation[]> {
+    const db = await getDb();
+    return (await db.getAllAsync<{ id: string; title: string; last_activity: string }>('SELECT * FROM chat_conversations_local ORDER BY last_activity DESC'))
+      .map((r) => ({ id: r.id, title: r.title, updatedAt: r.last_activity }));
+  }
+
+  async getChatMessages(conversationId: string): Promise<LocalChatMessage[]> {
+    const db = await getDb();
+    const rows = await db.getAllAsync<{
+      id: string; conversation_id: string; role: 'user' | 'assistant'; text: string; created_at: string; complete: number; notice: string | null;
+      kind: 'normal' | 'emergency' | 'error';
+    }>('SELECT * FROM chat_messages_local WHERE conversation_id = ? ORDER BY created_at ASC, rowid ASC', conversationId);
+    return rows.map((r) => ({
+      id: r.id, conversationId: r.conversation_id, role: r.role, text: r.text, createdAt: r.created_at, complete: r.complete === 1, notice: r.notice, kind: r.kind,
+    }));
+  }
+
+  async saveConversation(c: LocalConversation): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('INSERT OR REPLACE INTO chat_conversations_local (id, title, last_activity) VALUES (?, ?, ?)', c.id, c.title, c.updatedAt);
+  }
+
+  async saveChatMessage(m: LocalChatMessage): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      'INSERT OR REPLACE INTO chat_messages_local (id, conversation_id, role, text, created_at, complete, notice, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      m.id, m.conversationId, m.role, m.text, m.createdAt, m.complete ? 1 : 0, m.notice, m.kind,
+    );
+  }
+
+  async deleteChatMessage(id: string): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('DELETE FROM chat_messages_local WHERE id = ?', id);
+  }
+
+  async deleteConversation(id: string): Promise<void> {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync('DELETE FROM chat_messages_local WHERE conversation_id = ?', id);
+      await db.runAsync('DELETE FROM chat_conversations_local WHERE id = ?', id);
+    });
+  }
+
+  async deleteAllChat(): Promise<void> {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync('DELETE FROM chat_messages_local');
+      await db.runAsync('DELETE FROM chat_conversations_local');
+    });
+  }
+
   async getRecipes(): Promise<LocalRecipe[]> {
     const db = await getDb();
     return (await db.getAllAsync<RecipeRow>('SELECT * FROM recipes_local')).map(toRecipe);
@@ -370,7 +423,7 @@ export class SqliteStore implements LocalStore {
     await db.withTransactionAsync(async () => {
       for (const table of [
         'plan_entries_local', 'plan_day_state', 'equipment_local', 'exercise_logs_local', 'profile_local', 'weight_queue',
-        'foods_local', 'food_entries_local', 'water_local', 'recipes_local',
+        'foods_local', 'food_entries_local', 'water_local', 'recipes_local', 'chat_conversations_local', 'chat_messages_local',
       ]) {
         await db.runAsync(`DELETE FROM ${table}`);
       }
