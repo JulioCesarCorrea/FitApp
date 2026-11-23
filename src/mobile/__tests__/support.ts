@@ -1,5 +1,8 @@
 import { AuthService, MemoryTokenStore, type AuthRemote, type AuthResult, type StoredSession } from '../src/data/authService';
-import { AiService, type AiApi, type AiFeatureState, type AiUsage } from '../src/data/aiService';
+import {
+  AiAssistantService, AiService, type AiApi, type AiAssistantApi, type AiFeatureState, type AiResult, type AiUsage, type Analysis, type Proposal,
+  type ProposalResult,
+} from '../src/data/aiService';
 import { MemoryScheduler } from '../src/data/memoryScheduler';
 import { MemoryStore } from '../src/data/memoryStore';
 import { ReminderService } from '../src/data/reminderService';
@@ -46,7 +49,7 @@ export const TARGETS: TargetsResponse = {
   },
 };
 
-export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiApi {
+export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi {
   online: boolean;
   /** Nutrición: lo que «tiene el servidor» y cómo responde. */
   serverFoods: ServerFood[];
@@ -62,6 +65,12 @@ export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiA
   serverTrainingWeeks: ServerTrainingWeek[] | null;
   /** SPEC-ai-001: consentimientos y uso que «tiene el servidor» (null = sin respuesta). */
   serverAi: { features: AiFeatureState[]; usage: AiUsage } | null;
+  /** SPEC-ai-002: lo que responde el asistente (analizar, proponer y aceptar o rechazar) y las propuestas guardadas. */
+  analysisResult: AiResult<Analysis> | null;
+  planResult: AiResult<Proposal> | null;
+  resolveResult: AiResult<ProposalResult> | null;
+  serverProposals: Proposal[];
+  resolved: { id: string; action: string }[];
   /** SPEC-nutrition-002: ajustes recibidos y borrados del ajuste. */
   overridePuts: number[];
   overrideDeletes: number;
@@ -177,6 +186,11 @@ export function createFakes(
     serverRecipes: [],
     serverHistory: null,
     serverTrainingWeeks: null,
+    analysisResult: null,
+    planResult: null,
+    resolveResult: null,
+    serverProposals: [],
+    resolved: [],
     serverAi: {
       features: [
         { feature: 'chat', consented: false, available: true },
@@ -276,6 +290,20 @@ export function createFakes(
       remote.serverEntries = remote.serverEntries.filter((e) => e.id !== id);
       return 'ok';
     },
+    requestAnalysis: async () => (remote.online ? remote.analysisResult ?? { kind: 'error', code: 'ai_disabled', message: 'x', retryAfterSeconds: null } : { kind: 'offline' }),
+    requestPlan: async () => {
+      if (!remote.online) return { kind: 'offline' };
+      const result = remote.planResult ?? { kind: 'error', code: 'ai_disabled', message: 'x', retryAfterSeconds: null };
+      if (result.kind === 'ok') remote.serverProposals = [result.value, ...remote.serverProposals];
+      return result;
+    },
+    fetchProposals: async () => (remote.online ? { kind: 'ok', value: remote.serverProposals.map((p) => ({ ...p })) } : { kind: 'offline' }),
+    resolveProposal: async (id, action) => {
+      if (!remote.online) return { kind: 'offline' };
+      remote.resolved.push({ id, action });
+      remote.serverProposals = remote.serverProposals.map((p) => (p.id === id ? { ...p, status: action === 'accept' ? 'accepted' : 'rejected' } : p));
+      return remote.resolveResult ?? { kind: 'ok', value: { id, status: action === 'accept' ? 'accepted' : 'rejected', applied: action === 'accept' ? 1 : 0, skipped: 0 } };
+    },
     fetchAiConsents: async () => (remote.online && remote.serverAi ? remote.serverAi.features.map((f) => ({ ...f })) : null),
     setAiConsent: async (feature, consented) => {
       if (!remote.online || !remote.serverAi) return 'retry';
@@ -357,6 +385,7 @@ export function createFakes(
   const suggestions = new SuggestionService(remote, service);
   const nutrition = new NutritionService(store, remote, () => `food-${++n}`);
   const ai = new AiService(remote);
+  const assistant = new AiAssistantService(remote);
   const reminders = new ReminderService(store, scheduler, () => weights.list(), () => true, () => new Date(2026, 10, 12, 10, 0, 0));
   const products: ProductLookup & { result: ProductLookupResult; lookups: string[] } = {
     result: { kind: 'notFound' },
@@ -380,6 +409,6 @@ export function createFakes(
   }
   return {
     store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weights, reminders, scheduler, weightsAdded, seedServer,
-    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, ai, reminders, products },
+    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, ai, assistant, reminders, products },
   };
 }
