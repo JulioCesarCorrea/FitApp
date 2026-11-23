@@ -106,6 +106,9 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             ["Auth:RateLimitPerMinute"] = "100000",
             // IA con proveedor falso (SPEC-ai-001): hay «clave» para que las funciones estén disponibles; nunca se llama al proveedor real.
             ["Ai:ApiKey"] = "clave-de-pruebas",
+            // La cuota por modelo es de toda la base compartida: en las pruebas se amplía (las que la prueban la fijan con su propia API).
+            ["Ai:ModelMinuteTokens"] = "100000000",
+            ["Ai:ModelDailyTokens"] = "1000000000",
         }));
         builder.ConfigureServices(services =>
         {

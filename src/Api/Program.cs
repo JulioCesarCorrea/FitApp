@@ -137,6 +137,7 @@ builder.Services.AddHttpClient<GroqProvider>(c => c.Timeout = TimeSpan.FromSecon
 builder.Services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<GroqProvider>());
 builder.Services.AddScoped<AiGateway>();
 builder.Services.AddScoped<AiAccountHandler>();
+builder.Services.AddScoped<AiAssistantHandler>();
 
 var app = builder.Build();
 

@@ -84,6 +84,43 @@ public static class AiEndpoints
             return Results.NoContent();
         });
 
+        app.MapPost("/ai/analysis", async (AnalysisRequest request, ICurrentUser user, AiAssistantHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+
+            return await handler.AnalyzeAsync(userId, request.Scope, ct) switch
+            {
+                AssistantResult<AnalysisDto>.Done done => Results.Ok(done.Value),
+                AssistantResult<AnalysisDto>.Denied d => AiResults.Denied(d.Reason, d.RetryAfter),
+                AssistantResult<AnalysisDto>.Failed f => AiResults.Failed(f.Message),
+                AssistantResult<AnalysisDto>.BadRequest b => Results.ValidationProblem(new Dictionary<string, string[]> { ["scope"] = [b.Message] }),
+                _ => Results.StatusCode(500),
+            };
+        });
+
+        app.MapPost("/ai/plan", async (PlanRequest request, ICurrentUser user, AiAssistantHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+
+            return await handler.PlanAsync(userId, request.Scope, ct) switch
+            {
+                AssistantResult<ProposalDto>.Done done => Results.Created($"/ai/proposals/{done.Value.Id}", done.Value),
+                AssistantResult<ProposalDto>.Denied d => AiResults.Denied(d.Reason, d.RetryAfter),
+                AssistantResult<ProposalDto>.Failed f => AiResults.Failed(f.Message),
+                AssistantResult<ProposalDto>.BadRequest b => Results.ValidationProblem(new Dictionary<string, string[]> { ["scope"] = [b.Message] }),
+                _ => Results.StatusCode(500),
+            };
+        });
+
+        app.MapGet("/ai/proposals", async (ICurrentUser user, AiAssistantHandler handler, CancellationToken ct) =>
+            user.Id is not { } userId ? Results.Unauthorized() : Results.Ok(await handler.ListAsync(userId, ct)));
+
+        app.MapPost("/ai/proposals/{id:guid}/accept", async (Guid id, ICurrentUser user, AiAssistantHandler handler, CancellationToken ct) =>
+            user.Id is not { } userId ? Results.Unauthorized() : await handler.AcceptAsync(userId, id, ct) is { } r ? Results.Ok(r) : Results.NotFound());
+
+        app.MapPost("/ai/proposals/{id:guid}/reject", async (Guid id, ICurrentUser user, AiAssistantHandler handler, CancellationToken ct) =>
+            user.Id is not { } userId ? Results.Unauthorized() : await handler.RejectAsync(userId, id, ct) is { } r ? Results.Ok(r) : Results.NotFound());
+
         app.MapGet("/ai/usage", async (ICurrentUser user, AiAccountHandler handler, CancellationToken ct) =>
             user.Id is not { } userId ? Results.Unauthorized() : Results.Ok(await handler.UsageAsync(userId, ct)));
     }
