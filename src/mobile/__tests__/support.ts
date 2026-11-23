@@ -1,5 +1,6 @@
 import { AuthService, MemoryTokenStore, type AuthRemote, type AuthResult, type StoredSession } from '../src/data/authService';
 import { MemoryStore } from '../src/data/memoryStore';
+import type { LocalWeight } from '../src/sync';
 import { ProfileService } from '../src/data/profileService';
 import { RestrictionService } from '../src/data/restrictionService';
 import { PlanService } from '../src/data/planService';
@@ -319,6 +320,7 @@ export function createFakes(
   const service = new PlanService(store, remote, () => `id-${++n}`);
   const sessions = new SessionService(store, remote, () => `log-${++n}`, () => '2026-10-30');
   const weightsAdded: number[] = [];
+  const weights: { rows: LocalWeight[]; list: () => Promise<LocalWeight[]> } = { rows: [], list: async () => [...weights.rows] };
   const profile = new ProfileService(store, remote, async (kg) => {
     weightsAdded.push(kg);
   });
@@ -346,7 +348,7 @@ export function createFakes(
     void store.saveProfile(PROFILE_DATA).then(() => store.setProfileStatus('synced', null));
   }
   return {
-    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weightsAdded, seedServer,
-    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, products },
+    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weights, weightsAdded, seedServer,
+    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, products },
   };
 }

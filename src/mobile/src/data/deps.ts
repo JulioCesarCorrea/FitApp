@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { postWeight, setAuthorizer } from '../api';
 import { openStore } from '../db';
-import { syncPending } from '../sync';
+import { syncPending, type LocalWeight } from '../sync';
 import { HttpAuthRemote } from './authRemote';
 import { AuthService } from './authService';
 import { HttpRemote } from './httpRemote';
@@ -16,6 +16,11 @@ import { SqliteStore } from './sqliteStore';
 import { SuggestionService } from './suggestionService';
 import type { LocalStore, ProductLookup, RemoteApi } from './types';
 
+/** Pesos guardados en el teléfono (SPEC-progress-002): los registrados con el spike y los del asistente, también los pendientes. */
+export interface WeightSource {
+  list(): Promise<LocalWeight[]>;
+}
+
 export interface Deps {
   store: LocalStore;
   remote: RemoteApi;
@@ -26,6 +31,7 @@ export interface Deps {
   restrictions: RestrictionService;
   suggestions: SuggestionService;
   nutrition: NutritionService;
+  weights: WeightSource;
   /** Consulta de productos por código de barras (Open Food Facts). */
   products: ProductLookup;
 }
@@ -54,6 +60,7 @@ export async function createDeps(): Promise<Deps> {
     restrictions: new RestrictionService(remote, newId, () => todayLocal()),
     suggestions: new SuggestionService(remote, service),
     nutrition: new NutritionService(store, remote, newId),
+    weights: { list: async () => (await openStore()).listAll() },
     products: new OpenFoodFactsClient(),
   };
 }

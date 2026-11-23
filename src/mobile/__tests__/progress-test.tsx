@@ -1,0 +1,84 @@
+import { configure, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { renderRouter } from 'expo-router/testing-library';
+import { createDeps } from '../src/data/deps';
+import type { LocalWeight } from '../src/sync';
+import { createFakes } from './support';
+
+// La app real abre SQLite, la cámara y la API por HTTP; en estas pruebas se sustituyen por versiones en memoria.
+jest.mock('../src/data/deps', () => ({ createDeps: jest.fn() }));
+jest.mock('../src/database', () => ({ getDb: jest.fn() }));
+jest.mock('../src/Scanner', () => ({ Scanner: () => null }));
+jest.mock('../src/components/WeightPanel', () => ({ WeightPanel: () => null }));
+
+configure({ asyncUtilTimeout: 5000 });
+jest.setTimeout(20000);
+
+let fakes: ReturnType<typeof createFakes>;
+
+/** Un peso registrado hace `daysAgo` días (UTC), como los guarda la cola local de pesos. */
+const weight = (kg: number, daysAgo: number, status: LocalWeight['status'] = 'synced'): LocalWeight => {
+  const at = new Date(Date.now() - daysAgo * 86_400_000).toISOString();
+  return { id: `w-${kg}-${daysAgo}`, weightKg: kg, measuredAt: at, createdAt: at, status, error: null };
+};
+
+async function openProgress() {
+  (createDeps as jest.Mock).mockResolvedValue(fakes.deps);
+  await renderRouter('./src/app', { initialUrl: '/progress/weight' });
+}
+
+beforeEach(() => {
+  fakes = createFakes();
+});
+
+describe('Progreso de peso (SPEC-progress-002)', () => {
+  it('AC-progress-002-07: muestra el gráfico con la tendencia, el cambio, el mínimo, el máximo y el resumen por semana', async () => {
+    fakes.weights.rows = [weight(82, 40), weight(81, 20), weight(80, 10), weight(80.5, 3)];
+    await openProgress();
+
+    expect(await screen.findByTestId('weight-chart')).toBeOnTheScreen();
+    expect(screen.getByTestId('weight-chart').props.accessibilityLabel).toMatch(/4 pesos, de 80 kg a 82 kg/);
+    expect(screen.getByTestId('weight-change')).toHaveTextContent('Cambio en el periodo: -1,5 kg');
+    expect(screen.getByTestId('weight-summary')).toHaveTextContent(/Mínimo 80 kg · Máximo 82 kg/);
+    expect(screen.getByTestId('weight-summary')).toHaveTextContent(/Último: 80,5 kg/);
+    expect(screen.getByText(/tendencia \(estimación calculada, no un dato registrado\)/)).toBeOnTheScreen();
+    expect(screen.getByTestId('weight-weeks')).toHaveTextContent(/Semana del/);
+  });
+
+  it('AC-progress-002-07: el selector de rango limita el gráfico al periodo elegido', async () => {
+    fakes.weights.rows = [weight(82, 80), weight(81, 20), weight(80, 10), weight(80.5, 3)];
+    await openProgress();
+    await screen.findByTestId('weight-chart'); // 90 días: los cuatro pesos
+    expect(screen.getByTestId('weight-chart').props.accessibilityLabel).toMatch(/4 pesos/);
+
+    await fireEvent.press(screen.getByTestId('range-30d'));
+
+    await waitFor(() => expect(screen.getByTestId('weight-chart').props.accessibilityLabel).toMatch(/3 pesos, de 80 kg a 81 kg/));
+    expect(screen.getByTestId('weight-change')).toHaveTextContent('Cambio en el periodo: -0,5 kg');
+  });
+
+  it('AC-progress-002-08: dibuja los pesos guardados en el teléfono, también los pendientes de enviar, y no los rechazados', async () => {
+    fakes.remote.online = false;
+    fakes.weights.rows = [weight(80, 10, 'pending'), weight(81, 6, 'pending'), weight(79, 3, 'synced'), weight(200, 2, 'rejected')];
+    await openProgress();
+
+    const chart = await screen.findByTestId('weight-chart');
+
+    expect(chart.props.accessibilityLabel).toMatch(/3 pesos, de 79 kg a 81 kg/);
+  });
+
+  it('AC-progress-002-09: con menos de 3 pesos muestra un estado vacío en lugar de un gráfico engañoso', async () => {
+    fakes.weights.rows = [weight(80, 5), weight(79.5, 2)];
+    await openProgress();
+
+    expect(await screen.findByTestId('weight-empty')).toHaveTextContent(/Con menos de 3 pesos/);
+    expect(screen.queryByTestId('weight-chart')).not.toBeOnTheScreen();
+    expect(screen.getByTestId('weight-summary')).toBeOnTheScreen(); // el resumen sí se muestra
+  });
+
+  it('AC-progress-002-09: sin ningún peso invita a registrar', async () => {
+    await openProgress();
+
+    expect(await screen.findByTestId('weight-empty')).toHaveTextContent(/Registra tu peso/);
+    expect(screen.queryByTestId('weight-summary')).not.toBeOnTheScreen();
+  });
+});
