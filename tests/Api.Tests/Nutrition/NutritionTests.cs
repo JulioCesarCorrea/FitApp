@@ -19,7 +19,9 @@ public sealed class NutritionVectorsTests
     private sealed record PortionExpected(int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
     private sealed record PortionCase(
         string Name, decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g, int Grams, PortionExpected Expected);
-    private sealed record Vectors(TargetCase[] Targets, FloorCase[] Floor, PortionCase[] Portions);
+    private sealed record OverrideExpected(int ProteinG, int FatG, int CarbsG);
+    private sealed record OverrideCase(string Name, int Calories, decimal WeightKg, string Goal, OverrideExpected Expected);
+    private sealed record Vectors(TargetCase[] Targets, FloorCase[] Floor, PortionCase[] Portions, OverrideCase[] Override);
 
     private static readonly Vectors All = JsonSerializer.Deserialize<Vectors>(
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Nutrition", "nutrition-vectors.json")),
@@ -28,6 +30,19 @@ public sealed class NutritionVectorsTests
     public static TheoryData<string> TargetNames() => [.. All.Targets.Select(t => t.Name)];
     public static TheoryData<string> FloorNames() => [.. All.Floor.Select(t => t.Name)];
     public static TheoryData<string> PortionNames() => [.. All.Portions.Select(t => t.Name)];
+    public static TheoryData<string> OverrideNames() => [.. All.Override.Select(t => t.Name)];
+
+    // SPEC-nutrition-002, AC-03
+    [Theory]
+    [MemberData(nameof(OverrideNames))]
+    public void AC_nutrition_002_03_vectores_del_reparto_de_macros_con_calorias_ajustadas(string name)
+    {
+        var c = All.Override.Single(o => o.Name == name);
+
+        var m = NutritionRules.MacrosFor(c.Calories, c.WeightKg, c.Goal);
+
+        Assert.Equal(c.Expected, new OverrideExpected(m.ProteinG, m.FatG, m.CarbsG));
+    }
 
     // AC-02
     [Theory]
@@ -427,5 +442,180 @@ public sealed class NutritionApiTests(ApiFixture api)
         Assert.Empty((await Day(other))!.Meals);
         Assert.Equal("Avena", Assert.Single((await owner.GetFromJsonAsync<List<FoodDto>>("/foods"))!).Name);
         Assert.Equal(50, Assert.Single((await Day(owner))!.Meals.Single().Entries).Grams);
+    }
+
+    // ---------- SPEC-nutrition-002: ajuste manual del objetivo ----------
+
+    private static Task<HttpResponseMessage> PutOverride(HttpClient c, int calories) =>
+        c.PutAsJsonAsync("/nutrition/targets/override", new TargetOverrideRequest(calories));
+
+    private static Task<NutritionTargetDto?> Targets(HttpClient c) => c.GetFromJsonAsync<NutritionTargetDto>("/nutrition/targets");
+
+    // AC-nutrition-002-01
+    [Fact]
+    public async Task AC_nutrition_002_01_fijar_las_calorias_responde_200_y_es_idempotente()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        await Complete(client);
+
+        var first = await PutOverride(client, 2000);
+        var again = await PutOverride(client, 2000);
+        var changed = await PutOverride(client, 2200);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        Assert.Equal(2200, (await Targets(client))!.Calories);
+    }
+
+    // AC-nutrition-002-02
+    [Fact]
+    public async Task AC_nutrition_002_02_el_objetivo_usa_las_calorias_ajustadas_y_recalcula_los_macros()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        await Complete(client, goal: "mantener");
+        var calculated = (await Targets(client))!;
+
+        await PutOverride(client, 2000);
+        var target = (await Targets(client))!;
+
+        Assert.Equal("calculated", calculated.Source);
+        Assert.Equal("manual", target.Source);
+        Assert.Equal((2000, 145, 56, 229), (target.Calories, target.ProteinG, target.FatG, target.CarbsG)); // vectores: mantener, 80,5 kg
+        Assert.Equal(calculated.BasalKcal, target.BasalKcal);
+        Assert.Equal(calculated.WeightKg, target.WeightKg);
+        Assert.Equal(calculated.Calories, target.CalculatedCalories); // la app vuelve al calculado sin conexión con este valor
+        Assert.Equal(calculated.Calories, calculated.CalculatedCalories);
+    }
+
+    // AC-nutrition-002-04
+    [Theory]
+    [InlineData(799)]
+    [InlineData(6001)]
+    [InlineData(0)]
+    [InlineData(-100)]
+    public async Task AC_nutrition_002_04_calorias_fuera_de_rango_responden_400_y_no_guardan_nada(int calories)
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        await Complete(client);
+        var before = (await Targets(client))!;
+
+        var response = await PutOverride(client, calories);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var after = (await Targets(client))!;
+        Assert.Equal("calculated", after.Source);
+        Assert.Equal(before.Calories, after.Calories);
+    }
+
+    // AC-nutrition-002-04 (bordes válidos)
+    [Theory]
+    [InlineData(800)]
+    [InlineData(6000)]
+    public async Task AC_nutrition_002_04_los_bordes_del_rango_se_aceptan(int calories)
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        await Complete(client);
+
+        Assert.Equal(HttpStatusCode.OK, (await PutOverride(client, calories)).StatusCode);
+        Assert.Equal(calories, (await Targets(client))!.Calories);
+    }
+
+    // AC-nutrition-002-05
+    [Fact]
+    public async Task AC_nutrition_002_05_borrar_el_ajuste_vuelve_al_calculado_y_repetirlo_responde_204()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        await Complete(client);
+        var calculated = (await Targets(client))!;
+        await PutOverride(client, 2000);
+
+        var first = await client.DeleteAsync("/nutrition/targets/override");
+        var again = await client.DeleteAsync("/nutrition/targets/override");
+
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
+        var target = (await Targets(client))!;
+        Assert.Equal("calculated", target.Source);
+        Assert.Equal(calculated.Calories, target.Calories);
+    }
+
+    // AC-nutrition-002-06
+    [Fact]
+    public async Task AC_nutrition_002_06_sin_perfil_o_sin_peso_ajustar_responde_422_indicando_que_falta()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        var noProfile = await PutOverride(client, 2000);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, noProfile.StatusCode);
+        Assert.Equal("perfil", (await noProfile.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("missing").GetString());
+
+        (await client.PutAsJsonAsync("/profile", new ProfileRequest(
+            "Julio", "masculino", new DateOnly(1995, 5, 20), 178, "mantener", null, null, null, null, null))).EnsureSuccessStatusCode();
+        var noWeight = await PutOverride(client, 2000);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, noWeight.StatusCode);
+        Assert.Equal("peso", (await noWeight.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("missing").GetString());
+    }
+
+    // AC-nutrition-002-07
+    [Fact]
+    public async Task AC_nutrition_002_07_un_peso_nuevo_mantiene_las_calorias_ajustadas_y_recalcula_los_macros()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        await Complete(client, goal: "mantener"); // 80,5 kg
+        await PutOverride(client, 2000);
+        var before = (await Targets(client))!;
+
+        (await client.PostAsJsonAsync("/weights", new CreateWeightRequest(Guid.NewGuid(), 70m, DateTimeOffset.UtcNow))).EnsureSuccessStatusCode();
+        var after = (await Targets(client))!;
+
+        Assert.Equal(2000, after.Calories);
+        Assert.Equal("manual", after.Source);
+        Assert.Equal(70m, after.WeightKg);
+        Assert.True(after.ProteinG < before.ProteinG);
+        Assert.Equal(NutritionRules.MacrosFor(2000, 70m, "mantener").ProteinG, after.ProteinG);
+    }
+
+    // AC-nutrition-002-07: el día usa el objetivo vigente
+    [Fact]
+    public async Task AC_nutrition_002_07_el_dia_usa_el_objetivo_ajustado()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        await Complete(client);
+        await PutOverride(client, 2000);
+
+        var day = (await Day(client))!;
+
+        Assert.Equal(2000, day.Targets!.Calories);
+        Assert.Equal("manual", day.Targets.Source);
+        Assert.Equal(2000, day.Remaining!.Kcal);
+    }
+
+    // AC-nutrition-002-08 (P7)
+    [Fact]
+    public async Task AC_nutrition_002_08_ajustar_o_borrar_el_objetivo_no_afecta_a_otra_persona()
+    {
+        var owner = api.ClientFor(Guid.NewGuid());
+        var other = api.ClientFor(Guid.NewGuid());
+        await Complete(owner);
+        await Complete(other);
+        var otherBefore = (await Targets(other))!;
+
+        await PutOverride(owner, 3000);
+        await other.DeleteAsync("/nutrition/targets/override");
+
+        Assert.Equal(3000, (await Targets(owner))!.Calories);
+        var otherAfter = (await Targets(other))!;
+        Assert.Equal("calculated", otherAfter.Source);
+        Assert.Equal(otherBefore.Calories, otherAfter.Calories);
+    }
+
+    [Fact]
+    public async Task AC_nutrition_002_08_sin_sesion_responde_401()
+    {
+        var anonymous = api.CreateClient();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await PutOverride(anonymous, 2000)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.DeleteAsync("/nutrition/targets/override")).StatusCode);
     }
 }

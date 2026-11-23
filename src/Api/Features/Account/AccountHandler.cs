@@ -51,7 +51,8 @@ public sealed record AccountExport(
     List<ExportExerciseLog> ExerciseLogs,
     List<string> DismissedSuggestions,
     List<ExportFood> Foods,
-    List<ExportFoodEntry> FoodEntries);
+    List<ExportFoodEntry> FoodEntries,
+    int? NutritionOverrideCalories);
 
 /// <summary>
 /// Entidades con datos de la persona. La exportación y el borrado las recorren y una prueba (AC-account-001-10)
@@ -63,7 +64,7 @@ public static class AccountData
     [
         typeof(AppUser), typeof(RefreshToken), typeof(UserProfile), typeof(UserRestriction), typeof(WeightEntry),
         typeof(PlanEntry), typeof(EquipmentSettings), typeof(TrainingSettings), typeof(ExerciseLogEntry), typeof(SuggestionDismissal),
-        typeof(Food), typeof(FoodEntry),
+        typeof(Food), typeof(FoodEntry), typeof(TargetOverride),
     ];
 }
 
@@ -76,7 +77,8 @@ public abstract record DeleteAccountResult
 /// <summary>Casos de uso de SPEC-account-001: exportar y borrar los datos de la cuenta.</summary>
 public sealed class AccountHandler(AppDbContext db, PasswordService passwords, TimeProvider clock)
 {
-    public const int ExportVersion = 1;
+    // 2: añade las calorías ajustadas a mano (SPEC-nutrition-002).
+    public const int ExportVersion = 2;
 
     public async Task<AccountExport?> ExportAsync(Guid userId, CancellationToken ct)
     {
@@ -120,8 +122,12 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
             .Select(e => new ExportFoodEntry(e.Id, e.Date, e.Meal, e.FoodId, e.Grams, e.Name, e.Kcal, e.ProteinG, e.FatG, e.CarbsG))
             .ToListAsync(ct);
 
+        var overrideCalories = await db.TargetOverrides.AsNoTracking().Where(o => o.UserId == userId)
+            .Select(o => (int?)o.Calories).FirstOrDefaultAsync(ct);
+
         return new AccountExport(
-            ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs, dismissed, foods, foodEntries);
+            ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs, dismissed, foods, foodEntries,
+            overrideCalories);
     }
 
     /// <summary>Borra la cuenta y todos sus datos en una sola transacción (AC-account-001-05, 06, 09).</summary>
@@ -140,6 +146,7 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
         await db.SuggestionDismissals.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.FoodEntries.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.Foods.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.TargetOverrides.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.TrainingSettings.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.Profiles.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.RefreshTokens.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);

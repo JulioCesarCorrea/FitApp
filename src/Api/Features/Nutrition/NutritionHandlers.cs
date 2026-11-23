@@ -22,8 +22,23 @@ public sealed record FoodEntryRequest(DateOnly Date, string Meal, Guid FoodId, i
 public sealed record FoodEntryDto(
     Guid Id, DateOnly Date, string Meal, Guid? FoodId, int Grams, string Name, int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
 
+/// <param name="CalculatedCalories">Calorías que darían las reglas de la spec14, aunque la persona haya ajustado las suyas (la app las usa para volver al calculado sin conexión).</param>
+/// <param name="Source">«calculated» (reglas de la spec14) o «manual» (calorías ajustadas por la persona, SPEC-nutrition-002).</param>
 public sealed record NutritionTargetDto(
-    int Calories, int ProteinG, int FatG, int CarbsG, int BasalKcal, decimal WeightKg, DateOnly WeightDate);
+    int Calories, int ProteinG, int FatG, int CarbsG, int BasalKcal, decimal WeightKg, DateOnly WeightDate, int CalculatedCalories,
+    string Source = "calculated");
+
+public sealed record TargetOverrideRequest(int Calories);
+
+public sealed class TargetOverrideRequestValidator : AbstractValidator<TargetOverrideRequest>
+{
+    public const int MinCalories = 800;
+    public const int MaxCalories = 6000;
+
+    public TargetOverrideRequestValidator() =>
+        RuleFor(x => x.Calories).InclusiveBetween(MinCalories, MaxCalories)
+            .WithMessage($"Las calorías van de {MinCalories} a {MaxCalories}.");
+}
 
 public sealed record NutritionTotals(int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
 
@@ -243,10 +258,54 @@ public sealed class NutritionHandler(AppDbContext db, TimeProvider clock)
         var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
         var target = NutritionRules.Target(
             profile.Sex, profile.BirthDate, profile.HeightCm, profile.ActivityLevel, profile.Goal, weight.WeightKg, today);
+        var weightDate = DateOnly.FromDateTime(weight.MeasuredAt.UtcDateTime);
+
+        // SPEC-nutrition-002 (AC-02, 07): si la persona fijó sus calorías, mandan; los macros se recalculan con el peso vigente.
+        var fixedCalories = await db.TargetOverrides.AsNoTracking()
+            .Where(o => o.UserId == userId).Select(o => (int?)o.Calories).FirstOrDefaultAsync(ct);
+        if (fixedCalories is { } calories)
+        {
+            var macros = NutritionRules.MacrosFor(calories, weight.WeightKg, profile.Goal);
+            return new TargetsResult.Ok(new NutritionTargetDto(
+                calories, macros.ProteinG, macros.FatG, macros.CarbsG, target.BasalKcal, weight.WeightKg, weightDate,
+                target.Calories, "manual"));
+        }
+
         return new TargetsResult.Ok(new NutritionTargetDto(
-            target.Calories, target.ProteinG, target.FatG, target.CarbsG, target.BasalKcal,
-            weight.WeightKg, DateOnly.FromDateTime(weight.MeasuredAt.UtcDateTime)));
+            target.Calories, target.ProteinG, target.FatG, target.CarbsG, target.BasalKcal, weight.WeightKg, weightDate, target.Calories));
     }
+
+    /// <summary>AC-01, 06: fija las calorías (idempotente); sin perfil o sin peso responde qué falta.</summary>
+    public async Task<TargetsResult> SetOverrideAsync(Guid userId, int calories, CancellationToken ct)
+    {
+        if (await TargetsAsync(userId, ct) is TargetsResult.Missing missing) return missing;
+
+        var row = await db.TargetOverrides.FirstOrDefaultAsync(o => o.UserId == userId, ct);
+        if (row is null)
+        {
+            row = new TargetOverride { UserId = userId };
+            db.TargetOverrides.Add(row);
+        }
+
+        row.Calories = calories;
+        row.UpdatedAt = clock.GetUtcNow();
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // Carrera: otra petición creó la fila entre la lectura y la escritura; se resuelve como reemplazo.
+            db.ChangeTracker.Clear();
+            return await SetOverrideAsync(userId, calories, ct);
+        }
+
+        return await TargetsAsync(userId, ct);
+    }
+
+    /// <summary>AC-05: vuelve al objetivo calculado; repetirlo no hace nada.</summary>
+    public async Task ClearOverrideAsync(Guid userId, CancellationToken ct) =>
+        await db.TargetOverrides.Where(o => o.UserId == userId).ExecuteDeleteAsync(ct);
 
     public async Task<NutritionDayDto> DayAsync(Guid userId, DateOnly date, CancellationToken ct)
     {

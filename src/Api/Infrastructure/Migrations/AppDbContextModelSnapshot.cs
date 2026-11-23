@@ -210,6 +210,23 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                     b.ToTable("food_entries", (string)null);
                 });
 
+            modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.TargetOverride", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Calories")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("nutrition_target_overrides", (string)null);
+                });
+
             modelBuilder.Entity("FitnessApp.Api.Domain.Profile.UserProfile", b =>
                 {
                     b.Property<Guid>("UserId")

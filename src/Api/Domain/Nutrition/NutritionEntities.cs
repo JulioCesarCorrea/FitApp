@@ -23,6 +23,17 @@ public class Food
 }
 
 /// <summary>
+/// Calorías diarias fijadas a mano por la persona (SPEC-nutrition-002). Una fila por persona; sustituye solo a las calorías,
+/// los macros se reparten con las mismas reglas. Sin fila rige el objetivo calculado.
+/// </summary>
+public class TargetOverride
+{
+    public Guid UserId { get; set; }
+    public int Calories { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+/// <summary>
 /// Lo comido: copia el nombre y los valores de la cantidad para que cambiar o borrar el alimento no reescriba el historial (P4).
 /// </summary>
 public class FoodEntry
