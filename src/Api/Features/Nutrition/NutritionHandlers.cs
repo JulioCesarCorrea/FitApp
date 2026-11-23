@@ -65,6 +65,14 @@ public sealed record MealDto(string Name, List<FoodEntryDto> Entries);
 public sealed record NutritionDayDto(
     DateOnly Date, List<MealDto> Meals, DayTotals Totals, NutritionTargetDto? Targets, NutritionTotals? Remaining, List<WaterDto> Water);
 
+/// <param name="Logged">El día tiene alguna entrada; si no, no cuenta en los promedios.</param>
+public sealed record HistoryDayDto(DateOnly Date, bool Logged, int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
+
+/// <param name="Targets">Objetivo vigente de hoy, aplicado a todo el rango (no se guarda un historial de objetivos); null si falta perfil o peso.</param>
+public sealed record NutritionHistoryDto(List<HistoryDayDto> Days, NutritionTargetDto? Targets);
+
+public sealed record NutritionWeeklyDto(List<WeekIntake> Weeks, NutritionTargetDto? Targets);
+
 public static class Meals
 {
     public static readonly string[] Fixed = ["desayuno", "almuerzo", "cena", "snack"];
@@ -437,6 +445,37 @@ public sealed class NutritionHandler(AppDbContext db, TimeProvider clock)
     /// <summary>AC-05: vuelve al objetivo calculado; repetirlo no hace nada.</summary>
     public async Task ClearOverrideAsync(Guid userId, CancellationToken ct) =>
         await db.TargetOverrides.Where(o => o.UserId == userId).ExecuteDeleteAsync(ct);
+
+    public const int MaxHistoryDays = 92;
+    public const int MaxHistoryWeeks = 52;
+
+    private async Task<List<DayIntake>> LoggedDaysAsync(Guid userId, DateOnly from, DateOnly to, CancellationToken ct) =>
+        (await db.FoodEntries.AsNoTracking().Where(e => e.UserId == userId && e.Date >= from && e.Date <= to)
+            .Select(e => new { e.Date, e.Kcal, e.ProteinG, e.FatG, e.CarbsG }).ToListAsync(ct))
+        .GroupBy(e => e.Date)
+        .Select(g => new DayIntake(g.Key, g.Sum(e => e.Kcal), g.Sum(e => e.ProteinG), g.Sum(e => e.FatG), g.Sum(e => e.CarbsG)))
+        .OrderBy(d => d.Date).ToList();
+
+    /// <summary>SPEC-nutrition-006, AC-01 y 04: lo consumido cada día del rango; los días sin entradas van marcados como sin registro.</summary>
+    public async Task<NutritionHistoryDto> HistoryAsync(Guid userId, DateOnly from, DateOnly to, CancellationToken ct)
+    {
+        var logged = (await LoggedDaysAsync(userId, from, to, ct)).ToDictionary(d => d.Date);
+        var days = Enumerable.Range(0, to.DayNumber - from.DayNumber + 1).Select(i => from.AddDays(i))
+            .Select(date => logged.TryGetValue(date, out var d)
+                ? new HistoryDayDto(date, true, d.Kcal, d.ProteinG, d.FatG, d.CarbsG)
+                : new HistoryDayDto(date, false, 0, 0, 0, 0)).ToList();
+        return new NutritionHistoryDto(days, await TargetsAsync(userId, ct) is TargetsResult.Ok ok ? ok.Target : null);
+    }
+
+    /// <summary>SPEC-nutrition-006, AC-02: promedios por semana ISO de las últimas semanas y días dentro del margen del objetivo.</summary>
+    public async Task<NutritionWeeklyDto> WeeklyAsync(Guid userId, int weeks, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
+        var from = today.AddDays(-(((int)today.DayOfWeek + 6) % 7) - 7 * (weeks - 1));
+        var targets = await TargetsAsync(userId, ct) is TargetsResult.Ok ok ? ok.Target : null;
+        var result = NutritionHistory.Weekly(await LoggedDaysAsync(userId, from, today, ct), targets?.Calories);
+        return new NutritionWeeklyDto(result, targets);
+    }
 
     public async Task<NutritionDayDto> DayAsync(Guid userId, DateOnly date, CancellationToken ct)
     {
