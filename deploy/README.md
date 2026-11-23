@@ -42,6 +42,7 @@ despliega desde GitHub sino con `railway up` desde la carpeta preparada.
    | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (referencia a la base; la red privada de Railway) |
    | `Auth__JwtKey` | una clave aleatoria de al menos 32 bytes, p. ej. `[Convert]::ToBase64String((1..48 \| % { Get-Random -Max 256 }))` |
    | `Auth__InviteCode` | el código que darás a quien se registre |
+   | `Ai__ApiKey` | (opcional) la clave de Groq para las funciones de IA; sin ella la IA queda desactivada y el resto de la app no cambia (ADR-0008) |
    | `Database__MigrateOnStartup` | `true` |
    | `Proxy__TrustForwardedHeaders` | `true` (para que el límite de peticiones vea la IP real) |
 

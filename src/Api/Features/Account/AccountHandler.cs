@@ -1,4 +1,5 @@
 using FitnessApp.Api.Domain;
+using FitnessApp.Api.Domain.Ai;
 using FitnessApp.Api.Domain.Auth;
 using FitnessApp.Api.Domain.Nutrition;
 using FitnessApp.Api.Domain.Profile;
@@ -45,6 +46,13 @@ public sealed record ExportRecipeIngredient(
 
 public sealed record ExportRecipe(Guid Id, string Name, int Servings, List<ExportRecipeIngredient> Ingredients);
 
+public sealed record ExportAiConsent(string Feature, DateTimeOffset GrantedAt);
+
+/// <summary>Llamada a la IA con sus metadatos y, mientras no se haya purgado, el texto enviado y recibido (nunca la clave del proveedor).</summary>
+public sealed record ExportAiCall(
+    string Feature, string Model, int PromptTokens, int CompletionTokens, decimal CostUsd, string Status, string? SentText, string? ResponseText,
+    DateTimeOffset CreatedAt);
+
 public sealed record ExportWaterEntry(Guid Id, DateOnly Date, int Ml);
 
 public sealed record AccountExport(
@@ -63,7 +71,9 @@ public sealed record AccountExport(
     List<ExportFoodEntry> FoodEntries,
     int? NutritionOverrideCalories,
     List<ExportWaterEntry> WaterEntries,
-    List<ExportRecipe> Recipes);
+    List<ExportRecipe> Recipes,
+    List<ExportAiConsent> AiConsents,
+    List<ExportAiCall> AiCalls);
 
 /// <summary>
 /// Entidades con datos de la persona. La exportación y el borrado las recorren y una prueba (AC-account-001-10)
@@ -75,7 +85,7 @@ public static class AccountData
     [
         typeof(AppUser), typeof(RefreshToken), typeof(UserProfile), typeof(UserRestriction), typeof(WeightEntry),
         typeof(PlanEntry), typeof(EquipmentSettings), typeof(TrainingSettings), typeof(ExerciseLogEntry), typeof(SuggestionDismissal),
-        typeof(Food), typeof(FoodEntry), typeof(TargetOverride), typeof(WaterEntry), typeof(Recipe),
+        typeof(Food), typeof(FoodEntry), typeof(TargetOverride), typeof(WaterEntry), typeof(Recipe), typeof(AiConsent), typeof(AiAudit),
     ];
 }
 
@@ -90,8 +100,8 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
 {
     // 2: añade las calorías ajustadas a mano (SPEC-nutrition-002). 3: añade los alérgenos de los alimentos (SPEC-nutrition-003).
     // 4: fibra, azúcares y sodio de alimentos y entradas, y el agua (SPEC-nutrition-004). 5: recetas (SPEC-nutrition-005).
-    // 6: fecha del último cambio de metodología (SPEC-training-007).
-    public const int ExportVersion = 6;
+    // 6: fecha del último cambio de metodología (SPEC-training-007). 7: consentimientos y auditoría de la IA (SPEC-ai-001).
+    public const int ExportVersion = 7;
 
     public async Task<AccountExport?> ExportAsync(Guid userId, CancellationToken ct)
     {
@@ -145,12 +155,18 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
                 i.SodiumMgPer100g)).ToList()))
             .ToList();
 
+        var aiConsents = await db.AiConsents.AsNoTracking().Where(c => c.UserId == userId).OrderBy(c => c.Feature)
+            .Select(c => new ExportAiConsent(c.Feature, c.GrantedAt)).ToListAsync(ct);
+        var aiCalls = await db.AiAudits.AsNoTracking().Where(c => c.UserId == userId).OrderBy(c => c.CreatedAt)
+            .Select(c => new ExportAiCall(c.Feature, c.Model, c.PromptTokens, c.CompletionTokens, c.CostUsd, c.Status, c.SentText, c.ResponseText, c.CreatedAt))
+            .ToListAsync(ct);
+
         var overrideCalories = await db.TargetOverrides.AsNoTracking().Where(o => o.UserId == userId)
             .Select(o => (int?)o.Calories).FirstOrDefaultAsync(ct);
 
         return new AccountExport(
             ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs, dismissed, foods, foodEntries,
-            overrideCalories, water, recipes);
+            overrideCalories, water, recipes, aiConsents, aiCalls);
     }
 
     /// <summary>Borra la cuenta y todos sus datos en una sola transacción (AC-account-001-05, 06, 09).</summary>
@@ -172,6 +188,8 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
         await db.Foods.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.TargetOverrides.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.WaterEntries.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.AiConsents.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.AiAudits.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.TrainingSettings.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.Profiles.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.RefreshTokens.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);

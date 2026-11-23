@@ -1,6 +1,8 @@
 using System.Threading.RateLimiting;
 using FitnessApp.Api.Common;
+using FitnessApp.Api.Domain.Ai;
 using FitnessApp.Api.Features.Account;
+using FitnessApp.Api.Features.Ai;
 using FitnessApp.Api.Features.Auth;
 using FitnessApp.Api.Features.Nutrition;
 using FitnessApp.Api.Features.Profile;
@@ -129,6 +131,13 @@ builder.Services.AddScoped<WeightHistoryHandler>();
 builder.Services.AddScoped<TrainingHistoryHandler>();
 builder.Services.AddScoped<NutritionHandler>();
 
+// IA (SPEC-ai-001, ADR-0008): sin Ai:ApiKey queda desactivada y el resto de la API no cambia.
+builder.Services.AddOptions<AiOptions>().BindConfiguration("Ai");
+builder.Services.AddHttpClient<GroqProvider>(c => c.Timeout = TimeSpan.FromSeconds(60));
+builder.Services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<GroqProvider>());
+builder.Services.AddScoped<AiGateway>();
+builder.Services.AddScoped<AiAccountHandler>();
+
 var app = builder.Build();
 
 // Sin clave de firma propia la API no arranca fuera de desarrollo y pruebas.
@@ -204,6 +213,7 @@ app.MapRestrictionEndpoints();
 app.MapAccountEndpoints();
 app.MapSuggestionsEndpoints();
 app.MapNutritionEndpoints();
+app.MapAiEndpoints();
 
 app.Run();
 return 0;

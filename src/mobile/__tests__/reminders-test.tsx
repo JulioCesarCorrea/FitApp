@@ -93,3 +93,36 @@ describe('Recordatorios (SPEC-notify-001)', () => {
     expect(await screen.findByTestId('add-food')).toBeOnTheScreen();
   });
 });
+
+describe('Inteligencia artificial (SPEC-ai-001)', () => {
+  it('AC-ai-001-13: «Más → Inteligencia artificial» muestra las funciones, qué se envía, el uso y el aviso de que no sustituye a un profesional', async () => {
+    await openApp('/mas');
+    await press(await screen.findByTestId('go-ai'));
+
+    expect(await screen.findByTestId('ai-chat')).toHaveTextContent(/texto de tus preguntas/);
+    expect(screen.getByTestId('ai-food_photo')).toHaveTextContent(/foto del plato/);
+    expect(screen.getByTestId('ai-unavailable-food_photo')).toBeOnTheScreen();
+    expect(screen.getByTestId('ai-usage-today')).toHaveTextContent(/Hoy: 1200 de 80000/);
+    expect(screen.getByTestId('ai-usage-month')).toHaveTextContent(/Gasto del mes: 0,00 USD de 5,00 USD/);
+    expect(screen.getByText(/no sustituyen a un profesional de la salud/)).toBeOnTheScreen();
+  });
+
+  it('AC-ai-001-02 y 13: activar una función la deja activada en la API y volver a pulsarla la retira', async () => {
+    await openApp('/ai');
+
+    await press(await screen.findByTestId('ai-toggle-chat'));
+    await waitFor(() => expect(screen.getByTestId('ai-toggle-chat')).toHaveTextContent(/^Activada/));
+    expect(fakes.remote.serverAi?.features.find((f) => f.feature === 'chat')?.consented).toBe(true);
+
+    await press(screen.getByTestId('ai-toggle-chat'));
+    await waitFor(() => expect(screen.getByTestId('ai-toggle-chat')).toHaveTextContent(/^Desactivada/));
+  });
+
+  it('AC-ai-001-13: sin conexión lo avisa y no ofrece nada que cambiar', async () => {
+    fakes.remote.online = false;
+    await openApp('/ai');
+
+    expect(await screen.findByTestId('ai-offline')).toBeOnTheScreen();
+    expect(screen.queryByTestId('ai-toggle-chat')).not.toBeOnTheScreen();
+  });
+});

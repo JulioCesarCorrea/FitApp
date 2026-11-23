@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FitnessApp.Api.Domain;
+using FitnessApp.Api.Domain.Ai;
 using FitnessApp.Api.Domain.Auth;
 using FitnessApp.Api.Domain.Nutrition;
 using FitnessApp.Api.Domain.Profile;
@@ -63,6 +64,8 @@ public sealed class AccountTests(ApiFixture api)
             Id = recipeId, UserId = userId, Name = "Gachas", Servings = 2, CreatedAt = now, UpdatedAt = now,
             Ingredients = [new RecipeIngredient { Id = Guid.NewGuid(), RecipeId = recipeId, FoodId = foodId, Name = "Avena", Grams = 80, KcalPer100g = 389m, ProteinPer100g = 16.9m, FatPer100g = 6.9m, CarbsPer100g = 66.3m }],
         });
+        db.AiConsents.Add(new AiConsent { UserId = userId, Feature = "chat", GrantedAt = now });
+        db.AiAudits.Add(new AiAudit { Id = Guid.NewGuid(), UserId = userId, Feature = "chat", Model = "m", SentText = "hola", PromptTokens = 10, CompletionTokens = 5, CreatedAt = now });
         db.WaterEntries.Add(new WaterEntry { Id = Guid.NewGuid(), UserId = userId, Date = DateOnly.FromDateTime(DateTime.UtcNow), Ml = 250, CreatedAt = now });
         db.SuggestionDismissals.Add(new SuggestionDismissal { UserId = userId, Key = "metodo:ejemplo:2026-11-01", DismissedAt = now });
         db.TargetOverrides.Add(new TargetOverride { UserId = userId, Calories = 2100, UpdatedAt = now });
@@ -82,6 +85,7 @@ public sealed class AccountTests(ApiFixture api)
         + await db.ExerciseLogs.CountAsync(x => x.UserId == userId) + await db.SuggestionDismissals.CountAsync(x => x.UserId == userId)
         + await db.Foods.CountAsync(x => x.UserId == userId) + await db.FoodEntries.CountAsync(x => x.UserId == userId)
         + await db.TargetOverrides.CountAsync(x => x.UserId == userId) + await db.WaterEntries.CountAsync(x => x.UserId == userId)
+        + await db.AiConsents.CountAsync(x => x.UserId == userId) + await db.AiAudits.CountAsync(x => x.UserId == userId)
         + await db.Recipes.CountAsync(x => x.UserId == userId) + await db.RecipeIngredients.CountAsync(i => db.Recipes.Any(r => r.Id == i.RecipeId && r.UserId == userId)));
 
     private HttpClient Bearer(string token) => api.ClientWithToken(token);
@@ -135,7 +139,7 @@ public sealed class AccountTests(ApiFixture api)
         var text = await Bearer(auth.AccessToken).GetStringAsync("/account/export");
 
         using var json = JsonDocument.Parse(text);
-        Assert.Equal(6, json.RootElement.GetProperty("version").GetInt32()); // 6: ... y SPEC-training-007 (AC-training-007-09)
+        Assert.Equal(7, json.RootElement.GetProperty("version").GetInt32()); // 7: ... y SPEC-ai-001 (AC-ai-001-11)
         Assert.True(json.RootElement.TryGetProperty("exportedAt", out _));
         Assert.Equal(name, json.RootElement.GetProperty("user").GetProperty("username").GetString());
         Assert.DoesNotContain("passwordHash", text, StringComparison.OrdinalIgnoreCase);
@@ -158,7 +162,7 @@ public sealed class AccountTests(ApiFixture api)
         Assert.Equal(JsonValueKind.Null, root.GetProperty("equipment").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("stagnationThreshold").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("nutritionOverrideCalories").ValueKind);
-        foreach (var list in new[] { "restrictions", "weights", "plan", "exerciseLogs", "waterEntries", "recipes" })
+        foreach (var list in new[] { "restrictions", "weights", "plan", "exerciseLogs", "waterEntries", "recipes", "aiConsents", "aiCalls" })
             Assert.Equal(0, root.GetProperty(list).GetArrayLength());
     }
 

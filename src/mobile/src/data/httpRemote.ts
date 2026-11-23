@@ -1,5 +1,6 @@
 import { reasonFrom } from '../api';
 import { authedFetch, type Authorizer } from './authedFetch';
+import type { AiApi, AiFeatureState, AiUsage } from './aiService';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
   AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerNutritionHistory, ServerRecipe, ServerTrainingWeek, ServerWater,
@@ -7,7 +8,7 @@ import type {
 } from './types';
 
 /** Cliente HTTP de la API (SPEC-training-002). Traduce las respuestas al contrato de RemoteApi. */
-export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi {
+export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiApi {
   constructor(
     private readonly auth: Authorizer,
     private readonly baseUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL,
@@ -79,6 +80,23 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi {
   async deleteLog(id: string): Promise<'ok' | 'retry'> {
     const res = await this.request('DELETE', `/exercise-logs/${id}`);
     return res?.ok ? 'ok' : 'retry';
+  }
+
+  // ---- Inteligencia artificial (SPEC-ai-001): solo consentimientos y uso; la API habla con el proveedor ----
+
+  async fetchAiConsents(): Promise<AiFeatureState[] | null> {
+    const res = await this.request('GET', '/ai/consents');
+    return res?.ok ? ((await res.json()) as { features: AiFeatureState[] }).features : null;
+  }
+
+  async setAiConsent(feature: string, consented: boolean): Promise<'ok' | 'retry'> {
+    const res = await this.request(consented ? 'PUT' : 'DELETE', `/ai/consents/${encodeURIComponent(feature)}`);
+    return res?.ok ? 'ok' : 'retry';
+  }
+
+  async fetchAiUsage(): Promise<AiUsage | null> {
+    const res = await this.request('GET', '/ai/usage');
+    return res?.ok ? ((await res.json()) as AiUsage) : null;
   }
 
   async fetchTrainingWeekly(weeks: number): Promise<ServerTrainingWeek[] | null> {

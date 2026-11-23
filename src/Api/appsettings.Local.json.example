@@ -7,6 +7,9 @@
     "InviteCode": "<código para registrar cuentas>",
     "DevHeader": false
   },
+  "Ai": {
+    "ApiKey": "<clave de Groq; sin ella la IA queda desactivada>"
+  },
   "Exercises": {
     "ImagesPath": "C:\\ruta\\a\\ejercicios"
   }
