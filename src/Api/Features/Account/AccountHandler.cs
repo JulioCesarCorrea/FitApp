@@ -33,7 +33,7 @@ public sealed record ExportExerciseLog(
 
 public sealed record ExportFood(
     Guid Id, string Name, string? Brand, string? Barcode, decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g,
-    decimal CarbsPer100g, string Source);
+    decimal CarbsPer100g, string Source, string[] Allergens);
 
 public sealed record ExportFoodEntry(
     Guid Id, DateOnly Date, string Meal, Guid? FoodId, int Grams, string Name, int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG);
@@ -77,8 +77,8 @@ public abstract record DeleteAccountResult
 /// <summary>Casos de uso de SPEC-account-001: exportar y borrar los datos de la cuenta.</summary>
 public sealed class AccountHandler(AppDbContext db, PasswordService passwords, TimeProvider clock)
 {
-    // 2: añade las calorías ajustadas a mano (SPEC-nutrition-002).
-    public const int ExportVersion = 2;
+    // 2: añade las calorías ajustadas a mano (SPEC-nutrition-002). 3: añade los alérgenos de los alimentos (SPEC-nutrition-003).
+    public const int ExportVersion = 3;
 
     public async Task<AccountExport?> ExportAsync(Guid userId, CancellationToken ct)
     {
@@ -116,7 +116,7 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
             .Select(d => d.Key).ToListAsync(ct);
 
         var foods = await db.Foods.AsNoTracking().Where(f => f.UserId == userId).OrderBy(f => f.Name)
-            .Select(f => new ExportFood(f.Id, f.Name, f.Brand, f.Barcode, f.KcalPer100g, f.ProteinPer100g, f.FatPer100g, f.CarbsPer100g, f.Source))
+            .Select(f => new ExportFood(f.Id, f.Name, f.Brand, f.Barcode, f.KcalPer100g, f.ProteinPer100g, f.FatPer100g, f.CarbsPer100g, f.Source, f.Allergens))
             .ToListAsync(ct);
         var foodEntries = await db.FoodEntries.AsNoTracking().Where(e => e.UserId == userId).OrderBy(e => e.Date).ThenBy(e => e.CreatedAt)
             .Select(e => new ExportFoodEntry(e.Id, e.Date, e.Meal, e.FoodId, e.Grams, e.Name, e.Kcal, e.ProteinG, e.FatG, e.CarbsG))

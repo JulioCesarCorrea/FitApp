@@ -55,7 +55,7 @@ public sealed class AccountTests(ApiFixture api)
         db.Equipment.Add(new EquipmentSettings { UserId = userId, DumbbellsKg = [10m, 12m], DiscsKg = [5m], MachineStepKg = 5m });
         db.TrainingSettings.Add(new TrainingSettings { UserId = userId, StagnationThreshold = 5 });
         var foodId = Guid.NewGuid();
-        db.Foods.Add(new Food { Id = foodId, UserId = userId, Name = "Avena", KcalPer100g = 389m, ProteinPer100g = 16.9m, FatPer100g = 6.9m, CarbsPer100g = 66.3m, CreatedAt = now });
+        db.Foods.Add(new Food { Id = foodId, UserId = userId, Name = "Avena", KcalPer100g = 389m, ProteinPer100g = 16.9m, FatPer100g = 6.9m, CarbsPer100g = 66.3m, Allergens = ["gluten"], CreatedAt = now });
         db.FoodEntries.Add(new FoodEntry { Id = Guid.NewGuid(), UserId = userId, Date = DateOnly.FromDateTime(DateTime.UtcNow), Meal = "desayuno", FoodId = foodId, Grams = 50, Name = "Avena", Kcal = 195, ProteinG = 8.5m, FatG = 3.5m, CarbsG = 33.2m, CreatedAt = now });
         db.SuggestionDismissals.Add(new SuggestionDismissal { UserId = userId, Key = "metodo:ejemplo:2026-11-01", DismissedAt = now });
         db.TargetOverrides.Add(new TargetOverride { UserId = userId, Calories = 2100, UpdatedAt = now });
@@ -104,6 +104,7 @@ public sealed class AccountTests(ApiFixture api)
         Assert.Equal(1, root.GetProperty("exerciseLogs").GetArrayLength());
         Assert.Equal("metodo:ejemplo:2026-11-01", root.GetProperty("dismissedSuggestions")[0].GetString()); // SPEC-training-005
         Assert.Equal("Avena", root.GetProperty("foods")[0].GetProperty("name").GetString()); // SPEC-nutrition-001
+        Assert.Equal("gluten", root.GetProperty("foods")[0].GetProperty("allergens")[0].GetString()); // AC-nutrition-003-09
         Assert.Equal(195, root.GetProperty("foodEntries")[0].GetProperty("kcal").GetInt32());
         Assert.Equal(2100, root.GetProperty("nutritionOverrideCalories").GetInt32()); // AC-nutrition-002-11
     }
@@ -119,7 +120,7 @@ public sealed class AccountTests(ApiFixture api)
         var text = await Bearer(auth.AccessToken).GetStringAsync("/account/export");
 
         using var json = JsonDocument.Parse(text);
-        Assert.Equal(2, json.RootElement.GetProperty("version").GetInt32()); // 2: SPEC-nutrition-002 (AC-nutrition-002-11)
+        Assert.Equal(3, json.RootElement.GetProperty("version").GetInt32()); // 3: SPEC-nutrition-002 (AC-nutrition-002-11) y SPEC-nutrition-003 (AC-nutrition-003-09)
         Assert.True(json.RootElement.TryGetProperty("exportedAt", out _));
         Assert.Equal(name, json.RootElement.GetProperty("user").GetProperty("username").GetString());
         Assert.DoesNotContain("passwordHash", text, StringComparison.OrdinalIgnoreCase);

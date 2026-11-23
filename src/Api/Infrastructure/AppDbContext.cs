@@ -126,6 +126,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Brand).HasMaxLength(60);
             e.Property(x => x.Barcode).HasMaxLength(14);
             e.Property(x => x.Source).HasMaxLength(20);
+            e.Property(x => x.Allergens).HasDefaultValueSql("'{}'");
             e.Property(x => x.KcalPer100g).HasPrecision(7, 1);
             e.Property(x => x.ProteinPer100g).HasPrecision(7, 1);
             e.Property(x => x.FatPer100g).HasPrecision(7, 1);

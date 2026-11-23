@@ -82,6 +82,28 @@ public sealed class NutritionVectorsTests
     }
 }
 
+/// <summary>Reglas puras de SPEC-nutrition-003 contra los vectores compartidos (ADR-0004).</summary>
+public sealed class AllergenVectorsTests
+{
+    private sealed record MatchCase(string Name, string[] ProfileAllergies, string[] FoodAllergens, string[] Expected);
+    private sealed record AllergenVectors(MatchCase[] Matches);
+
+    private static readonly AllergenVectors All = JsonSerializer.Deserialize<AllergenVectors>(
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Nutrition", "allergen-vectors.json")),
+        new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+
+    public static TheoryData<string> MatchNames() => [.. All.Matches.Select(m => m.Name)];
+
+    [Theory]
+    [MemberData(nameof(MatchNames))]
+    public void AC_nutrition_003_04_vectores_de_coincidencia_entre_alergias_y_alergenos(string name)
+    {
+        var c = All.Matches.Single(m => m.Name == name);
+
+        Assert.Equal(c.Expected, Allergens.Conflicts(c.ProfileAllergies, c.FoodAllergens));
+    }
+}
+
 /// <summary>Verifica SPEC-nutrition-001 contra la API y Postgres reales. Cada test cita su criterio de aceptación.</summary>
 [Collection("api")]
 public sealed class NutritionApiTests(ApiFixture api)
@@ -617,5 +639,83 @@ public sealed class NutritionApiTests(ApiFixture api)
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await PutOverride(anonymous, 2000)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.DeleteAsync("/nutrition/targets/override")).StatusCode);
+    }
+
+    // ---------- SPEC-nutrition-003: alergias aplicadas a los alimentos ----------
+
+    private static FoodRequest WithAllergens(params string[] allergens) => Food() with { Allergens = allergens };
+
+    // AC-nutrition-003-01
+    [Fact]
+    public async Task AC_nutrition_003_01_los_alergenos_se_guardan_ordenados_sin_repetir_y_se_devuelven_en_el_listado()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        var id = await PutFood(client, WithAllergens("leche", "gluten", "leche"));
+        var plain = await PutFood(client, Food(name: "Arroz")); // sin el campo: compatible hacia atrás
+
+        var foods = (await client.GetFromJsonAsync<List<FoodDto>>("/foods"))!;
+        Assert.Equal(["gluten", "leche"], foods.Single(f => f.Id == id).Allergens);
+        Assert.Empty(foods.Single(f => f.Id == plain).Allergens);
+    }
+
+    // AC-nutrition-003-02
+    [Fact]
+    public async Task AC_nutrition_003_02_un_alergeno_desconocido_o_mas_de_14_responden_400_y_no_guardan_nada()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        var unknown = await client.PutAsJsonAsync($"/foods/{Guid.NewGuid()}", WithAllergens("polen"));
+        var tooMany = await client.PutAsJsonAsync($"/foods/{Guid.NewGuid()}", WithAllergens(Enumerable.Repeat("leche", 15).ToArray()));
+
+        Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, tooMany.StatusCode);
+        Assert.Empty((await client.GetFromJsonAsync<List<FoodDto>>("/foods"))!);
+    }
+
+    // AC-nutrition-003-04
+    [Fact]
+    public async Task AC_nutrition_003_04_los_conflictos_usan_las_alergias_del_perfil()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        (await client.PutAsJsonAsync("/profile", new ProfileRequest(
+            "Julio", "masculino", new DateOnly(1995, 5, 20), 178, "mantener", null, null, null, null, ["Intolerancia a la lactosa", "nueces"]))).EnsureSuccessStatusCode();
+        var milk = await PutFood(client, WithAllergens("leche", "gluten"));
+        var safe = await PutFood(client, Food(name: "Arroz"));
+
+        var withConflict = (await client.GetFromJsonAsync<FoodConflictsDto>($"/foods/{milk}/conflicts"))!;
+        var without = (await client.GetFromJsonAsync<FoodConflictsDto>($"/foods/{safe}/conflicts"))!;
+
+        Assert.Equal(["leche"], withConflict.Conflicts);
+        Assert.Empty(without.Conflicts);
+    }
+
+    [Fact]
+    public async Task AC_nutrition_003_04_sin_perfil_no_hay_conflictos_y_un_alimento_inexistente_responde_404()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var id = await PutFood(client, WithAllergens("leche"));
+
+        Assert.Empty((await client.GetFromJsonAsync<FoodConflictsDto>($"/foods/{id}/conflicts"))!.Conflicts);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/foods/{Guid.NewGuid()}/conflicts")).StatusCode);
+    }
+
+    // AC-nutrition-003-08 (P7)
+    [Fact]
+    public async Task AC_nutrition_003_08_los_conflictos_solo_usan_las_alergias_y_los_alimentos_de_la_persona()
+    {
+        var owner = api.ClientFor(Guid.NewGuid());
+        var other = api.ClientFor(Guid.NewGuid());
+        (await owner.PutAsJsonAsync("/profile", new ProfileRequest(
+            "Ana", "femenino", new DateOnly(1990, 1, 1), 165, "mantener", null, null, null, null, ["leche"]))).EnsureSuccessStatusCode();
+        var foodId = await PutFood(owner, WithAllergens("leche"));
+
+        var asOther = await other.GetAsync($"/foods/{foodId}/conflicts");
+        var otherFood = await PutFood(other, WithAllergens("leche"));
+        var otherOwn = (await other.GetFromJsonAsync<FoodConflictsDto>($"/foods/{otherFood}/conflicts"))!;
+
+        Assert.Equal(HttpStatusCode.NotFound, asOther.StatusCode); // ni ve el alimento ajeno
+        Assert.Empty(otherOwn.Conflicts); // las alergias de la otra persona no se le aplican
+        Assert.Equal(["leche"], (await owner.GetFromJsonAsync<FoodConflictsDto>($"/foods/{foodId}/conflicts"))!.Conflicts);
     }
 }

@@ -73,6 +73,13 @@ public static class NutritionEndpoints
             })
             .AddEndpointFilter<ValidationFilter<FoodRequest>>();
 
+        app.MapGet("/foods/{id:guid}/conflicts", async (Guid id, ICurrentUser user, FoodHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+
+            return await handler.ConflictsAsync(userId, id, ct) is { } conflicts ? Results.Ok(conflicts) : Results.NotFound();
+        });
+
         app.MapDelete("/foods/{id:guid}", async (Guid id, ICurrentUser user, FoodHandler handler, CancellationToken ct) =>
         {
             if (user.Id is not { } userId) return Results.Unauthorized();
