@@ -1,5 +1,7 @@
 import { AuthService, MemoryTokenStore, type AuthRemote, type AuthResult, type StoredSession } from '../src/data/authService';
+import { MemoryScheduler } from '../src/data/memoryScheduler';
 import { MemoryStore } from '../src/data/memoryStore';
+import { ReminderService } from '../src/data/reminderService';
 import type { LocalWeight } from '../src/sync';
 import { ProfileService } from '../src/data/profileService';
 import { RestrictionService } from '../src/data/restrictionService';
@@ -327,6 +329,7 @@ export function createFakes(
   };
   const service = new PlanService(store, remote, () => `id-${++n}`);
   const sessions = new SessionService(store, remote, () => `log-${++n}`, () => '2026-10-30');
+  const scheduler = new MemoryScheduler();
   const weightsAdded: number[] = [];
   const weights: { rows: LocalWeight[]; list: () => Promise<LocalWeight[]> } = { rows: [], list: async () => [...weights.rows] };
   const profile = new ProfileService(store, remote, async (kg) => {
@@ -335,6 +338,7 @@ export function createFakes(
   const restrictions = new RestrictionService(remote, () => `restriction-${++n}`, () => '2026-10-30');
   const suggestions = new SuggestionService(remote, service);
   const nutrition = new NutritionService(store, remote, () => `food-${++n}`);
+  const reminders = new ReminderService(store, scheduler, () => weights.list(), () => true, () => new Date(2026, 10, 12, 10, 0, 0));
   const products: ProductLookup & { result: ProductLookupResult; lookups: string[] } = {
     result: { kind: 'notFound' },
     lookups: [],
@@ -356,7 +360,7 @@ export function createFakes(
     void store.saveProfile(PROFILE_DATA).then(() => store.setProfileStatus('synced', null));
   }
   return {
-    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weights, weightsAdded, seedServer,
-    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, products },
+    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weights, reminders, scheduler, weightsAdded, seedServer,
+    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, reminders, products },
   };
 }

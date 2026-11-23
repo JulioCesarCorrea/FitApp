@@ -1,7 +1,7 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { DataProvider } from '../data/DataContext';
 import { createDeps, type Deps } from '../data/deps';
 import { useDeps } from '../data/DataContext';
@@ -40,7 +40,8 @@ function Navigation() {
   const { colors, scheme } = useTheme();
   const auth = useAuthState();
   const gate = useProfileGate();
-  const { profile } = useDeps();
+  const { profile, reminders } = useDeps();
+  const router = useRouter();
 
   const signedIn = auth.status === 'signedIn';
   const mustChange = signedIn && auth.user.mustChangePassword;
@@ -51,6 +52,16 @@ function Navigation() {
     if (inApp && gate === 'idle') void profile.resolve();
     else if (!inApp && gate !== 'idle') profile.reset();
   }, [inApp, gate, profile]);
+
+  // SPEC-notify-001, AC-06: los avisos se reprograman al abrir la app, al volver a ella y al salir (así no avisan de lo ya registrado
+  // ni se pierden); sin sesión se cancelan todos (AC-07). Tocar un aviso abre su pantalla (AC-08).
+  useEffect(() => {
+    if (auth.status === 'loading') return;
+    void reminders.refresh().catch(() => {});
+    const state = AppState.addEventListener('change', () => { void reminders.refresh().catch(() => {}); });
+    const tap = reminders.onTap((route) => { if (inApp) router.push(route as never); });
+    return () => { state.remove(); tap(); };
+  }, [auth.status, inApp, reminders, router]);
 
   if (auth.status === 'loading' || (inApp && (gate === 'idle' || gate === 'loading'))) {
     return (
@@ -80,6 +91,7 @@ function Navigation() {
           <Stack.Screen name="exercise/[id]" options={{ title: 'Ejercicio', presentation: 'modal' }} />
           <Stack.Screen name="session/[exerciseId]" options={{ title: 'Registrar sesión', presentation: 'modal' }} />
           <Stack.Screen name="food/add" options={{ title: 'Añadir alimento', presentation: 'modal' }} />
+          <Stack.Screen name="reminders" options={{ title: 'Recordatorios' }} />
           <Stack.Screen name="progress/training" options={{ title: 'Progreso de entrenamiento' }} />
           <Stack.Screen name="progress/nutrition" options={{ title: 'Progreso de nutrición' }} />
           <Stack.Screen name="progress/weight" options={{ title: 'Progreso de peso' }} />

@@ -10,7 +10,7 @@ import { Body, Button, Muted, Title } from './ui';
 export function AccountPanel() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { auth } = useDeps();
+  const { auth, reminders } = useDeps();
   const state = useAuthState();
   const [pending, setPending] = useState<number | null>(null); // null = sin pedir confirmación
 
@@ -31,7 +31,7 @@ export function AccountPanel() {
               ? `Tienes ${pending} ${pending === 1 ? 'cambio' : 'cambios'} sin enviar. Si cierras sesión se perderán.`
               : 'Se borrarán los datos de este teléfono. Volverán a descargarse cuando entres otra vez.'}
           </Body>
-          <Button title="Cerrar sesión y borrar" variant="danger" testID="confirm-sign-out" onPress={() => void auth.signOut()} />
+          <Button title="Cerrar sesión y borrar" variant="danger" testID="confirm-sign-out" onPress={() => void reminders.cancelAll().catch(() => {}).then(() => auth.signOut())} />
           <Button title="Cancelar" variant="secondary" testID="cancel-sign-out" onPress={() => setPending(null)} />
         </View>
       )}

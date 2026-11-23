@@ -374,7 +374,7 @@ export class SqliteStore implements LocalStore {
       ]) {
         await db.runAsync(`DELETE FROM ${table}`);
       }
-      await db.runAsync(`DELETE FROM settings WHERE key LIKE 'stagnation%' OR key LIKE 'nutrition%' OR key = 'localUserId'`);
+      await db.runAsync(`DELETE FROM settings WHERE key LIKE 'stagnation%' OR key LIKE 'nutrition%' OR key = 'reminders' OR key = 'localUserId'`);
     });
   }
 
