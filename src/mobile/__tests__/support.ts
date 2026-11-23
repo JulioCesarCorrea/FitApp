@@ -1,4 +1,5 @@
 import { AuthService, MemoryTokenStore, type AuthRemote, type AuthResult, type StoredSession } from '../src/data/authService';
+import { AiService, type AiApi, type AiFeatureState, type AiUsage } from '../src/data/aiService';
 import { MemoryScheduler } from '../src/data/memoryScheduler';
 import { MemoryStore } from '../src/data/memoryStore';
 import { ReminderService } from '../src/data/reminderService';
@@ -45,7 +46,7 @@ export const TARGETS: TargetsResponse = {
   },
 };
 
-export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi {
+export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiApi {
   online: boolean;
   /** Nutrición: lo que «tiene el servidor» y cómo responde. */
   serverFoods: ServerFood[];
@@ -59,6 +60,8 @@ export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi {
   serverHistory: ServerNutritionHistory | null;
   /** SPEC-training-006: lo que responde el resumen semanal del servidor (null = no responde). */
   serverTrainingWeeks: ServerTrainingWeek[] | null;
+  /** SPEC-ai-001: consentimientos y uso que «tiene el servidor» (null = sin respuesta). */
+  serverAi: { features: AiFeatureState[]; usage: AiUsage } | null;
   /** SPEC-nutrition-002: ajustes recibidos y borrados del ajuste. */
   overridePuts: number[];
   overrideDeletes: number;
@@ -174,6 +177,14 @@ export function createFakes(
     serverRecipes: [],
     serverHistory: null,
     serverTrainingWeeks: null,
+    serverAi: {
+      features: [
+        { feature: 'chat', consented: false, available: true },
+        { feature: 'analysis', consented: false, available: true },
+        { feature: 'food_photo', consented: false, available: false },
+      ],
+      usage: { monthCostUsd: 0, monthlyCapUsd: 5, tokensToday: 1200, dailyTokenCap: 80000, recent: [] },
+    },
     overridePuts: [],
     overrideDeletes: 0,
     foodResult: null,
@@ -265,6 +276,13 @@ export function createFakes(
       remote.serverEntries = remote.serverEntries.filter((e) => e.id !== id);
       return 'ok';
     },
+    fetchAiConsents: async () => (remote.online && remote.serverAi ? remote.serverAi.features.map((f) => ({ ...f })) : null),
+    setAiConsent: async (feature, consented) => {
+      if (!remote.online || !remote.serverAi) return 'retry';
+      remote.serverAi.features = remote.serverAi.features.map((f) => (f.feature === feature ? { ...f, consented } : f));
+      return 'ok';
+    },
+    fetchAiUsage: async () => (remote.online && remote.serverAi ? remote.serverAi.usage : null),
     fetchTrainingWeekly: async () => (remote.online ? remote.serverTrainingWeeks : null),
     fetchNutritionHistory: async () => (remote.online ? remote.serverHistory : null),
     fetchRecipes: async () => (remote.online ? remote.serverRecipes.map((r) => structuredClone(r)) : null),
@@ -338,6 +356,7 @@ export function createFakes(
   const restrictions = new RestrictionService(remote, () => `restriction-${++n}`, () => '2026-10-30');
   const suggestions = new SuggestionService(remote, service);
   const nutrition = new NutritionService(store, remote, () => `food-${++n}`);
+  const ai = new AiService(remote);
   const reminders = new ReminderService(store, scheduler, () => weights.list(), () => true, () => new Date(2026, 10, 12, 10, 0, 0));
   const products: ProductLookup & { result: ProductLookupResult; lookups: string[] } = {
     result: { kind: 'notFound' },
@@ -361,6 +380,6 @@ export function createFakes(
   }
   return {
     store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weights, reminders, scheduler, weightsAdded, seedServer,
-    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, reminders, products },
+    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, ai, reminders, products },
   };
 }

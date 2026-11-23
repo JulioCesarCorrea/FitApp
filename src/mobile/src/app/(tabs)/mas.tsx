@@ -34,6 +34,10 @@ export default function MoreScreen() {
         </View>
       </View>
 
+      <Title>Inteligencia artificial</Title>
+      <Muted>Opcional: tú decides qué funciones usar y qué se envía.</Muted>
+      <Button title="Inteligencia artificial" variant="secondary" testID="go-ai" onPress={() => router.push('/ai')} />
+
       <Title>Recordatorios</Title>
       <Muted>Avisos en este teléfono para entrenar, registrar comidas y pesarte.</Muted>
       <Button title="Recordatorios" variant="secondary" testID="go-reminders" onPress={() => router.push('/reminders')} />
