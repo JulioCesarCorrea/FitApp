@@ -5,7 +5,8 @@ public sealed record AnalysisContract(
     [property: AiField(DataClass.B)] string Scope,
     [property: AiField(DataClass.B)] string Aggregates,
     [property: AiField(DataClass.B)] string[] RestrictionLabels,
-    [property: AiField(DataClass.B)] string[] AllergyTags) : IAiContract;
+    [property: AiField(DataClass.B)] string[] AllergyTags,
+    [property: AiField(DataClass.B)] string? PersonalContext = null) : IAiContract;
 
 /// <summary>Contrato de las propuestas de plan: rutina del catálogo y alimentos propios (ya sin los que chocan con las alergias).</summary>
 public sealed record PlanContract(

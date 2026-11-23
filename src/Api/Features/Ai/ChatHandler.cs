@@ -8,6 +8,7 @@ using FitnessApp.Api.Domain.Profile;
 using FitnessApp.Api.Domain.Training;
 using FitnessApp.Api.Features.Nutrition;
 using FitnessApp.Api.Features.Training.Sessions;
+using FitnessApp.Api.Features.Profile;
 using FitnessApp.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -24,7 +25,8 @@ public sealed record ChatContract(
     [property: AiField(DataClass.B)] string[] History,
     [property: AiField(DataClass.B)] string? Aggregates,
     [property: AiField(DataClass.B)] string[] RestrictionLabels,
-    [property: AiField(DataClass.B)] string[] AllergyTags) : IAiContract;
+    [property: AiField(DataClass.B)] string[] AllergyTags,
+    [property: AiField(DataClass.B)] string? PersonalContext = null) : IAiContract;
 
 public abstract record ChatPrepared
 {
@@ -41,7 +43,7 @@ public abstract record ChatPrepared
 /// </summary>
 public sealed partial class ChatHandler(
     AppDbContext db, AiGateway gateway, IAiProvider provider, IOptions<AiOptions> options, NutritionHandler nutrition, TrainingHistoryHandler training,
-    TimeProvider clock)
+    ContextHandler context, TimeProvider clock)
 {
     public const string PromptVersion = "chat-v1";
     public const int MaxTextLength = 1000;
@@ -80,7 +82,8 @@ public sealed partial class ChatHandler(
         var history = (request.History ?? []).TakeLast(MaxHistory).ToList();
         var (restrictions, allergyTags, minor) = await ProfileLabelsAsync(userId, ct);
         var aggregates = request.UseMyData == true ? await AggregatesAsync(userId, ct) : null;
-        var contract = new ChatContract(text, history.Select(m => $"{m.Role}: {m.Text}").ToArray(), aggregates, request.UseMyData == true ? restrictions : [], request.UseMyData == true ? allergyTags : []);
+        var contract = new ChatContract(text, history.Select(m => $"{m.Role}: {m.Text}").ToArray(), aggregates, request.UseMyData == true ? restrictions : [], request.UseMyData == true ? allergyTags : [],
+            request.UseMyData == true ? await context.SummaryAsync(userId, ct) : null);
 
         var system = SystemPrompt(contract, medical, minor || restrictions.Any(r => !r.Contains(":contexto")));
         var messages = history.Select(m => new AiMessage(m.Role, m.Text)).Append(new AiMessage("user", text)).ToList();
@@ -127,6 +130,7 @@ public sealed partial class ChatHandler(
         if (contract.Aggregates is not null) sb.Append($"\nDatos de la persona (agregados): {contract.Aggregates}");
         if (contract.RestrictionLabels.Length > 0) sb.Append($"\nRestricciones: {string.Join("; ", contract.RestrictionLabels)}");
         if (contract.AllergyTags.Length > 0) sb.Append($"\nAlergias: {string.Join(", ", contract.AllergyTags)}");
+        if (contract.PersonalContext is not null) sb.Append($"\nContexto que la persona ha querido compartir (suplementos, hábitos y notas): {contract.PersonalContext}");
         return sb.ToString();
     }
 

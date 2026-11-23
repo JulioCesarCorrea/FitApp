@@ -11,6 +11,7 @@ import {
   type LocalExerciseLog,
   type LocalFood,
   type LocalFoodEntry,
+  type LocalContextItem,
   type LocalRecipe,
   type LocalWater,
   type LocalPlanEntry,
@@ -20,6 +21,7 @@ import {
   type ServerExerciseLog,
   type ServerFood,
   type ServerFoodEntry,
+  type ServerContextItem,
   type ServerRecipe,
   type ServerWater,
   type SyncStatus,
@@ -334,6 +336,48 @@ export class SqliteStore implements LocalStore {
     });
   }
 
+  async getContextItems(): Promise<LocalContextItem[]> {
+    const db = await getDb();
+    return (await db.getAllAsync<ContextRow>('SELECT * FROM context_items_local')).map(toContextItem);
+  }
+
+  async getContextItem(id: string): Promise<LocalContextItem | null> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<ContextRow>('SELECT * FROM context_items_local WHERE id = ?', id);
+    return row ? toContextItem(row) : null;
+  }
+
+  async saveContextItem(i: LocalContextItem): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO context_items_local (id, json, status, message, pending_op, attempted) VALUES (?, ?, ?, ?, ?, ?)`,
+      i.id, contextJson(i), i.status, i.message, i.pendingOp, i.attempted ? 1 : 0,
+    );
+  }
+
+  async deleteContextItem(id: string): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('DELETE FROM context_items_local WHERE id = ?', id);
+  }
+
+  async getPendingContextItems(): Promise<LocalContextItem[]> {
+    const db = await getDb();
+    return (await db.getAllAsync<ContextRow>(`SELECT * FROM context_items_local WHERE pending_op IS NOT NULL AND status = 'pending'`)).map(toContextItem);
+  }
+
+  async replaceSyncedContextItems(items: ServerContextItem[]): Promise<void> {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`DELETE FROM context_items_local WHERE pending_op IS NULL AND status = 'synced'`);
+      for (const i of items) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO context_items_local (id, json, status, message, pending_op, attempted) VALUES (?, ?, 'synced', NULL, NULL, 1)`,
+          i.id, contextJson(i),
+        );
+      }
+    });
+  }
+
   async getRecipes(): Promise<LocalRecipe[]> {
     const db = await getDb();
     return (await db.getAllAsync<RecipeRow>('SELECT * FROM recipes_local')).map(toRecipe);
@@ -423,7 +467,7 @@ export class SqliteStore implements LocalStore {
     await db.withTransactionAsync(async () => {
       for (const table of [
         'plan_entries_local', 'plan_day_state', 'equipment_local', 'exercise_logs_local', 'profile_local', 'weight_queue',
-        'foods_local', 'food_entries_local', 'water_local', 'recipes_local', 'chat_conversations_local', 'chat_messages_local',
+        'foods_local', 'food_entries_local', 'water_local', 'recipes_local', 'context_items_local', 'chat_conversations_local', 'chat_messages_local',
       ]) {
         await db.runAsync(`DELETE FROM ${table}`);
       }
@@ -443,6 +487,7 @@ export class SqliteStore implements LocalStore {
       (await count(`SELECT COUNT(*) AS n FROM food_entries_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM water_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM recipes_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
+      (await count(`SELECT COUNT(*) AS n FROM context_items_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM settings WHERE key = 'stagnationThresholdStatus' AND value = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM weight_queue WHERE status = 'pending'`))
     );
@@ -550,6 +595,27 @@ const toRecipe = (r: RecipeRow): LocalRecipe => {
 
 const recipeJson = (r: Pick<LocalRecipe, 'name' | 'servings' | 'ingredients'>): string =>
   JSON.stringify({ name: r.name, servings: r.servings, ingredients: r.ingredients });
+
+interface ContextRow {
+  id: string;
+  json: string;
+  status: SyncStatus;
+  message: string | null;
+  pending_op: 'upsert' | 'delete' | null;
+  attempted: number;
+}
+
+type ContextBody = Omit<ServerContextItem, 'id'>;
+
+const toContextItem = (r: ContextRow): LocalContextItem => ({
+  id: r.id, ...(JSON.parse(r.json) as ContextBody), status: r.status, message: r.message, pendingOp: r.pending_op, attempted: r.attempted === 1,
+});
+
+const contextJson = (i: ServerContextItem): string =>
+  JSON.stringify({
+    type: i.type, name: i.name, brand: i.brand, dose: i.dose, frequency: i.frequency, startedOn: i.startedOn, endedOn: i.endedOn, note: i.note,
+    shareWithAi: i.shareWithAi,
+  } satisfies ContextBody);
 
 interface WaterRow {
   id: string;

@@ -10,6 +10,7 @@ import {
   type LocalExerciseLog,
   type LocalFood,
   type LocalFoodEntry,
+  type LocalContextItem,
   type LocalRecipe,
   type LocalWater,
   type LocalPlanEntry,
@@ -19,6 +20,7 @@ import {
   type ServerExerciseLog,
   type ServerFood,
   type ServerFoodEntry,
+  type ServerContextItem,
   type ServerRecipe,
   type ServerWater,
   type SyncStatus,
@@ -35,6 +37,7 @@ export class MemoryStore implements LocalStore {
   private foodEntries = new Map<string, LocalFoodEntry>();
   private water = new Map<string, LocalWater>();
   private recipes = new Map<string, LocalRecipe>();
+  private contextItems = new Map<string, LocalContextItem>();
   private conversations = new Map<string, LocalConversation>();
   private chatMessages = new Map<string, LocalChatMessage>();
   private profile: ProfileState = { profile: null, status: 'synced', message: null };
@@ -219,6 +222,35 @@ export class MemoryStore implements LocalStore {
     this.chatMessages.clear();
   }
 
+  async getContextItems() {
+    return [...this.contextItems.values()].map((i) => ({ ...i }));
+  }
+
+  async getContextItem(id: string) {
+    const i = this.contextItems.get(id);
+    return i ? { ...i } : null;
+  }
+
+  async saveContextItem(item: LocalContextItem) {
+    this.contextItems.set(item.id, { ...item });
+  }
+
+  async deleteContextItem(id: string) {
+    this.contextItems.delete(id);
+  }
+
+  async getPendingContextItems() {
+    return [...this.contextItems.values()].filter((i) => i.pendingOp !== null && i.status === 'pending').map((i) => ({ ...i }));
+  }
+
+  async replaceSyncedContextItems(items: ServerContextItem[]) {
+    for (const [id, i] of this.contextItems) if (i.pendingOp === null && i.status === 'synced') this.contextItems.delete(id);
+    for (const i of items) {
+      if (this.contextItems.get(i.id)?.pendingOp) continue;
+      this.contextItems.set(i.id, { ...i, status: 'synced', message: null, pendingOp: null, attempted: true });
+    }
+  }
+
   async getRecipes() {
     return [...this.recipes.values()].map((r) => structuredClone(r));
   }
@@ -283,6 +315,7 @@ export class MemoryStore implements LocalStore {
     this.foodEntries.clear();
     this.water.clear();
     this.recipes.clear();
+    this.contextItems.clear();
     this.conversations.clear();
     this.chatMessages.clear();
     this.days.clear();
@@ -301,7 +334,8 @@ export class MemoryStore implements LocalStore {
       + [...this.foods.values()].filter((f) => f.pendingOp !== null && f.status === 'pending').length
       + [...this.foodEntries.values()].filter((e) => e.pendingOp !== null && e.status === 'pending').length
       + [...this.water.values()].filter((w) => w.pendingOp !== null && w.status === 'pending').length
-      + [...this.recipes.values()].filter((r) => r.pendingOp !== null && r.status === 'pending').length;
+      + [...this.recipes.values()].filter((r) => r.pendingOp !== null && r.status === 'pending').length
+      + [...this.contextItems.values()].filter((i) => i.pendingOp !== null && i.status === 'pending').length;
     const threshold = this.settings.get('stagnationThresholdStatus') === 'pending' ? 1 : 0;
     const profile = this.profile.profile !== null && this.profile.status === 'pending' ? 1 : 0;
     return days + equipment + logs + threshold + profile + this.pendingWeights;

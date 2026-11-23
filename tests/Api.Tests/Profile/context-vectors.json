@@ -1,0 +1,53 @@
+{
+  "today": "2026-11-23",
+  "summary": [
+    {
+      "name": "un suplemento activo y compartido",
+      "items": [{ "type": "suplemento", "name": "Creatina", "brand": "Marca X", "dose": "5 g", "frequency": "diario", "startedOn": "2026-10-01", "shareWithAi": true }],
+      "expected": "suplemento: Creatina, 5 g, a diario"
+    },
+    {
+      "name": "orden por tipo y nombre, nota con su texto",
+      "items": [
+        { "type": "nota", "name": "Duermo poco", "note": "6 h por noche", "shareWithAi": true },
+        { "type": "habito", "name": "Cafeína", "dose": "2 tazas", "frequency": "diario", "shareWithAi": true },
+        { "type": "suplemento", "name": "Omega 3", "dose": "1 g", "frequency": "semanal", "shareWithAi": true },
+        { "type": "suplemento", "name": "Creatina", "dose": "5 g", "frequency": "dias_alternos", "shareWithAi": true }
+      ],
+      "expected": "suplemento: Creatina, 5 g, días alternos; suplemento: Omega 3, 1 g, semanal; habito: Cafeína, 2 tazas, a diario; nota: Duermo poco, 6 h por noche"
+    },
+    {
+      "name": "la medicación nunca entra aunque venga marcada",
+      "items": [
+        { "type": "medicacion", "name": "Ibuprofeno", "dose": "400 mg", "shareWithAi": true },
+        { "type": "suplemento", "name": "Magnesio", "frequency": "segun_necesidad", "shareWithAi": true }
+      ],
+      "expected": "suplemento: Magnesio, según necesidad"
+    },
+    {
+      "name": "una baja pasada no cuenta y una baja futura sí",
+      "items": [
+        { "type": "suplemento", "name": "Vitamina D", "endedOn": "2026-11-01", "shareWithAi": true },
+        { "type": "suplemento", "name": "Zinc", "endedOn": "2026-12-31", "shareWithAi": true },
+        { "type": "suplemento", "name": "Hierro", "endedOn": "2026-11-23", "shareWithAi": true }
+      ],
+      "expected": "suplemento: Zinc"
+    },
+    {
+      "name": "con el interruptor apagado no sale",
+      "items": [{ "type": "suplemento", "name": "Creatina", "dose": "5 g", "shareWithAi": false }],
+      "expected": ""
+    }
+  ],
+  "personal": [
+    { "text": "Creatina por las mañanas", "expected": false },
+    { "text": "Duermo 6 h y tomo 5 g", "expected": false },
+    { "text": "Escríbeme a julio@correo.com", "expected": true },
+    { "text": "Llámame al 612 345 678", "expected": true },
+    { "text": "mi número es 612-345-678", "expected": true },
+    { "text": "Mira https://ejemplo.com/perfil", "expected": true },
+    { "text": "sígueme en @julio_fit", "expected": true },
+    { "text": "2 veces al día, 1 500 mg", "expected": false },
+    { "text": "", "expected": false }
+  ]
+}

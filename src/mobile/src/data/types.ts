@@ -209,6 +209,28 @@ export interface LocalRecipe {
 
 export type ServerRecipe = Pick<LocalRecipe, 'id' | 'name' | 'servings' | 'ingredients'>;
 
+/** Entrada de contexto personal (SPEC-profile-002): suplemento, hábito, medicación o nota. */
+export interface LocalContextItem {
+  id: string;
+  type: string;
+  name: string;
+  brand: string | null;
+  dose: string | null;
+  frequency: string | null;
+  startedOn: string | null;
+  endedOn: string | null;
+  note: string | null;
+  shareWithAi: boolean;
+  status: SyncStatus;
+  message: string | null;
+  pendingOp: 'upsert' | 'delete' | null;
+  attempted: boolean;
+}
+
+export type ServerContextItem = Pick<
+  LocalContextItem, 'id' | 'type' | 'name' | 'brand' | 'dose' | 'frequency' | 'startedOn' | 'endedOn' | 'note' | 'shareWithAi'
+>;
+
 /** Agua bebida en un día, en mililitros (SPEC-nutrition-004). */
 export interface LocalWater {
   id: string;
@@ -407,6 +429,14 @@ export interface LocalStore {
   getPendingRecipes(): Promise<LocalRecipe[]>;
   /** Sustituye las recetas ya sincronizadas por lo que dice el servidor; conserva las que esperan envío. */
   replaceSyncedRecipes(recipes: ServerRecipe[]): Promise<void>;
+  /** Contexto personal, también el que espera borrarse (SPEC-profile-002). */
+  getContextItems(): Promise<LocalContextItem[]>;
+  getContextItem(id: string): Promise<LocalContextItem | null>;
+  saveContextItem(item: LocalContextItem): Promise<void>;
+  deleteContextItem(id: string): Promise<void>;
+  getPendingContextItems(): Promise<LocalContextItem[]>;
+  /** Sustituye lo ya sincronizado por lo que dice el servidor; conserva lo que espera envío. */
+  replaceSyncedContextItems(items: ServerContextItem[]): Promise<void>;
   /** Agua del día, también la que espera borrarse (SPEC-nutrition-004). */
   getWater(date: string): Promise<LocalWater[]>;
   getWaterEntry(id: string): Promise<LocalWater | null>;

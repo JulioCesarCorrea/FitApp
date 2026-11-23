@@ -68,6 +68,7 @@ public sealed class AccountTests(ApiFixture api)
         db.AiConsents.Add(new AiConsent { UserId = userId, Feature = "chat", GrantedAt = now });
         db.AiAudits.Add(new AiAudit { Id = Guid.NewGuid(), UserId = userId, Feature = "chat", Model = "m", SentText = "hola", PromptTokens = 10, CompletionTokens = 5, CreatedAt = now });
         db.WaterEntries.Add(new WaterEntry { Id = Guid.NewGuid(), UserId = userId, Date = DateOnly.FromDateTime(DateTime.UtcNow), Ml = 250, CreatedAt = now });
+        db.ContextItems.Add(new ContextItem { Id = Guid.NewGuid(), UserId = userId, Type = "suplemento", Name = "Creatina", Dose = "5 g", Frequency = "diario", ShareWithAi = true, CreatedAt = now });
         db.SuggestionDismissals.Add(new SuggestionDismissal { UserId = userId, Key = "metodo:ejemplo:2026-11-01", DismissedAt = now });
         db.TargetOverrides.Add(new TargetOverride { UserId = userId, Calories = 2100, UpdatedAt = now });
         db.ExerciseLogs.Add(new ExerciseLogEntry
@@ -87,7 +88,7 @@ public sealed class AccountTests(ApiFixture api)
         + await db.Foods.CountAsync(x => x.UserId == userId) + await db.FoodEntries.CountAsync(x => x.UserId == userId)
         + await db.TargetOverrides.CountAsync(x => x.UserId == userId) + await db.WaterEntries.CountAsync(x => x.UserId == userId)
         + await db.AiProposals.CountAsync(x => x.UserId == userId) + await db.AiConsents.CountAsync(x => x.UserId == userId) + await db.AiAudits.CountAsync(x => x.UserId == userId)
-        + await db.Recipes.CountAsync(x => x.UserId == userId) + await db.RecipeIngredients.CountAsync(i => db.Recipes.Any(r => r.Id == i.RecipeId && r.UserId == userId)));
+        + await db.ContextItems.CountAsync(x => x.UserId == userId) + await db.Recipes.CountAsync(x => x.UserId == userId) + await db.RecipeIngredients.CountAsync(i => db.Recipes.Any(r => r.Id == i.RecipeId && r.UserId == userId)));
 
     private HttpClient Bearer(string token) => api.ClientWithToken(token);
 
@@ -123,6 +124,7 @@ public sealed class AccountTests(ApiFixture api)
         Assert.Equal(20, root.GetProperty("foods")[0].GetProperty("sodiumMgPer100g").GetInt32()); // AC-nutrition-004-12
         Assert.Equal(10, root.GetProperty("foodEntries")[0].GetProperty("sodiumMg").GetInt32());
         Assert.Equal(250, root.GetProperty("waterEntries")[0].GetProperty("ml").GetInt32());
+        Assert.Equal("Creatina", root.GetProperty("contextItems")[0].GetProperty("name").GetString()); // AC-profile-002-14
         var recipe = root.GetProperty("recipes")[0]; // AC-nutrition-005-10
         Assert.Equal("Gachas", recipe.GetProperty("name").GetString());
         Assert.Equal(80, recipe.GetProperty("ingredients")[0].GetProperty("grams").GetInt32());
@@ -140,7 +142,7 @@ public sealed class AccountTests(ApiFixture api)
         var text = await Bearer(auth.AccessToken).GetStringAsync("/account/export");
 
         using var json = JsonDocument.Parse(text);
-        Assert.Equal(8, json.RootElement.GetProperty("version").GetInt32()); // 8: ... y SPEC-ai-002 (propuestas)
+        Assert.Equal(9, json.RootElement.GetProperty("version").GetInt32()); // 9: ... y SPEC-profile-002 (contexto personal)
         Assert.True(json.RootElement.TryGetProperty("exportedAt", out _));
         Assert.Equal(name, json.RootElement.GetProperty("user").GetProperty("username").GetString());
         Assert.DoesNotContain("passwordHash", text, StringComparison.OrdinalIgnoreCase);
@@ -163,7 +165,7 @@ public sealed class AccountTests(ApiFixture api)
         Assert.Equal(JsonValueKind.Null, root.GetProperty("equipment").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("stagnationThreshold").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("nutritionOverrideCalories").ValueKind);
-        foreach (var list in new[] { "restrictions", "weights", "plan", "exerciseLogs", "waterEntries", "recipes", "aiConsents", "aiCalls", "aiProposals" })
+        foreach (var list in new[] { "restrictions", "weights", "plan", "exerciseLogs", "waterEntries", "recipes", "aiConsents", "aiCalls", "aiProposals", "contextItems" })
             Assert.Equal(0, root.GetProperty(list).GetArrayLength());
     }
 

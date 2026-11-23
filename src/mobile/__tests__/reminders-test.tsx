@@ -367,3 +367,88 @@ describe('Foto de comida con IA (SPEC-ai-003)', () => {
     expect(await screen.findByTestId('photo-food')).toBeOnTheScreen();
   });
 });
+
+describe('Mi contexto (SPEC-profile-002)', () => {
+  it('AC-profile-002-12: anota una creatina con su marca y dosis, activa el interruptor y llega a la API', async () => {
+    await openApp('/context');
+    expect(await screen.findByTestId('context-empty')).toBeOnTheScreen();
+
+    await type('Nombre', 'Creatina');
+    await type('Marca (opcional)', 'Marca X');
+    await type('Dosis (opcional)', '5 g');
+    await press(screen.getByTestId('context-frequency-diario'));
+    expect(screen.getByTestId('context-share')).toHaveTextContent(/desactivado/); // apagado por defecto
+    await press(screen.getByTestId('context-share'));
+    await press(screen.getByTestId('context-save'));
+
+    expect(await screen.findByTestId('context-ctx-1')).toHaveTextContent(/Creatina/);
+    expect(screen.getByTestId('context-ctx-1')).toHaveTextContent(/Marca X · 5 g · A diario/);
+    expect(screen.getByTestId('context-ctx-1')).toHaveTextContent(/Compartido con la IA/);
+    expect(fakes.remote.serverContext.get('ctx-1')).toMatchObject({ name: 'Creatina', shareWithAi: true, frequency: 'diario' });
+  });
+
+  it('AC-profile-002-12: la medicación no tiene interruptor y explica que nunca se comparte', async () => {
+    await openApp('/context');
+    await press(await screen.findByTestId('context-type-medicacion'));
+
+    expect(screen.queryByTestId('context-share')).not.toBeOnTheScreen();
+    expect(screen.getByTestId('context-medication-note')).toHaveTextContent(/nunca se comparte con la IA/);
+
+    await type('Nombre', 'Ibuprofeno');
+    await press(screen.getByTestId('context-save'));
+
+    expect(await screen.findByTestId('context-ctx-1')).toHaveTextContent(/nunca se comparte con la IA/);
+    expect(fakes.remote.serverContext.get('ctx-1')?.shareWithAi).toBe(false);
+  });
+
+  it('AC-profile-002-15: al escribir una nota con un dato personal avisa y no deja guardar', async () => {
+    await openApp('/context');
+    await press(await screen.findByTestId('context-type-nota'));
+    expect(screen.getByTestId('context-note-help')).toHaveTextContent(/No escribas nombres, ubicaciones ni datos clínicos/);
+
+    await type('Nombre', 'Contacto');
+    await type('Texto de la nota', 'Escríbeme a julio@correo.com');
+    expect(await screen.findByTestId('context-personal-warning')).toBeOnTheScreen();
+    await press(screen.getByTestId('context-save'));
+
+    expect(await screen.findByTestId('context-issues')).toHaveTextContent(/No escribas correos/);
+    expect(fakes.remote.serverContext.size).toBe(0);
+  });
+
+  it('AC-profile-002-12: edita, da de baja y borra una entrada', async () => {
+    await openApp('/context');
+    await type('Nombre', 'Creatina');
+    await press(screen.getByTestId('context-save'));
+    await press(await screen.findByTestId('context-edit-ctx-1'));
+    await type('Dosis (opcional)', '3 g');
+    await press(screen.getByTestId('context-save'));
+    await waitFor(() => expect(screen.getByTestId('context-ctx-1')).toHaveTextContent(/3 g/));
+
+    await press(screen.getByTestId('context-end-ctx-1'));
+    await waitFor(() => expect(screen.getByTestId('context-reactivate-ctx-1')).toBeOnTheScreen()); // pasa a «De baja»
+    expect(fakes.remote.serverContext.get('ctx-1')?.endedOn).toBe('2026-11-23');
+
+    await press(screen.getByTestId('context-delete-ctx-1'));
+    await waitFor(() => expect(screen.queryByTestId('context-ctx-1')).not.toBeOnTheScreen());
+    expect(fakes.remote.serverContext.size).toBe(0);
+  });
+
+  it('AC-profile-002-13: sin conexión se guarda en el teléfono y avisa de que está pendiente', async () => {
+    fakes.remote.online = false;
+    await openApp('/context');
+    await type('Nombre', 'Magnesio');
+
+    await press(screen.getByTestId('context-save'));
+
+    expect(await screen.findByTestId('context-ctx-1')).toHaveTextContent(/Pendiente de enviar/);
+    expect(fakes.remote.serverContext.size).toBe(0);
+  });
+
+  it('AC-profile-002-12: Más lleva a Mi contexto', async () => {
+    await openApp('/mas');
+
+    await press(await screen.findByTestId('go-context'));
+
+    expect(await screen.findByTestId('context-save')).toBeOnTheScreen();
+  });
+});

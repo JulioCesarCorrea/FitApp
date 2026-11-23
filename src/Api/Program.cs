@@ -126,6 +126,7 @@ builder.Services.AddScoped<SuggestionsHandler>();
 builder.Services.AddScoped<FoodHandler>();
 builder.Services.AddScoped<FoodEntryHandler>();
 builder.Services.AddScoped<WaterHandler>();
+builder.Services.AddScoped<ContextHandler>();
 builder.Services.AddScoped<RecipeHandler>();
 builder.Services.AddScoped<WeightHistoryHandler>();
 builder.Services.AddScoped<TrainingHistoryHandler>();
