@@ -12,6 +12,7 @@ public sealed class FakeAiProvider : IAiProvider
     public void Reset()
     {
         Throw = null;
+        FailMidStream = false;
         Handler = _ => new AiCompletion("Respuesta de prueba.", 100, 20);
     }
 
@@ -20,6 +21,9 @@ public sealed class FakeAiProvider : IAiProvider
 
     /// <summary>Si no es nulo, se lanza en cada llamada.</summary>
     public Exception? Throw { get; set; }
+
+    /// <summary>Si es verdadero, el streaming entrega un fragmento y falla (un corte a mitad de respuesta).</summary>
+    public bool FailMidStream { get; set; }
 
     public Task<AiCompletion> CompleteAsync(AiRequest request, CancellationToken ct)
     {
@@ -33,6 +37,12 @@ public sealed class FakeAiProvider : IAiProvider
         Calls.Add(request);
         if (Throw is not null) throw Throw;
         var completion = Handler(request);
+        if (FailMidStream)
+        {
+            yield return new AiChunk("Empiezo ");
+            throw new AiProviderException(AiFailureKind.Failure, "corte a mitad");
+        }
+
         foreach (var word in completion.Text.Split(' ')) yield return new AiChunk(word + " ");
         yield return new AiChunk(null, completion.PromptTokens, completion.CompletionTokens);
         await Task.CompletedTask;

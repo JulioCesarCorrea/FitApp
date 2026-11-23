@@ -38,6 +38,10 @@ public sealed class AiOptions
     public decimal GlobalMonthlyUsd { get; set; } = 30m;
     public decimal UserMonthlyUsd { get; set; } = 5m;
     public int MaxOutputTokens { get; set; } = 600;
+
+    /// <summary>Preguntas al chat por persona (SPEC-ai-004, AC-13).</summary>
+    public int ChatPerHour { get; set; } = 20;
+    public int ChatPerDay { get; set; } = 30;
     public int AuditTextRetentionDays { get; set; } = 30;
     public int AuditMetadataRetentionDays { get; set; } = 365;
 
