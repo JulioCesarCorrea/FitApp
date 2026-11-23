@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using FitnessApp.Api.Domain.Ai;
 using FitnessApp.Api.Domain.Auth;
 using FitnessApp.Api.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -102,8 +104,19 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             ["Auth:InviteCode"] = InviteCode,
             // Todas las pruebas comparten origen; el límite real se prueba con una API aparte (AC-auth-001-08).
             ["Auth:RateLimitPerMinute"] = "100000",
+            // IA con proveedor falso (SPEC-ai-001): hay «clave» para que las funciones estén disponibles; nunca se llama al proveedor real.
+            ["Ai:ApiKey"] = "clave-de-pruebas",
         }));
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IAiProvider>();
+            services.AddSingleton<FakeAiProvider>();
+            services.AddSingleton<IAiProvider>(sp => sp.GetRequiredService<FakeAiProvider>());
+        });
     }
+
+    /// <summary>Proveedor de IA falso de esta API (SPEC-ai-001).</summary>
+    public FakeAiProvider Ai => Services.GetRequiredService<FakeAiProvider>();
 
     /// <summary>Token firmado a mano para probar firmas inválidas, caducidad y cambio obligatorio de contraseña.</summary>
     public static string CreateToken(

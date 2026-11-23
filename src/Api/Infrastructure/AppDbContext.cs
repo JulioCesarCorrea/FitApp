@@ -1,4 +1,5 @@
 using FitnessApp.Api.Domain;
+using FitnessApp.Api.Domain.Ai;
 using FitnessApp.Api.Domain.Auth;
 using FitnessApp.Api.Domain.Nutrition;
 using FitnessApp.Api.Domain.Profile;
@@ -25,6 +26,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<FoodEntry> FoodEntries => Set<FoodEntry>();
     public DbSet<TargetOverride> TargetOverrides => Set<TargetOverride>();
     public DbSet<WaterEntry> WaterEntries => Set<WaterEntry>();
+    public DbSet<AiConsent> AiConsents => Set<AiConsent>();
+    public DbSet<AiAudit> AiAudits => Set<AiAudit>();
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
 
@@ -157,6 +160,27 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.UserId, x.Date });
             // Borrar un alimento no borra lo ya comido: la entrada conserva su copia (AC-09).
             e.HasOne<Food>().WithMany().HasForeignKey(x => x.FoodId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<AiConsent>(e =>
+        {
+            e.ToTable("ai_consents");
+            e.HasKey(x => new { x.UserId, x.Feature });
+            e.Property(x => x.Feature).HasMaxLength(30);
+        });
+
+        modelBuilder.Entity<AiAudit>(e =>
+        {
+            e.ToTable("ai_audit");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Feature).HasMaxLength(30);
+            e.Property(x => x.Model).HasMaxLength(80);
+            e.Property(x => x.Status).HasMaxLength(10);
+            e.Property(x => x.Error).HasMaxLength(500);
+            e.Property(x => x.PromptVersion).HasMaxLength(60);
+            e.Property(x => x.CostUsd).HasPrecision(12, 6);
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+            e.HasIndex(x => new { x.Model, x.CreatedAt });
         });
 
         modelBuilder.Entity<Recipe>(e =>
