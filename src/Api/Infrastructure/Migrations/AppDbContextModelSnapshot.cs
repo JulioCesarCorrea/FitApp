@@ -421,6 +421,9 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<DateTimeOffset?>("MethodologyChangedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Sex")
                         .IsRequired()
                         .HasMaxLength(20)

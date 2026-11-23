@@ -14,6 +14,9 @@ public class UserProfile
     public int? DaysPerWeek { get; set; }
     public string Methodology { get; set; } = ProfileRules.DefaultMethodology;
     public string[] Allergies { get; set; } = [];
+
+    /// <summary>Cuándo cambió por última vez la metodología (SPEC-training-007); nulo si nunca cambió desde que se creó el perfil.</summary>
+    public DateTimeOffset? MethodologyChangedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }
 

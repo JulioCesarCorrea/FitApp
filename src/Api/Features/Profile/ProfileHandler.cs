@@ -64,6 +64,18 @@ public sealed class ProfileRequestValidator : AbstractValidator<ProfileRequest>
 }
 
 /// <summary>Perfil de la persona (SPEC-profile-001, AC-01 a 05). Todo se filtra por el `user_id` de quien llama (P7).</summary>
+public sealed record MethodologyRequest(string? Methodology);
+
+/// <param name="ChangedAt">Cuándo cambió por última vez; nulo si nunca.</param>
+public sealed record MethodologyDto(string Methodology, DateTimeOffset? ChangedAt);
+
+public sealed class MethodologyRequestValidator : AbstractValidator<MethodologyRequest>
+{
+    public MethodologyRequestValidator() =>
+        RuleFor(x => x.Methodology).NotEmpty().Must(m => ProfileRules.Methodologies.Contains(m!))
+            .WithMessage("La metodología no es válida.");
+}
+
 public sealed class ProfileHandler(AppDbContext db, TimeProvider clock)
 {
     public async Task<ProfileDto> GetAsync(Guid userId, CancellationToken ct)
@@ -93,7 +105,9 @@ public sealed class ProfileHandler(AppDbContext db, TimeProvider clock)
             row.ActivityLevel = request.ActivityLevel ?? ProfileRules.DefaultActivityLevel;
             row.ExperienceLevel = request.ExperienceLevel;
             row.DaysPerWeek = request.DaysPerWeek;
-            row.Methodology = request.Methodology ?? ProfileRules.DefaultMethodology;
+            var methodology = request.Methodology ?? ProfileRules.DefaultMethodology;
+            if (!created && row.Methodology != methodology) row.MethodologyChangedAt = clock.GetUtcNow();
+            row.Methodology = methodology;
             row.Allergies = (request.Allergies ?? []).Select(a => a.Trim()).ToArray();
             row.UpdatedAt = clock.GetUtcNow();
 
@@ -108,6 +122,26 @@ public sealed class ProfileHandler(AppDbContext db, TimeProvider clock)
                 db.ChangeTracker.Clear();
             }
         }
+    }
+
+    /// <summary>
+    /// SPEC-training-007, AC-01: cambia solo la metodología, hacia adelante: el historial no se convierte. Idempotente: repetir la misma
+    /// no cambia la fecha del cambio. Null si la persona aún no tiene perfil.
+    /// </summary>
+    public async Task<MethodologyDto?> SetMethodologyAsync(Guid userId, string methodology, CancellationToken ct)
+    {
+        var row = await db.Profiles.FirstOrDefaultAsync(p => p.UserId == userId, ct);
+        if (row is null) return null;
+
+        if (row.Methodology != methodology)
+        {
+            row.Methodology = methodology;
+            row.MethodologyChangedAt = clock.GetUtcNow();
+            row.UpdatedAt = clock.GetUtcNow();
+            await db.SaveChangesAsync(ct);
+        }
+
+        return new MethodologyDto(row.Methodology, row.MethodologyChangedAt);
     }
 
     private static ProfileDto ToDto(UserProfile p) => new(

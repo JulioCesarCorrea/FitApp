@@ -44,7 +44,7 @@ public sealed class AccountTests(ApiFixture api)
         db.Profiles.Add(new UserProfile
         {
             UserId = userId, DisplayName = "Persona", Sex = "masculino", BirthDate = new DateOnly(1995, 5, 20), HeightCm = 178,
-            Goal = "mantener", Allergies = ["nueces"], UpdatedAt = now,
+            Goal = "mantener", Allergies = ["nueces"], MethodologyChangedAt = now, UpdatedAt = now,
         });
         db.Restrictions.Add(new UserRestriction
         {
@@ -104,6 +104,7 @@ public sealed class AccountTests(ApiFixture api)
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var root = json.RootElement;
         Assert.Equal("Persona", root.GetProperty("profile").GetProperty("displayName").GetString());
+        Assert.Equal(JsonValueKind.String, root.GetProperty("profile").GetProperty("methodologyChangedAt").ValueKind); // AC-training-007-09
         Assert.Equal(1, root.GetProperty("restrictions").GetArrayLength());
         Assert.Equal(1, root.GetProperty("weights").GetArrayLength());
         Assert.Equal(1, root.GetProperty("plan").GetArrayLength());
@@ -134,7 +135,7 @@ public sealed class AccountTests(ApiFixture api)
         var text = await Bearer(auth.AccessToken).GetStringAsync("/account/export");
 
         using var json = JsonDocument.Parse(text);
-        Assert.Equal(5, json.RootElement.GetProperty("version").GetInt32()); // 5: SPEC-nutrition-002/003/004 y SPEC-nutrition-005 (AC-nutrition-005-10)
+        Assert.Equal(6, json.RootElement.GetProperty("version").GetInt32()); // 6: ... y SPEC-training-007 (AC-training-007-09)
         Assert.True(json.RootElement.TryGetProperty("exportedAt", out _));
         Assert.Equal(name, json.RootElement.GetProperty("user").GetProperty("username").GetString());
         Assert.DoesNotContain("passwordHash", text, StringComparison.OrdinalIgnoreCase);
