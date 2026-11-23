@@ -80,6 +80,7 @@ function Navigation() {
           <Stack.Screen name="exercise/[id]" options={{ title: 'Ejercicio', presentation: 'modal' }} />
           <Stack.Screen name="session/[exerciseId]" options={{ title: 'Registrar sesión', presentation: 'modal' }} />
           <Stack.Screen name="food/add" options={{ title: 'Añadir alimento', presentation: 'modal' }} />
+          <Stack.Screen name="progress/weight" options={{ title: 'Progreso de peso' }} />
           <Stack.Screen name="recipes/index" options={{ title: 'Mis recetas' }} />
           <Stack.Screen name="recipes/edit" options={{ title: 'Receta' }} />
           <Stack.Screen name="profile" options={{ title: 'Mi perfil' }} />

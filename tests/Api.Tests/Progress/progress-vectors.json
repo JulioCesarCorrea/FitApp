@@ -1,0 +1,402 @@
+{
+  "descripcion": "Vectores de historial de peso (SPEC-progress-002, ADR-0004). Los ejecutan la API (C#) y la app (TypeScript); generados con una implementación independiente en Python con enteros en centésimas. Cualquier cambio de regla se hace aquí primero.",
+  "series": [
+    {
+      "name": "un solo peso",
+      "entries": [
+        {
+          "measuredAt": "2026-11-02T08:00:00+00:00",
+          "weightKg": 80.5
+        }
+      ],
+      "daily": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 80.5
+        }
+      ],
+      "trend": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 80.5
+        }
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-02",
+          "avgKg": 80.5,
+          "minKg": 80.5,
+          "maxKg": 80.5,
+          "count": 1,
+          "changeKg": null
+        }
+      ]
+    },
+    {
+      "name": "dos días seguidos",
+      "entries": [
+        {
+          "measuredAt": "2026-11-02T08:00:00+00:00",
+          "weightKg": 80.5
+        },
+        {
+          "measuredAt": "2026-11-03T08:00:00+00:00",
+          "weightKg": 80.0
+        }
+      ],
+      "daily": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 80.5
+        },
+        {
+          "date": "2026-11-03",
+          "weightKg": 80.0
+        }
+      ],
+      "trend": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 80.5
+        },
+        {
+          "date": "2026-11-03",
+          "weightKg": 80.45
+        }
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-02",
+          "avgKg": 80.25,
+          "minKg": 80.0,
+          "maxKg": 80.5,
+          "count": 2,
+          "changeKg": null
+        }
+      ]
+    },
+    {
+      "name": "varios pesos el mismo día: manda el último",
+      "entries": [
+        {
+          "measuredAt": "2026-11-02T07:00:00+00:00",
+          "weightKg": 81.0
+        },
+        {
+          "measuredAt": "2026-11-02T21:00:00+00:00",
+          "weightKg": 80.4
+        },
+        {
+          "measuredAt": "2026-11-03T08:00:00+00:00",
+          "weightKg": 80.2
+        }
+      ],
+      "daily": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 80.4
+        },
+        {
+          "date": "2026-11-03",
+          "weightKg": 80.2
+        }
+      ],
+      "trend": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 80.4
+        },
+        {
+          "date": "2026-11-03",
+          "weightKg": 80.38
+        }
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-02",
+          "avgKg": 80.3,
+          "minKg": 80.2,
+          "maxKg": 80.4,
+          "count": 2,
+          "changeKg": null
+        }
+      ]
+    },
+    {
+      "name": "serie con huecos y cambio de semana ISO",
+      "entries": [
+        {
+          "measuredAt": "2026-10-26T08:00:00+00:00",
+          "weightKg": 82.0
+        },
+        {
+          "measuredAt": "2026-10-28T08:00:00+00:00",
+          "weightKg": 81.6
+        },
+        {
+          "measuredAt": "2026-11-01T08:00:00+00:00",
+          "weightKg": 81.3
+        },
+        {
+          "measuredAt": "2026-11-02T08:00:00+00:00",
+          "weightKg": 81.0
+        },
+        {
+          "measuredAt": "2026-11-09T08:00:00+00:00",
+          "weightKg": 80.1
+        },
+        {
+          "measuredAt": "2026-11-15T08:00:00+00:00",
+          "weightKg": 80.35
+        }
+      ],
+      "daily": [
+        {
+          "date": "2026-10-26",
+          "weightKg": 82.0
+        },
+        {
+          "date": "2026-10-28",
+          "weightKg": 81.6
+        },
+        {
+          "date": "2026-11-01",
+          "weightKg": 81.3
+        },
+        {
+          "date": "2026-11-02",
+          "weightKg": 81.0
+        },
+        {
+          "date": "2026-11-09",
+          "weightKg": 80.1
+        },
+        {
+          "date": "2026-11-15",
+          "weightKg": 80.35
+        }
+      ],
+      "trend": [
+        {
+          "date": "2026-10-26",
+          "weightKg": 82.0
+        },
+        {
+          "date": "2026-10-28",
+          "weightKg": 81.96
+        },
+        {
+          "date": "2026-11-01",
+          "weightKg": 81.89
+        },
+        {
+          "date": "2026-11-02",
+          "weightKg": 81.8
+        },
+        {
+          "date": "2026-11-09",
+          "weightKg": 81.63
+        },
+        {
+          "date": "2026-11-15",
+          "weightKg": 81.5
+        }
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-10-26",
+          "avgKg": 81.63,
+          "minKg": 81.3,
+          "maxKg": 82.0,
+          "count": 3,
+          "changeKg": null
+        },
+        {
+          "weekStart": "2026-11-02",
+          "avgKg": 81.0,
+          "minKg": 81.0,
+          "maxKg": 81.0,
+          "count": 1,
+          "changeKg": -0.63
+        },
+        {
+          "weekStart": "2026-11-09",
+          "avgKg": 80.23,
+          "minKg": 80.1,
+          "maxKg": 80.35,
+          "count": 2,
+          "changeKg": -0.77
+        }
+      ]
+    },
+    {
+      "name": "el redondeo de la tendencia .5 va hacia arriba",
+      "entries": [
+        {
+          "measuredAt": "2026-11-02T08:00:00+00:00",
+          "weightKg": 80.05
+        },
+        {
+          "measuredAt": "2026-11-03T08:00:00+00:00",
+          "weightKg": 80.1
+        },
+        {
+          "measuredAt": "2026-11-04T08:00:00+00:00",
+          "weightKg": 80.15
+        }
+      ],
+      "daily": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 80.05
+        },
+        {
+          "date": "2026-11-03",
+          "weightKg": 80.1
+        },
+        {
+          "date": "2026-11-04",
+          "weightKg": 80.15
+        }
+      ],
+      "trend": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 80.05
+        },
+        {
+          "date": "2026-11-03",
+          "weightKg": 80.06
+        },
+        {
+          "date": "2026-11-04",
+          "weightKg": 80.07
+        }
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-02",
+          "avgKg": 80.1,
+          "minKg": 80.05,
+          "maxKg": 80.15,
+          "count": 3,
+          "changeKg": null
+        }
+      ]
+    },
+    {
+      "name": "pesos de borde",
+      "entries": [
+        {
+          "measuredAt": "2026-11-02T08:00:00+00:00",
+          "weightKg": 30.0
+        },
+        {
+          "measuredAt": "2026-11-03T08:00:00+00:00",
+          "weightKg": 300.0
+        },
+        {
+          "measuredAt": "2026-11-09T08:00:00+00:00",
+          "weightKg": 30.01
+        }
+      ],
+      "daily": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 30.0
+        },
+        {
+          "date": "2026-11-03",
+          "weightKg": 300.0
+        },
+        {
+          "date": "2026-11-09",
+          "weightKg": 30.01
+        }
+      ],
+      "trend": [
+        {
+          "date": "2026-11-02",
+          "weightKg": 30.0
+        },
+        {
+          "date": "2026-11-03",
+          "weightKg": 57.0
+        },
+        {
+          "date": "2026-11-09",
+          "weightKg": 54.3
+        }
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-02",
+          "avgKg": 165.0,
+          "minKg": 30.0,
+          "maxKg": 300.0,
+          "count": 2,
+          "changeKg": null
+        },
+        {
+          "weekStart": "2026-11-09",
+          "avgKg": 30.01,
+          "minKg": 30.01,
+          "maxKg": 30.01,
+          "count": 1,
+          "changeKg": -134.99
+        }
+      ]
+    },
+    {
+      "name": "el domingo cuenta en la semana que empezó el lunes anterior",
+      "entries": [
+        {
+          "measuredAt": "2026-11-08T08:00:00+00:00",
+          "weightKg": 79.9
+        },
+        {
+          "measuredAt": "2026-11-09T08:00:00+00:00",
+          "weightKg": 79.7
+        }
+      ],
+      "daily": [
+        {
+          "date": "2026-11-08",
+          "weightKg": 79.9
+        },
+        {
+          "date": "2026-11-09",
+          "weightKg": 79.7
+        }
+      ],
+      "trend": [
+        {
+          "date": "2026-11-08",
+          "weightKg": 79.9
+        },
+        {
+          "date": "2026-11-09",
+          "weightKg": 79.88
+        }
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-02",
+          "avgKg": 79.9,
+          "minKg": 79.9,
+          "maxKg": 79.9,
+          "count": 1,
+          "changeKg": null
+        },
+        {
+          "weekStart": "2026-11-09",
+          "avgKg": 79.7,
+          "minKg": 79.7,
+          "maxKg": 79.7,
+          "count": 1,
+          "changeKg": -0.2
+        }
+      ]
+    }
+  ]
+}

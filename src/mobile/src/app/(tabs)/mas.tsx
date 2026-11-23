@@ -34,6 +34,10 @@ export default function MoreScreen() {
         </View>
       </View>
 
+      <Title>Progreso</Title>
+      <Muted>Cómo evoluciona tu peso.</Muted>
+      <Button title="Progreso de peso" variant="secondary" testID="go-weight-progress" onPress={() => router.push('/progress/weight')} />
+
       <Title>Tema</Title>
       <Muted>Por defecto sigue al sistema.</Muted>
       <View style={styles.row}>
