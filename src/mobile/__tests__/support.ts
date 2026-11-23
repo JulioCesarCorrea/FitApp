@@ -4,6 +4,7 @@ import {
   type ProposalResult,
 } from '../src/data/aiService';
 import { ChatService } from '../src/data/chatService';
+import { ContextService, type ContextApi } from '../src/data/contextService';
 import { FoodPhotoService, type CapturedPhoto, type FoodPhoto, type FoodPhotoApi } from '../src/data/foodPhotoService';
 import { MemoryScheduler } from '../src/data/memoryScheduler';
 import { MemoryStore } from '../src/data/memoryStore';
@@ -18,7 +19,7 @@ import { portionOf, recipeTotal, scaleRecipe } from '../src/data/nutritionRules'
 import { SuggestionService } from '../src/data/suggestionService';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, NutritionApi, ProductLookup, ProductLookupResult, RemoteApi, RestrictionItem, ServerFood, ServerFoodEntry, ServerNutritionHistory, ServerRecipe, ServerTrainingWeek, ServerWater,
+  AcceptSuggestionResult, NutritionApi, ProductLookup, ProductLookupResult, RemoteApi, RestrictionItem, ServerContextItem, ServerFood, ServerFoodEntry, ServerNutritionHistory, ServerRecipe, ServerTrainingWeek, ServerWater,
   Suggestion, SuggestionsApi, TargetsResponse,
 } from '../src/data/types';
 
@@ -51,7 +52,7 @@ export const TARGETS: TargetsResponse = {
   },
 };
 
-export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi, FoodPhotoApi {
+export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi, FoodPhotoApi, ContextApi {
   online: boolean;
   /** Nutrición: lo que «tiene el servidor» y cómo responde. */
   serverFoods: ServerFood[];
@@ -77,6 +78,10 @@ export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiA
   chatOutcome: ChatOutcome | null;
   chatRequests: { text: string; history: { role: string; text: string }[]; useMyData: boolean }[];
   /** SPEC-ai-003: lo que responde el análisis de fotos y las fotos recibidas. */
+  /** SPEC-profile-002: lo que guarda la API (por id) y las llamadas recibidas. */
+  serverContext: Map<string, ServerContextItem>;
+  contextCalls: string[];
+  contextPutResult: PutLogResult | null;
   photoResult: AiResult<FoodPhoto> | null;
   photosReceived: string[];
   resolved: { id: string; action: string }[];
@@ -202,6 +207,9 @@ export function createFakes(
     chatEvents: [],
     chatOutcome: null,
     chatRequests: [],
+    serverContext: new Map(),
+    contextCalls: [],
+    contextPutResult: null,
     photoResult: null,
     photosReceived: [],
     resolved: [],
@@ -302,6 +310,20 @@ export function createFakes(
     deleteFoodEntry: async (id) => {
       if (!remote.online) return 'retry';
       remote.serverEntries = remote.serverEntries.filter((e) => e.id !== id);
+      return 'ok';
+    },
+    fetchContextItems: async () => (remote.online ? [...remote.serverContext.values()].map((i) => ({ ...i })) : null),
+    putContextItem: async (item) => {
+      if (!remote.online) return { kind: 'retry' };
+      remote.contextCalls.push(`put:${item.id}`);
+      if (remote.contextPutResult) return remote.contextPutResult;
+      remote.serverContext.set(item.id, { ...item });
+      return { kind: 'ok' };
+    },
+    deleteContextItem: async (id) => {
+      if (!remote.online) return 'retry';
+      remote.contextCalls.push(`delete:${id}`);
+      remote.serverContext.delete(id);
       return 'ok';
     },
     analyzeFoodPhoto: async (imageBase64) => {
@@ -420,6 +442,7 @@ export function createFakes(
     next: { kind: 'ok', base64: 'FOTO-EN-BASE64' }, calls: 0, capture: async () => { camera.calls += 1; return camera.next; },
   };
   const photo = new FoodPhotoService(camera, remote, nutrition);
+  const context = new ContextService(store, remote, () => `ctx-${++n}`, () => '2026-11-23');
   const reminders = new ReminderService(store, scheduler, () => weights.list(), () => true, () => new Date(2026, 10, 12, 10, 0, 0));
   const products: ProductLookup & { result: ProductLookupResult; lookups: string[] } = {
     result: { kind: 'notFound' },
@@ -443,6 +466,6 @@ export function createFakes(
   }
   return {
     store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weights, reminders, scheduler, camera, weightsAdded, seedServer,
-    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, ai, assistant, chat, photo, reminders, products },
+    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, ai, assistant, chat, photo, context, reminders, products },
   };
 }

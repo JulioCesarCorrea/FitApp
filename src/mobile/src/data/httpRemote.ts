@@ -3,16 +3,17 @@ import { authedFetch, type Authorizer } from './authedFetch';
 import type {
   AiApi, AiAssistantApi, AiFeatureState, AiResult, AiUsage, Analysis, ChatApi, ChatEvent, ChatOutcome, Proposal, ProposalResult,
 } from './aiService';
+import type { ContextApi } from './contextService';
 import type { FoodPhoto, FoodPhotoApi } from './foodPhotoService';
 import { parseSse } from './sse';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerNutritionHistory, ServerRecipe, ServerTrainingWeek, ServerWater,
+  AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerContextItem, ServerNutritionHistory, ServerRecipe, ServerTrainingWeek, ServerWater,
   Suggestion, SuggestionsApi, TargetsResponse,
 } from './types';
 
 /** Cliente HTTP de la API (SPEC-training-002). Traduce las respuestas al contrato de RemoteApi. */
-export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi, FoodPhotoApi {
+export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi, FoodPhotoApi, ContextApi {
   constructor(
     private readonly auth: Authorizer,
     private readonly baseUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL,
@@ -297,6 +298,21 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiAp
   async fetchNutritionHistory(from: string, to: string): Promise<ServerNutritionHistory | null> {
     const res = await this.request('GET', `/nutrition/history?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
     return res?.ok ? ((await res.json()) as ServerNutritionHistory) : null;
+  }
+
+  async fetchContextItems(): Promise<ServerContextItem[] | null> {
+    const res = await this.request('GET', '/context-items');
+    return res?.ok ? ((await res.json()) as ServerContextItem[]) : null;
+  }
+
+  async putContextItem(item: ServerContextItem): Promise<PutLogResult> {
+    const { id, ...body } = item;
+    return this.putResult(await this.request('PUT', `/context-items/${id}`, body));
+  }
+
+  async deleteContextItem(id: string): Promise<'ok' | 'retry'> {
+    const res = await this.request('DELETE', `/context-items/${id}`);
+    return res?.ok ? 'ok' : 'retry';
   }
 
   async fetchRecipes(): Promise<ServerRecipe[] | null> {

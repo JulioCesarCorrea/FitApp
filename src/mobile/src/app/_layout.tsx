@@ -96,6 +96,7 @@ function Navigation() {
           <Stack.Screen name="assistant" options={{ title: 'Análisis y planes' }} />
           <Stack.Screen name="ai" options={{ title: 'Inteligencia artificial' }} />
           <Stack.Screen name="reminders" options={{ title: 'Recordatorios' }} />
+          <Stack.Screen name="context" options={{ title: 'Mi contexto' }} />
           <Stack.Screen name="progress/training" options={{ title: 'Progreso de entrenamiento' }} />
           <Stack.Screen name="progress/nutrition" options={{ title: 'Progreso de nutrición' }} />
           <Stack.Screen name="progress/weight" options={{ title: 'Progreso de peso' }} />

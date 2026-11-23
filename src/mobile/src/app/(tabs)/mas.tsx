@@ -46,6 +46,10 @@ export default function MoreScreen() {
       </View>
       <Button title="Preguntas a la IA" variant="secondary" testID="go-chat" onPress={() => router.push('/chat')} />
 
+      <Title>Mi contexto</Title>
+      <Muted>Suplementos, hábitos, medicación y notas. Tú decides qué se comparte con la IA.</Muted>
+      <Button title="Mi contexto" variant="secondary" testID="go-context" onPress={() => router.push('/context')} />
+
       <Title>Recordatorios</Title>
       <Muted>Avisos en este teléfono para entrenar, registrar comidas y pesarte.</Muted>
       <Button title="Recordatorios" variant="secondary" testID="go-reminders" onPress={() => router.push('/reminders')} />
