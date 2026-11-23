@@ -6,6 +6,7 @@ import {
   HEAVY_DUTY_METHODOLOGY,
   NORMAL_MAX_FAILURE_REPS,
   NORMAL_METHODOLOGY,
+  relevantForMethodology,
   NORMAL_SETS,
   NORMAL_TARGET_REPS,
   advise,
@@ -411,9 +412,12 @@ export class SessionService {
       .sort((a, b) => a.date.localeCompare(b.date));
     if (rows.length === 0) return null;
 
-    // El consejo sale del último registro y solo cuenta los de su misma metodología (SPEC-training-004, AC-08).
-    const methodology = methodologyOf(rows[rows.length - 1]);
-    const sameMethod = rows.filter((r) => methodologyOf(r) === methodology);
+    // SPEC-training-007, AC-04: solo cuentan los registros de la metodología vigente del perfil (cada registro conserva la suya);
+    // sin perfil manda la del último registro (SPEC-training-004, AC-08). Sin registros de la vigente, no hay consejo.
+    const current = (await this.store.getProfile()).profile?.methodology ?? null;
+    const sameMethod = relevantForMethodology(rows, methodologyOf, current);
+    if (sameMethod.length === 0) return null;
+    const methodology = methodologyOf(sameMethod[sameMethod.length - 1]);
     const normal = methodology === NORMAL_METHODOLOGY;
     const last = sameMethod[sameMethod.length - 1];
     const bodyweight = exercise.equipment === 'PesoCorporal';

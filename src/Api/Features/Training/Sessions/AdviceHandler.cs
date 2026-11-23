@@ -35,9 +35,13 @@ public sealed class AdviceHandler(AppDbContext db)
         var threshold = (await db.TrainingSettings.AsNoTracking().FirstOrDefaultAsync(s => s.UserId == userId, ct))
             ?.StagnationThreshold ?? Stagnation.DefaultThreshold;
 
-        // El consejo sale del último registro y solo cuenta los registros de su misma metodología (SPEC-training-004, AC-08).
+        // SPEC-training-007, AC-04: solo cuentan los registros de la metodología vigente de la persona (cada registro conserva la
+        // suya); sin perfil guardado manda la del último registro (SPEC-training-004, AC-08). Sin registros de la vigente, no hay
+        // consejo: la primera carga parte del equipamiento.
+        var current = await db.Profiles.AsNoTracking().Where(p => p.UserId == userId).Select(p => p.Methodology).FirstOrDefaultAsync(ct);
+        rows = MethodologyHistory.Relevant(rows, r => r.Methodology, current);
+        if (rows.Count == 0) return new AdviceResult.NoRecords();
         var methodology = rows[^1].Methodology;
-        rows = rows.Where(r => r.Methodology == methodology).ToList();
         var bodyweight = exercise.Equipment == EquipmentKind.PesoCorporal;
 
         LoadAdvice load;

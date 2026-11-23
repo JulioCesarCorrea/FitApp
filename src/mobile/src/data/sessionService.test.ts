@@ -880,3 +880,47 @@ describe('consejo y estancamiento 4×15 (AC-training-004-05, 06, 07, 08, 13)', (
     expect(history[0]).toMatchObject({ methodology: NORMAL, repsPerSet: [12, 12, 12, 10] });
   });
 });
+
+describe('cambio de metodología hacia adelante (SPEC-training-007)', () => {
+  it('AC-training-007-04 tras pasar a 4×15 los registros de Heavy Duty no cuentan: sin registros de la vigente no hay consejo', async () => {
+    await seedHistory([{ load: 22.5, first: 9, second: 5 }, { load: 22.5, first: 9, second: 5 }]);
+    await store.saveProfile(profileWith(NORMAL));
+
+    expect(await service.getAdvice(DUMBBELL)).toBeNull();
+  });
+
+  it('AC-training-007-04 con registros de la vigente, el estancamiento solo cuenta los suyos', async () => {
+    await seedHistory([
+      { load: 22.5, first: 9, second: 5 }, { load: 22.5, first: 9, second: 5 }, { load: 22.5, first: 9, second: 5 },
+      { load: 22.5, first: 9, second: 5 },
+    ]);
+    await seedNormal([{ load: 22.5, reps: [12, 12, 12, 10] }], DUMBBELL, 4);
+    await store.saveProfile(profileWith(NORMAL));
+
+    const advice = await service.getAdvice(DUMBBELL);
+
+    expect(advice?.methodology).toBe(NORMAL);
+    expect(advice?.stagnation).toMatchObject({ isStagnant: false, sessionsWithoutProgress: 0 });
+  });
+
+  it('AC-training-007-04 volver a Heavy Duty usa solo sus registros, aunque el último sea de 4×15', async () => {
+    await seedHistory([{ load: 22.5, first: 9, second: 5 }]);
+    await seedNormal([{ load: 22.5, reps: [15, 15, 15, 15] }], DUMBBELL, 4);
+    await store.saveProfile(profileWith('heavy_duty_personalizado'));
+
+    const advice = await service.getAdvice(DUMBBELL);
+
+    expect(advice?.methodology).toBe('heavy_duty_personalizado');
+  });
+
+  it('AC-training-007-03 y 08 cada registro conserva su metodología tras el cambio, también sin conexión', async () => {
+    await seedHistory([{ load: 22.5, first: 9, second: 5 }]);
+    await store.saveProfile(profileWith(NORMAL));
+
+    const history = await service.loadHistory(DUMBBELL.id);
+
+    expect(history.map((l) => l.methodology ?? 'heavy_duty_personalizado')).toEqual(['heavy_duty_personalizado']);
+    expect(history[0]).toMatchObject({ loadKg: 22.5, firstSetReps: 9, secondSetReps: 5 });
+    expect(await service.methodologyFor()).toBe(NORMAL); // lo nuevo se registra con la vigente
+  });
+});

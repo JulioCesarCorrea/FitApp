@@ -15,7 +15,7 @@ public sealed record ExportUser(string Username, DateTimeOffset CreatedAt);
 
 public sealed record ExportProfile(
     string DisplayName, string Sex, DateOnly BirthDate, int HeightCm, string Goal, string ActivityLevel,
-    string? ExperienceLevel, int? DaysPerWeek, string Methodology, string[] Allergies);
+    string? ExperienceLevel, int? DaysPerWeek, string Methodology, string[] Allergies, DateTimeOffset? MethodologyChangedAt);
 
 public sealed record ExportRestriction(Guid Id, string Zone, string[] AvoidedMovements, string Level, DateOnly? ReviewOn);
 
@@ -90,7 +90,8 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
 {
     // 2: añade las calorías ajustadas a mano (SPEC-nutrition-002). 3: añade los alérgenos de los alimentos (SPEC-nutrition-003).
     // 4: fibra, azúcares y sodio de alimentos y entradas, y el agua (SPEC-nutrition-004). 5: recetas (SPEC-nutrition-005).
-    public const int ExportVersion = 5;
+    // 6: fecha del último cambio de metodología (SPEC-training-007).
+    public const int ExportVersion = 6;
 
     public async Task<AccountExport?> ExportAsync(Guid userId, CancellationToken ct)
     {
@@ -100,7 +101,7 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
 
         var profile = await db.Profiles.AsNoTracking().Where(p => p.UserId == userId)
             .Select(p => new ExportProfile(p.DisplayName, p.Sex, p.BirthDate, p.HeightCm, p.Goal, p.ActivityLevel,
-                p.ExperienceLevel, p.DaysPerWeek, p.Methodology, p.Allergies)).FirstOrDefaultAsync(ct);
+                p.ExperienceLevel, p.DaysPerWeek, p.Methodology, p.Allergies, p.MethodologyChangedAt)).FirstOrDefaultAsync(ct);
 
         var restrictions = (await db.Restrictions.AsNoTracking().Where(r => r.UserId == userId).ToListAsync(ct))
             .Select(r => new ExportRestriction(r.Id, r.Zone, r.AvoidedMovements, r.Level.ToString().ToLowerInvariant(), r.ReviewOn))

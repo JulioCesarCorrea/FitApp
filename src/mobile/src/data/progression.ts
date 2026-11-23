@@ -191,3 +191,14 @@ export function loadsFor(
     }
   }
 }
+
+/**
+ * Qué registros cuentan para el consejo de carga y el estancamiento tras un cambio de metodología (SPEC-training-007, AC-04):
+ * solo los de la metodología vigente de la persona; cada registro conserva la suya y nada se convierte. Sin metodología vigente
+ * (sin perfil guardado) manda la del último registro. Copia de MethodologyHistory.Relevant de la API (vectores `methodologySwitch`
+ * de tests/Api.Tests/Training/progression-vectors.json, ADR-0004). `orderedRows` va de la más antigua a la más reciente.
+ */
+export function relevantForMethodology<T>(orderedRows: T[], methodologyOf: (row: T) => string, current: string | null): T[] {
+  const methodology = current ?? (orderedRows.length > 0 ? methodologyOf(orderedRows[orderedRows.length - 1]) : null);
+  return orderedRows.filter((r) => methodologyOf(r) === methodology);
+}
