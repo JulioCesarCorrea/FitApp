@@ -90,6 +90,7 @@ function Navigation() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="exercise/[id]" options={{ title: 'Ejercicio', presentation: 'modal' }} />
           <Stack.Screen name="session/[exerciseId]" options={{ title: 'Registrar sesión', presentation: 'modal' }} />
+          <Stack.Screen name="food/photo" options={{ title: 'Foto de comida', presentation: 'modal' }} />
           <Stack.Screen name="food/add" options={{ title: 'Añadir alimento', presentation: 'modal' }} />
           <Stack.Screen name="chat" options={{ title: 'Preguntas' }} />
           <Stack.Screen name="assistant" options={{ title: 'Análisis y planes' }} />

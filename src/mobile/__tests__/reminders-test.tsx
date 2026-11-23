@@ -1,6 +1,7 @@
 import { configure, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { createDeps } from '../src/data/deps';
+import { localDate } from '../src/data/nutritionService';
 import { createFakes } from './support';
 
 // La app real abre SQLite, la cámara y la API por HTTP; en estas pruebas se sustituyen por versiones en memoria.
@@ -283,5 +284,86 @@ describe('Preguntas a la IA (SPEC-ai-004)', () => {
     await press(await screen.findByTestId('go-chat'));
 
     expect(await screen.findByTestId('chat-send')).toBeOnTheScreen();
+  });
+});
+
+describe('Foto de comida con IA (SPEC-ai-003)', () => {
+  const item = (over: Record<string, unknown> = {}) => ({
+    name: 'Arroz blanco', grams: 150, confidence: 'media' as const, estimate: true, kcalPer100g: 130, proteinPer100g: 2.7, fatPer100g: 0.3, carbsPer100g: 28,
+    kcal: 195, proteinG: 4.1, fatG: 0.5, carbsG: 42, possibleAllergens: [] as string[], ...over,
+  });
+  const proposal = (...items: ReturnType<typeof item>[]) => ({
+    kind: 'ok' as const,
+    value: { kind: 'proposal' as const, items, disclaimer: 'Orientativo: la app no diagnostica ni sustituye a un profesional de la salud.' },
+  });
+
+  it('AC-ai-003-10: antes de hacer la foto explica qué se envía y no pide el permiso hasta tocar «Hacer foto»', async () => {
+    await openApp('/food/photo');
+
+    expect(await screen.findByTestId('photo-notice')).toHaveTextContent(/sin ubicación ni datos de la propia foto y no se guarda/);
+    expect(fakes.camera.calls).toBe(0);
+  });
+
+  it('AC-ai-003-05 y 06: corrige un alimento y su cantidad, y solo entonces se registra con las reglas de siempre y origen «ia»', async () => {
+    fakes.remote.photoResult = proposal(item(), item({ name: 'Pollo', grams: 100, kcalPer100g: 165, proteinPer100g: 31, fatPer100g: 3.6, carbsPer100g: 0, kcal: 165 }));
+    await openApp('/food/photo');
+    await press(await screen.findByTestId('photo-take'));
+    expect(await screen.findByTestId('photo-item-0')).toBeOnTheScreen();
+    expect(fakes.remote.photosReceived).toEqual(['FOTO-EN-BASE64']);
+    expect(await fakes.store.getFoods()).toEqual([]); // nada se registra sin confirmar
+
+    await type('Nombre del alimento 1', 'Arroz integral');
+    await type('Gramos de 1', '200');
+    await press(screen.getByTestId('photo-remove-1')); // quita el pollo
+    await press(screen.getByTestId('photo-meal-cena'));
+    await press(screen.getByTestId('photo-register'));
+
+    await waitFor(() => expect(screen.queryByTestId('photo-register')).not.toBeOnTheScreen());
+    const [food] = await fakes.store.getFoods();
+    expect(food).toMatchObject({ name: 'Arroz integral', source: 'ia', kcalPer100g: 130, proteinPer100g: 2.7 });
+    const [entry] = await fakes.store.getFoodEntries(localDate());
+    expect(entry).toMatchObject({ meal: 'cena', grams: 200, name: 'Arroz integral', kcal: 260 });
+  });
+
+  it('AC-ai-003-07: avisa de los alérgenos que sugiere el nombre y que chocan con las alergias', async () => {
+    fakes.remote.photoResult = proposal(item({ name: 'Yogur con leche', possibleAllergens: ['leche'] }));
+    await openApp('/food/photo');
+
+    await press(await screen.findByTestId('photo-take'));
+
+    expect(await screen.findByTestId('photo-allergen-0')).toHaveTextContent(/Podría contener Leche.*orientativo/);
+  });
+
+  it('AC-ai-003-10: sin permiso de cámara lo explica y sin conexión lo avisa sin romper el resto', async () => {
+    fakes.camera.next = { kind: 'denied', canAskAgain: false };
+    await openApp('/food/photo');
+    await press(await screen.findByTestId('photo-take'));
+    expect(await screen.findByTestId('photo-message')).toHaveTextContent(/ajustes del sistema/);
+
+    fakes.camera.next = { kind: 'ok', base64: 'X' };
+    fakes.remote.online = false;
+    await press(screen.getByTestId('photo-take'));
+    await waitFor(() => expect(screen.getByTestId('photo-message')).toHaveTextContent(/necesita conexión.*a mano o escanear/));
+  });
+
+  it('AC-ai-003-08: sin consentimiento lo explica y lleva a los ajustes de la IA', async () => {
+    fakes.remote.photoResult = { kind: 'error', code: 'consent_required', message: 'x', retryAfterSeconds: null };
+    await openApp('/food/photo');
+
+    await press(await screen.findByTestId('photo-take'));
+
+    expect(await screen.findByTestId('photo-message')).toHaveTextContent(/Activa «Análisis y planes» en Inteligencia artificial/);
+    expect(screen.getByTestId('go-ai-settings')).toBeOnTheScreen();
+  });
+
+  it('AC-ai-003-10: el botón «Foto» de Añadir alimento solo aparece si la función está disponible', async () => {
+    await openApp('/food/add');
+    await screen.findByTestId('scan-food');
+    expect(screen.queryByTestId('photo-food')).not.toBeOnTheScreen(); // por defecto la función no está disponible
+
+    fakes.remote.serverAi = { ...fakes.remote.serverAi!, features: fakes.remote.serverAi!.features.map((f) => (f.feature === 'food_photo' ? { ...f, available: true } : f)) };
+    await openApp('/food/add');
+
+    expect(await screen.findByTestId('photo-food')).toBeOnTheScreen();
   });
 });

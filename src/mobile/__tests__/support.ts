@@ -4,6 +4,7 @@ import {
   type ProposalResult,
 } from '../src/data/aiService';
 import { ChatService } from '../src/data/chatService';
+import { FoodPhotoService, type CapturedPhoto, type FoodPhoto, type FoodPhotoApi } from '../src/data/foodPhotoService';
 import { MemoryScheduler } from '../src/data/memoryScheduler';
 import { MemoryStore } from '../src/data/memoryStore';
 import { ReminderService } from '../src/data/reminderService';
@@ -50,7 +51,7 @@ export const TARGETS: TargetsResponse = {
   },
 };
 
-export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi {
+export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi, FoodPhotoApi {
   online: boolean;
   /** Nutrición: lo que «tiene el servidor» y cómo responde. */
   serverFoods: ServerFood[];
@@ -75,6 +76,9 @@ export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiA
   chatEvents: ChatEvent[];
   chatOutcome: ChatOutcome | null;
   chatRequests: { text: string; history: { role: string; text: string }[]; useMyData: boolean }[];
+  /** SPEC-ai-003: lo que responde el análisis de fotos y las fotos recibidas. */
+  photoResult: AiResult<FoodPhoto> | null;
+  photosReceived: string[];
   resolved: { id: string; action: string }[];
   /** SPEC-nutrition-002: ajustes recibidos y borrados del ajuste. */
   overridePuts: number[];
@@ -198,6 +202,8 @@ export function createFakes(
     chatEvents: [],
     chatOutcome: null,
     chatRequests: [],
+    photoResult: null,
+    photosReceived: [],
     resolved: [],
     serverAi: {
       features: [
@@ -297,6 +303,11 @@ export function createFakes(
       if (!remote.online) return 'retry';
       remote.serverEntries = remote.serverEntries.filter((e) => e.id !== id);
       return 'ok';
+    },
+    analyzeFoodPhoto: async (imageBase64) => {
+      if (!remote.online) return { kind: 'offline' };
+      remote.photosReceived.push(imageBase64);
+      return remote.photoResult ?? { kind: 'error', code: 'ai_disabled', message: 'x', retryAfterSeconds: null };
     },
     chat: async (request, onEvent, shouldStop) => {
       if (!remote.online) return { kind: 'offline' };
@@ -405,6 +416,10 @@ export function createFakes(
   const ai = new AiService(remote);
   const assistant = new AiAssistantService(remote);
   const chat = new ChatService(store, remote, () => `chat-${++n}`);
+  const camera: { next: CapturedPhoto; calls: number; capture: () => Promise<CapturedPhoto> } = {
+    next: { kind: 'ok', base64: 'FOTO-EN-BASE64' }, calls: 0, capture: async () => { camera.calls += 1; return camera.next; },
+  };
+  const photo = new FoodPhotoService(camera, remote, nutrition);
   const reminders = new ReminderService(store, scheduler, () => weights.list(), () => true, () => new Date(2026, 10, 12, 10, 0, 0));
   const products: ProductLookup & { result: ProductLookupResult; lookups: string[] } = {
     result: { kind: 'notFound' },
@@ -427,7 +442,7 @@ export function createFakes(
     void store.saveProfile(PROFILE_DATA).then(() => store.setProfileStatus('synced', null));
   }
   return {
-    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weights, reminders, scheduler, weightsAdded, seedServer,
-    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, ai, assistant, chat, reminders, products },
+    store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weights, reminders, scheduler, camera, weightsAdded, seedServer,
+    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, ai, assistant, chat, photo, reminders, products },
   };
 }

@@ -40,7 +40,11 @@ export default function AddFoodScreen() {
   const { entryId } = useLocalSearchParams<{ entryId?: string }>();
   const router = useRouter();
   const { colors } = useTheme();
-  const { nutrition, products, store } = useDeps();
+  const { nutrition, products, store, ai } = useDeps();
+  const [photoAvailable, setPhotoAvailable] = useState(false);
+  useEffect(() => {
+    void ai.load().then((v) => setPhotoAvailable(!v.offline && (v.features.find((f) => f.feature === 'food_photo')?.available ?? false)));
+  }, [ai]);
 
   const [mealKey, setMealKey] = useState<string>('desayuno');
   const [freeMeal, setFreeMeal] = useState('');
@@ -268,6 +272,7 @@ export default function AddFoodScreen() {
                 </Pressable>
               ))}
               <Button title="Gestionar recetas" variant="secondary" testID="manage-recipes" onPress={() => router.push('/recipes')} />
+              {photoAvailable && <Button title="Foto de la comida (IA)" variant="secondary" testID="photo-food" onPress={() => router.push('/food/photo')} />}
               <Button title="Escanear código de barras" variant="secondary" testID="scan-food" onPress={() => setMode('scan')} />
               <Button
                 title="Crear alimento a mano"

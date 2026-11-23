@@ -6,7 +6,9 @@ import { HttpAuthRemote } from './authRemote';
 import { AiAssistantService, AiService } from './aiService';
 import { AuthService } from './authService';
 import { ChatService } from './chatService';
+import { FoodPhotoService } from './foodPhotoService';
 import { HttpRemote } from './httpRemote';
+import { ImagePickerCapture } from './imagePickerCapture';
 import { NutritionService } from './nutritionService';
 import { NotificationsScheduler } from './notificationsScheduler';
 import { OpenFoodFactsClient } from './openFoodFacts';
@@ -42,6 +44,8 @@ export interface Deps {
   assistant: AiAssistantService;
   /** Preguntas a la IA, guardadas solo en el teléfono (SPEC-ai-004). */
   chat: ChatService;
+  /** Foto de comida con IA (SPEC-ai-003). */
+  photo: FoodPhotoService;
   /** Recordatorios locales (SPEC-notify-001). */
   reminders: ReminderService;
   /** Consulta de productos por código de barras (Open Food Facts). */
@@ -63,6 +67,7 @@ export async function createDeps(): Promise<Deps> {
   };
   const weights: WeightSource = { list: async () => (await openStore()).listAll() };
   const service = new PlanService(store, remote, newId);
+  const nutrition = new NutritionService(store, remote, newId);
   return {
     store,
     remote,
@@ -72,11 +77,12 @@ export async function createDeps(): Promise<Deps> {
     profile: new ProfileService(store, remote, addWeight),
     restrictions: new RestrictionService(remote, newId, () => todayLocal()),
     suggestions: new SuggestionService(remote, service),
-    nutrition: new NutritionService(store, remote, newId),
+    nutrition,
     weights,
     ai: new AiService(remote),
     assistant: new AiAssistantService(remote),
     chat: new ChatService(store, remote, newId),
+    photo: new FoodPhotoService(new ImagePickerCapture(), remote, nutrition),
     reminders: new ReminderService(store, new NotificationsScheduler(), () => weights.list(), () => auth.getState().status === 'signedIn'),
     products: new OpenFoodFactsClient(),
   };
