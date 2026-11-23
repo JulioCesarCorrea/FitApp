@@ -35,8 +35,15 @@ export default function MoreScreen() {
       </View>
 
       <Title>Progreso</Title>
-      <Muted>Cómo evoluciona tu peso.</Muted>
-      <Button title="Progreso de peso" variant="secondary" testID="go-weight-progress" onPress={() => router.push('/progress/weight')} />
+      <Muted>Cómo evolucionan tu peso y tu entrenamiento.</Muted>
+      <View style={styles.row}>
+        <View style={styles.flex}>
+          <Button title="Peso" variant="secondary" testID="go-weight-progress" onPress={() => router.push('/progress/weight')} />
+        </View>
+        <View style={styles.flex}>
+          <Button title="Entrenamiento" variant="secondary" testID="go-training-progress" onPress={() => router.push('/progress/training')} />
+        </View>
+      </View>
 
       <Title>Tema</Title>
       <Muted>Por defecto sigue al sistema.</Muted>

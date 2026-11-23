@@ -41,6 +41,27 @@ public static class SessionEndpoints
             return Results.NoContent();
         });
 
+        app.MapGet("/training/weekly", async (int? weeks, ICurrentUser user, TrainingHistoryHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+            var count = weeks ?? 12;
+            if (count < 1 || count > TrainingHistoryHandler.MaxWeeks)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["weeks"] = [$"Las semanas van de 1 a {TrainingHistoryHandler.MaxWeeks}."] });
+
+            return Results.Ok(await handler.WeeklyAsync(userId, count, ct));
+        });
+
+        app.MapGet("/training/exercises/{id}/history", async (
+            string id, string? range, ICurrentUser user, TrainingHistoryHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+            range ??= "all";
+            if (!TrainingHistoryHandler.IsValidRange(range))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["range"] = ["El rango es 30d, 90d, 1y o all."] });
+
+            return await handler.ExerciseAsync(userId, id, range, ct) is { } progress ? Results.Ok(progress) : Results.NotFound();
+        });
+
         app.MapGet("/exercises/{id}/history", async (
             string id, ICurrentUser user, ExerciseLogHandler handler, CancellationToken ct) =>
         {

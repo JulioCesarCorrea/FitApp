@@ -1,0 +1,306 @@
+{
+  "descripcion": "Vectores del historial de entrenamiento (SPEC-training-006, ADR-0004). Los ejecutan la API (C#) y la app (TypeScript); generados con una implementación independiente en Python con Decimal. «weekly» solo trae las semanas con datos (las demás se rellenan a cero al consultar). Cualquier cambio de regla se hace aquí primero.",
+  "cases": [
+    {
+      "name": "un registro Heavy Duty",
+      "logs": [
+        {
+          "date": "2026-11-10",
+          "loadKg": 40,
+          "firstSetReps": 9,
+          "secondSetReps": 8,
+          "secondSetAssistedReps": 5,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        }
+      ],
+      "volumes": [
+        680.0
+      ],
+      "sets": [
+        2
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-09",
+          "sessions": 1,
+          "sets": 2,
+          "volumeKg": 680.0
+        }
+      ]
+    },
+    {
+      "name": "un registro 4x15",
+      "logs": [
+        {
+          "date": "2026-11-10",
+          "loadKg": 20,
+          "firstSetReps": 15,
+          "secondSetReps": 12,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": [
+            15,
+            14,
+            13,
+            12
+          ],
+          "exerciseId": "ej"
+        }
+      ],
+      "volumes": [
+        1080.0
+      ],
+      "sets": [
+        4
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-09",
+          "sessions": 1,
+          "sets": 4,
+          "volumeKg": 1080.0
+        }
+      ]
+    },
+    {
+      "name": "dos ejercicios el mismo día cuentan una sesión",
+      "logs": [
+        {
+          "date": "2026-11-10",
+          "loadKg": 40,
+          "firstSetReps": 9,
+          "secondSetReps": 8,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        },
+        {
+          "date": "2026-11-10",
+          "loadKg": 30,
+          "firstSetReps": 10,
+          "secondSetReps": 9,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        }
+      ],
+      "volumes": [
+        680.0,
+        570.0
+      ],
+      "sets": [
+        2,
+        2
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-09",
+          "sessions": 1,
+          "sets": 4,
+          "volumeKg": 1250.0
+        }
+      ]
+    },
+    {
+      "name": "carga cero suma series pero no volumen",
+      "logs": [
+        {
+          "date": "2026-11-10",
+          "loadKg": 0,
+          "firstSetReps": 12,
+          "secondSetReps": 10,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        }
+      ],
+      "volumes": [
+        0.0
+      ],
+      "sets": [
+        2
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-09",
+          "sessions": 1,
+          "sets": 2,
+          "volumeKg": 0.0
+        }
+      ]
+    },
+    {
+      "name": "series incompletas: repeticiones en cero",
+      "logs": [
+        {
+          "date": "2026-11-10",
+          "loadKg": 50.5,
+          "firstSetReps": 0,
+          "secondSetReps": 0,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        }
+      ],
+      "volumes": [
+        0.0
+      ],
+      "sets": [
+        2
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-09",
+          "sessions": 1,
+          "sets": 2,
+          "volumeKg": 0.0
+        }
+      ]
+    },
+    {
+      "name": "cargas con decimales",
+      "logs": [
+        {
+          "date": "2026-11-09",
+          "loadKg": 22.25,
+          "firstSetReps": 11,
+          "secondSetReps": 9,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        },
+        {
+          "date": "2026-11-11",
+          "loadKg": 22.5,
+          "firstSetReps": 10,
+          "secondSetReps": 9,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        }
+      ],
+      "volumes": [
+        445.0,
+        427.5
+      ],
+      "sets": [
+        2,
+        2
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-09",
+          "sessions": 2,
+          "sets": 4,
+          "volumeKg": 872.5
+        }
+      ]
+    },
+    {
+      "name": "el domingo y el lunes son semanas distintas",
+      "logs": [
+        {
+          "date": "2026-11-08",
+          "loadKg": 40,
+          "firstSetReps": 9,
+          "secondSetReps": 8,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        },
+        {
+          "date": "2026-11-09",
+          "loadKg": 40,
+          "firstSetReps": 9,
+          "secondSetReps": 8,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        }
+      ],
+      "volumes": [
+        680.0,
+        680.0
+      ],
+      "sets": [
+        2,
+        2
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-02",
+          "sessions": 1,
+          "sets": 2,
+          "volumeKg": 680.0
+        },
+        {
+          "weekStart": "2026-11-09",
+          "sessions": 1,
+          "sets": 2,
+          "volumeKg": 680.0
+        }
+      ]
+    },
+    {
+      "name": "mezcla de metodologías y semanas",
+      "logs": [
+        {
+          "date": "2026-11-02",
+          "loadKg": 40,
+          "firstSetReps": 9,
+          "secondSetReps": 8,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        },
+        {
+          "date": "2026-11-04",
+          "loadKg": 20,
+          "firstSetReps": 15,
+          "secondSetReps": 12,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": [
+            15,
+            15,
+            14,
+            12
+          ],
+          "exerciseId": "ej"
+        },
+        {
+          "date": "2026-11-16",
+          "loadKg": 41.5,
+          "firstSetReps": 10,
+          "secondSetReps": 8,
+          "secondSetAssistedReps": 0,
+          "repsPerSet": null,
+          "exerciseId": "ej"
+        }
+      ],
+      "volumes": [
+        680.0,
+        1120.0,
+        747.0
+      ],
+      "sets": [
+        2,
+        4,
+        2
+      ],
+      "weekly": [
+        {
+          "weekStart": "2026-11-02",
+          "sessions": 2,
+          "sets": 6,
+          "volumeKg": 1800.0
+        },
+        {
+          "weekStart": "2026-11-16",
+          "sessions": 1,
+          "sets": 2,
+          "volumeKg": 747.0
+        }
+      ]
+    }
+  ]
+}

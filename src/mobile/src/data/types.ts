@@ -340,6 +340,8 @@ export interface LocalStore {
   getLogs(exerciseId: string): Promise<LocalExerciseLog[]>;
   /** Registros con algo por enviar (guardar o borrar) que no están rechazados. */
   getPendingLogs(): Promise<LocalExerciseLog[]>;
+  /** Todos los registros del teléfono, también los que esperan borrarse (SPEC-training-006). */
+  getAllLogs(): Promise<LocalExerciseLog[]>;
   saveLog(log: LocalExerciseLog): Promise<void>;
   deleteLog(id: string): Promise<void>;
   /** Sustituye todos los registros del ejercicio por lo que dice el servidor, ya sincronizados. */
@@ -417,7 +419,18 @@ export type PutLogResult =
   | { kind: 'retry' }; // red, 5xx o 401
 
 /** Cliente de la API (HTTP en la app, simulado en las pruebas). */
+/** Resumen semanal de entrenamiento que calcula la API (SPEC-training-006). */
+export interface ServerTrainingWeek {
+  weekStart: string;
+  sessions: number;
+  sets: number;
+  volumeKg: number;
+  partial: boolean;
+}
+
 export interface RemoteApi {
+  /** SPEC-training-006: semanas de entrenamiento (null = sin conexión o error). Opcional: no todos los clientes lo ofrecen. */
+  fetchTrainingWeekly?(weeks: number): Promise<ServerTrainingWeek[] | null>;
   fetchCatalog(): Promise<CatalogSection[] | null>; // null = sin conexión o error
   fetchPlan(): Promise<{ day: DayKey; entries: LocalPlanEntry[] }[] | null>;
   fetchEquipment(): Promise<EquipmentProfile | null | 'none'>; // 'none' = la persona aún no tiene perfil

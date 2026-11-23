@@ -1,3 +1,4 @@
+import { fillWeeks, weeklyTraining, type TrainingWeek } from './trainingHistory';
 import { parseKg } from './format';
 import {
   CEILING_REPS,
@@ -215,6 +216,20 @@ const isVisible = (l: LocalExerciseLog): boolean => l.pendingOp !== 'delete';
  * Todo cambio se guarda primero en el teléfono con ids generados en el dispositivo; luego se intenta enviar.
  * Lo que no se pueda enviar queda `pending` y se reintenta con los mismos ids.
  */
+export interface TrainingProgress {
+  weeks: TrainingWeek[];
+  /** `server` si lo calculó la API (con todo sincronizado); `local` con los registros del teléfono (sin conexión o con cambios por enviar). */
+  source: 'server' | 'local';
+}
+
+export interface ExerciseWithHistory {
+  id: string;
+  name: string;
+  sessions: number;
+}
+
+export const MAX_TRAINING_WEEKS = 12;
+
 export class SessionService {
   private chain: Promise<unknown> = Promise.resolve();
 
@@ -360,6 +375,33 @@ export class SessionService {
       }
     }
     return rows.filter(isVisible).sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  /**
+   * SPEC-training-006, AC-01, 07 y 08: sesiones, series y volumen de las últimas semanas. Con conexión y con todo sincronizado
+   * lo calcula la API (fuente de verdad); si no, se calcula con los registros del teléfono, también los pendientes de enviar.
+   */
+  async loadTrainingWeeks(weeks: number = MAX_TRAINING_WEEKS): Promise<TrainingProgress> {
+    const count = Math.min(Math.max(1, Math.floor(weeks)), MAX_TRAINING_WEEKS);
+    await this.syncPending();
+    const all = await this.store.getAllLogs();
+    const clean = all.every((l) => l.status === 'synced' && l.pendingOp === null);
+    const served = clean && this.remote.fetchTrainingWeekly ? await this.remote.fetchTrainingWeekly(count) : null;
+    if (served) return { weeks: served, source: 'server' };
+
+    const live = all.filter((l) => isVisible(l) && l.status !== 'rejected');
+    return { weeks: fillWeeks(weeklyTraining(live), count, this.today()), source: 'local' };
+  }
+
+  /** SPEC-training-006, AC-07: ejercicios con algún registro en el teléfono, con su nombre del catálogo. */
+  async exercisesWithHistory(): Promise<ExerciseWithHistory[]> {
+    const live = (await this.store.getAllLogs()).filter((l) => isVisible(l) && l.status !== 'rejected');
+    const names = new Map((await this.store.getCatalog() ?? []).flatMap((s) => s.exercises.map((e) => [e.id, e.name] as const)));
+    const counts = new Map<string, number>();
+    for (const l of live) counts.set(l.exerciseId, (counts.get(l.exerciseId) ?? 0) + 1);
+    return [...counts.entries()]
+      .map(([id, sessions]) => ({ id, name: names.get(id) ?? id, sessions }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /** AC-mobile-003-09 y 10: consejo de carga y estancamiento calculados en el teléfono. Null sin registros. */

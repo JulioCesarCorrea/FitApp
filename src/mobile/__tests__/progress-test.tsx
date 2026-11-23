@@ -2,7 +2,7 @@ import { configure, fireEvent, screen, waitFor } from '@testing-library/react-na
 import { renderRouter } from 'expo-router/testing-library';
 import { createDeps } from '../src/data/deps';
 import { localDate } from '../src/data/nutritionService';
-import type { NutritionTarget, ServerNutritionHistory } from '../src/data/types';
+import type { LocalExerciseLog, NutritionTarget, ServerNutritionHistory } from '../src/data/types';
 import type { LocalWeight } from '../src/sync';
 import { createFakes } from './support';
 
@@ -137,6 +137,72 @@ describe('Progreso de nutrición (SPEC-nutrition-006)', () => {
 
     expect(await screen.findByTestId('history-no-target')).toBeOnTheScreen();
     expect(screen.queryByTestId('history-adherence')).not.toBeOnTheScreen();
+  });
+});
+
+describe('Progreso de entrenamiento (SPEC-training-006)', () => {
+  // En las pruebas «hoy» del servicio de sesiones es el viernes 2026-10-30; la semana en curso empieza el lunes 2026-10-26.
+  const log = (id: string, exerciseId: string, date: string, loadKg: number, over: Partial<LocalExerciseLog> = {}): LocalExerciseLog => ({
+    id, exerciseId, date, loadKg, firstSetReps: 9, secondSetReps: 8, secondSetAssistedReps: 5,
+    status: 'synced', message: null, pendingOp: null, attempted: true, ...over,
+  });
+
+  async function openTrainingProgress() {
+    (createDeps as jest.Mock).mockResolvedValue(fakes.deps);
+    await renderRouter('./src/app', { initialUrl: '/progress/training' });
+  }
+
+  it('AC-training-006-07: con todo sincronizado muestra el resumen semanal de la API y la progresión de un ejercicio', async () => {
+    await fakes.store.saveLog(log('l1', 'press-plano-con-mancuernas', '2026-10-13', 20));
+    await fakes.store.saveLog(log('l2', 'press-plano-con-mancuernas', '2026-10-27', 22.5));
+    fakes.remote.serverTrainingWeeks = [
+      { weekStart: '2026-10-12', sessions: 1, sets: 2, volumeKg: 340, partial: false },
+      { weekStart: '2026-10-19', sessions: 0, sets: 0, volumeKg: 0, partial: false },
+      { weekStart: '2026-10-26', sessions: 1, sets: 2, volumeKg: 382.5, partial: true },
+    ];
+    await openTrainingProgress();
+
+    expect(await screen.findByTestId('training-chart')).toBeOnTheScreen();
+    expect(screen.queryByTestId('training-local')).not.toBeOnTheScreen(); // lo calculó la API
+    expect(screen.getByTestId('training-week-2026-10-26')).toHaveTextContent('Semana del 2026-10-26 (en curso): 1 sesión, 2 series, 382,5 kg de volumen');
+    expect(screen.getByTestId('training-week-2026-10-19')).toHaveTextContent(/0 sesiones, 0 series, 0 kg de volumen/);
+
+    await fireEvent.press(await screen.findByTestId('exercise-press-plano-con-mancuernas'));
+
+    expect(await screen.findByTestId('exercise-chart')).toBeOnTheScreen();
+    expect(screen.getByTestId('exercise-session-l2')).toHaveTextContent('2026-10-27: 22,5 kg · series 9/8 · volumen 382,5 kg');
+    expect(screen.getByTestId('exercise-session-l1')).toHaveTextContent('2026-10-13: 20 kg · series 9/8 · volumen 340 kg');
+  });
+
+  it('AC-training-006-08: sin conexión o con cambios por enviar lo calcula con los registros del teléfono, también los pendientes', async () => {
+    fakes.remote.online = false;
+    await fakes.store.saveLog(log('l1', 'press-plano-con-mancuernas', '2026-10-27', 20));
+    await fakes.store.saveLog(log('l2', 'press-plano-con-barra', '2026-10-27', 40, { status: 'pending', pendingOp: 'upsert', attempted: false }));
+    await fakes.store.saveLog(log('l3', 'press-plano-con-barra', '2026-10-20', 100, { status: 'rejected', message: 'No' }));
+    await openTrainingProgress();
+
+    expect(await screen.findByTestId('training-local')).toBeOnTheScreen();
+    expect(screen.getByTestId('training-week-2026-10-26')).toHaveTextContent(/1 sesión, 4 series, 1020 kg de volumen/); // 20 × 17 + 40 × 17
+    expect(screen.getByTestId('training-week-2026-10-19')).toHaveTextContent(/0 sesiones/); // lo rechazado no cuenta
+  });
+
+  it('AC-training-006-04: sin sesiones muestra un estado vacío', async () => {
+    fakes.remote.serverTrainingWeeks = [{ weekStart: '2026-10-26', sessions: 0, sets: 0, volumeKg: 0, partial: true }];
+    await openTrainingProgress();
+
+    expect(await screen.findByTestId('training-empty')).toBeOnTheScreen();
+    expect(screen.queryByTestId('training-chart')).not.toBeOnTheScreen();
+  });
+
+  it('AC-training-006-07: con una sola sesión de un ejercicio no hay progresión que dibujar', async () => {
+    await fakes.store.saveLog(log('l1', 'press-plano-con-mancuernas', '2026-10-27', 20));
+    fakes.remote.serverTrainingWeeks = [{ weekStart: '2026-10-26', sessions: 1, sets: 2, volumeKg: 340, partial: true }];
+    await openTrainingProgress();
+
+    await fireEvent.press(await screen.findByTestId('exercise-press-plano-con-mancuernas'));
+
+    expect(await screen.findByTestId('exercise-single')).toBeOnTheScreen();
+    expect(screen.queryByTestId('exercise-chart')).not.toBeOnTheScreen();
   });
 });
 

@@ -110,6 +110,11 @@ export class SqliteStore implements LocalStore {
     return rows.map(toLog);
   }
 
+  async getAllLogs(): Promise<LocalExerciseLog[]> {
+    const db = await getDb();
+    return (await db.getAllAsync<LogRow>('SELECT * FROM exercise_logs_local ORDER BY date ASC')).map(toLog);
+  }
+
   async getPendingLogs(): Promise<LocalExerciseLog[]> {
     const db = await getDb();
     const rows = await db.getAllAsync<LogRow>(
