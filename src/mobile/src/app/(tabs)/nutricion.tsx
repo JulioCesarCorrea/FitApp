@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Body, Button, Field, Muted, Title } from '../../components/ui';
 import { useDeps } from '../../data/DataContext';
 import { useNutritionDay } from '../../data/hooks';
+import { allergenLabel } from '../../data/allergens';
 import { localDate, type TargetState } from '../../data/nutritionService';
 import type { LocalFoodEntry, SyncStatus } from '../../data/types';
 import { useTheme } from '../../theme';
@@ -68,6 +69,7 @@ export default function NutritionScreen() {
             <EntryRow
               key={e.id}
               entry={e}
+              conflicts={view.conflicts[e.id] ?? []}
               onEdit={() => router.push(`/food/add?entryId=${e.id}`)}
               onDelete={act(() => nutrition.deleteEntry(e.id))}
               onDiscard={act(() => nutrition.discardEntry(e.id))}
@@ -159,7 +161,9 @@ function OverrideEditor(
 }
 
 function EntryRow(
-  { entry, onEdit, onDelete, onDiscard }: { entry: LocalFoodEntry; onEdit: () => void; onDelete: () => void; onDiscard: () => void },
+  { entry, conflicts, onEdit, onDelete, onDiscard }: {
+    entry: LocalFoodEntry; conflicts: string[]; onEdit: () => void; onDelete: () => void; onDiscard: () => void;
+  },
 ) {
   const { colors } = useTheme();
   const statusColor = entry.status === 'synced' ? colors.success : entry.status === 'rejected' ? colors.danger : colors.warning;
@@ -167,6 +171,9 @@ function EntryRow(
     <View testID={`entry-${entry.id}`} style={styles.entry}>
       <Body style={styles.bold}>{`${entry.name} · ${entry.grams} g`}</Body>
       <Body>{`${entry.kcal} kcal · P ${grams(entry.proteinG)} · G ${grams(entry.fatG)} · C ${grams(entry.carbsG)}`}</Body>
+      {conflicts.length > 0 && (
+        <Body testID={`entry-allergen-${entry.id}`} style={{ color: colors.danger }}>{`⚠ Contiene ${conflicts.map(allergenLabel).join(', ')}`}</Body>
+      )}
       <Text style={{ color: statusColor }}>{STATUS_LABEL[entry.status]}</Text>
       {entry.message && <Muted>{entry.message}</Muted>}
       <View style={styles.row}>

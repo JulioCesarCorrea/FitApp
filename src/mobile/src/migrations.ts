@@ -1,6 +1,6 @@
 // Migraciones de fitness.db. Sin dependencias de React Native: se prueban en Node con una base simulada.
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** Lo mínimo que necesitamos de expo-sqlite para migrar. */
 export interface MigrationDb {
@@ -123,12 +123,15 @@ const V5_COLUMNS: [string, string][] = [
   ['reps_per_set', 'TEXT'],
 ];
 
-async function addMissingColumns(db: MigrationDb): Promise<void> {
-  for (const [name, definition] of V5_COLUMNS) {
+// SPEC-nutrition-003: alérgenos de cada alimento (lista JSON de etiquetas; '[]' = sin dato).
+const V7_COLUMNS: [string, string][] = [['allergens', "TEXT NOT NULL DEFAULT '[]'"]];
+
+async function addMissingColumns(db: MigrationDb, table: string, columns: [string, string][]): Promise<void> {
+  for (const [name, definition] of columns) {
     const found = await db.getFirstAsync<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM pragma_table_info('exercise_logs_local') WHERE name = '${name}'`,
+      `SELECT COUNT(*) AS n FROM pragma_table_info('${table}') WHERE name = '${name}'`,
     );
-    if (!found?.n) await db.execAsync(`ALTER TABLE exercise_logs_local ADD COLUMN ${name} ${definition}`);
+    if (!found?.n) await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
   }
 }
 
@@ -139,8 +142,9 @@ export async function migrate(db: MigrationDb): Promise<void> {
   if (current < 2) await db.execAsync(V2);
   if (current < 3) await db.execAsync(V3);
   if (current < 4) await db.execAsync(V4);
-  if (current < 5) await addMissingColumns(db);
+  if (current < 5) await addMissingColumns(db, 'exercise_logs_local', V5_COLUMNS);
   if (current < 6) await db.execAsync(V6);
+  if (current < 7) await addMissingColumns(db, 'foods_local', V7_COLUMNS);
 
   // Nunca se baja la versión: solo se sube cuando se aplicó algo.
   if (current < SCHEMA_VERSION) await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);

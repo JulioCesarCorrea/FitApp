@@ -1,3 +1,4 @@
+import { allergensFromOff } from './allergens';
 import type { ProductLookup, ProductLookupResult, ScannedProduct } from './types';
 
 export const OFF_BASE_URL = 'https://world.openfoodfacts.org';
@@ -11,6 +12,7 @@ interface OffResponse {
     product_name?: string;
     brands?: string;
     nutriments?: Record<string, unknown>;
+    allergens_tags?: unknown;
   };
 }
 
@@ -30,6 +32,10 @@ export function parseProduct(barcode: string, body: OffResponse): ProductLookupR
     proteinPer100g: num(n['proteins_100g']),
     fatPer100g: num(n['fat_100g']),
     carbsPer100g: num(n['carbohydrates_100g']),
+    // Sin el dato (campo ausente) queda null: la app lo muestra como «sin dato», nunca como «libre de alérgenos».
+    allergens: Array.isArray(body.product.allergens_tags)
+      ? allergensFromOff(body.product.allergens_tags.filter((t): t is string => typeof t === 'string'))
+      : null,
   };
   const complete = product.name !== null && [product.kcalPer100g, product.proteinPer100g, product.fatPer100g, product.carbsPer100g]
     .every((v) => v !== null);
@@ -50,7 +56,7 @@ export class OpenFoodFactsClient implements ProductLookup {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      const url = `${this.baseUrl}/api/v2/product/${encodeURIComponent(barcode)}?fields=code,product_name,brands,nutriments`;
+      const url = `${this.baseUrl}/api/v2/product/${encodeURIComponent(barcode)}?fields=code,product_name,brands,nutriments,allergens_tags`;
       const res = await this.fetchFn(url, {
         headers: { 'User-Agent': OFF_USER_AGENT, Accept: 'application/json' },
         signal: controller.signal,

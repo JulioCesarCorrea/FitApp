@@ -4,7 +4,7 @@ import { createDeps } from '../src/data/deps';
 import { portionOf } from '../src/data/nutritionRules';
 import { localDate } from '../src/data/nutritionService';
 import type { ServerFood, ServerFoodEntry } from '../src/data/types';
-import { createFakes } from './support';
+import { createFakes, PROFILE_DATA } from './support';
 
 // La app real abre SQLite, la cámara y la API por HTTP; en estas pruebas se sustituyen por versiones en memoria.
 jest.mock('../src/data/deps', () => ({ createDeps: jest.fn() }));
@@ -28,7 +28,7 @@ jest.setTimeout(20000);
 
 const TODAY = localDate();
 const OATS: ServerFood = {
-  id: 'f-oats', name: 'Avena', brand: null, barcode: null, kcalPer100g: 389, proteinPer100g: 16.9, fatPer100g: 6.9, carbsPer100g: 66.3, source: 'manual',
+  id: 'f-oats', name: 'Avena', brand: null, barcode: null, kcalPer100g: 389, proteinPer100g: 16.9, fatPer100g: 6.9, carbsPer100g: 66.3, source: 'manual', allergens: [],
 };
 
 const entry = (id: string, meal: string, grams: number, food = OATS): ServerFoodEntry => ({
@@ -129,7 +129,7 @@ describe('Pestaña Nutrición (SPEC-nutrition-001)', () => {
   it('AC-nutrition-001-17: al escanear consulta Open Food Facts, rellena el formulario y la persona lo confirma antes de guardar', async () => {
     fakes.products.result = {
       kind: 'found',
-      product: { barcode: '3017624010701', name: 'Nutella', brand: 'Ferrero', kcalPer100g: 539, proteinPer100g: 6.3, fatPer100g: 30.9, carbsPer100g: 57.5 },
+      product: { barcode: '3017624010701', name: 'Nutella', brand: 'Ferrero', kcalPer100g: 539, proteinPer100g: 6.3, fatPer100g: 30.9, carbsPer100g: 57.5, allergens: ['frutos_secos', 'leche'] },
     };
     await openNutrition();
     await press(await screen.findByTestId('add-food'));
@@ -171,7 +171,7 @@ describe('Pestaña Nutrición (SPEC-nutrition-001)', () => {
   it('AC-nutrition-001-17: un producto incompleto rellena lo que hay y pide completar el resto', async () => {
     fakes.products.result = {
       kind: 'incomplete',
-      product: { barcode: '3017624010701', name: 'Galletas', brand: null, kcalPer100g: 480, proteinPer100g: null, fatPer100g: null, carbsPer100g: null },
+      product: { barcode: '3017624010701', name: 'Galletas', brand: null, kcalPer100g: 480, proteinPer100g: null, fatPer100g: null, carbsPer100g: null, allergens: null },
     };
     await openNutrition();
     await press(await screen.findByTestId('add-food'));
@@ -316,6 +316,93 @@ describe('Objetivo ajustado a mano (SPEC-nutrition-002)', () => {
 
     expect(await screen.findByTestId('nutrition-missing')).toBeOnTheScreen();
     expect(screen.queryByTestId('override-edit')).not.toBeOnTheScreen();
+  });
+});
+
+describe('Alérgenos (SPEC-nutrition-003)', () => {
+  const YOGURT: ServerFood = {
+    id: 'f-yogurt', name: 'Yogur', brand: null, barcode: null, kcalPer100g: 60, proteinPer100g: 4, fatPer100g: 3, carbsPer100g: 5, source: 'manual',
+    allergens: ['leche'],
+  };
+
+  const withMilkAllergy = async () => {
+    await fakes.store.saveProfile({ ...PROFILE_DATA, allergies: ['Intolerancia a la lactosa'] });
+  };
+
+  it('AC-nutrition-003-05 y 06: al registrar un alimento que choca avisa, deja cancelar o registrar igualmente, y el día lo marca', async () => {
+    await withMilkAllergy();
+    fakes.remote.serverFoods = [YOGURT];
+    await openNutrition();
+    await press(await screen.findByTestId('add-food'));
+    expect(await screen.findByTestId('allergen-flag-f-yogurt')).toHaveTextContent(has('Contiene Leche'));
+    await press(await screen.findByTestId('food-f-yogurt'));
+    expect(await screen.findByTestId('allergen-warning')).toHaveTextContent(has('contiene Leche'));
+    await type('Cantidad en gramos', '125');
+
+    await press(screen.getByTestId('save-entry')); // primer toque: solo avisa
+    expect(await screen.findByText('Registrar igualmente')).toBeOnTheScreen();
+    expect(await fakes.store.getFoodEntries(TODAY)).toEqual([]);
+    await press(screen.getByTestId('save-entry')); // segundo toque: la persona acepta
+
+    expect(await screen.findByTestId('meal-desayuno')).toHaveTextContent(has('Yogur · 125 g'));
+    const [saved] = await fakes.store.getFoodEntries(TODAY);
+    expect(await screen.findByTestId(`entry-allergen-${saved.id}`)).toHaveTextContent(has('Contiene Leche'));
+  });
+
+  it('AC-nutrition-003-05: un alimento sin coincidencia se registra sin aviso', async () => {
+    await withMilkAllergy();
+    fakes.remote.serverFoods = [OATS];
+    await openNutrition();
+    await press(await screen.findByTestId('add-food'));
+    await press(await screen.findByTestId('food-f-oats'));
+    await type('Cantidad en gramos', '50');
+
+    await press(screen.getByTestId('save-entry'));
+
+    expect(await screen.findByTestId('meal-desayuno')).toHaveTextContent(has('Avena · 50 g'));
+    expect(screen.queryByTestId('allergen-warning')).not.toBeOnTheScreen();
+  });
+
+  it('AC-nutrition-003-06: un alimento sin etiquetas se muestra «sin dato de alérgenos»', async () => {
+    fakes.remote.serverFoods = [OATS];
+    await openNutrition();
+    await press(await screen.findByTestId('add-food'));
+
+    await press(await screen.findByTestId('food-f-oats'));
+
+    expect(await screen.findByTestId('selected-allergens')).toHaveTextContent('Sin dato de alérgenos.');
+  });
+
+  it('AC-nutrition-003-03: al escanear rellena los alérgenos de Open Food Facts para que la persona los confirme o corrija', async () => {
+    fakes.products.result = {
+      kind: 'found',
+      product: { barcode: '3017624010701', name: 'Nutella', brand: 'Ferrero', kcalPer100g: 539, proteinPer100g: 6.3, fatPer100g: 30.9, carbsPer100g: 57.5, allergens: ['frutos_secos', 'leche'] },
+    };
+    await openNutrition();
+    await press(await screen.findByTestId('add-food'));
+    await press(await screen.findByTestId('scan-food'));
+    await press(await screen.findByTestId('fake-scan'));
+    await waitFor(() => expect(screen.getByLabelText('Nombre del alimento').props.value).toBe('Nutella'));
+    expect(screen.getByTestId('allergen-leche').props.accessibilityState.selected).toBe(true);
+    expect(screen.getByTestId('allergen-gluten').props.accessibilityState.selected).toBe(false);
+
+    await press(screen.getByTestId('allergen-gluten')); // la persona corrige según la etiqueta
+    await press(screen.getByTestId('save-food'));
+
+    expect((await fakes.store.getFoods())[0].allergens).toEqual(['gluten', 'leche', 'frutos_secos']);
+  });
+
+  it('AC-nutrition-003-03: un producto sin el dato de alérgenos no se presenta como «libre de»', async () => {
+    fakes.products.result = {
+      kind: 'found',
+      product: { barcode: '3017624010701', name: 'Galletas', brand: null, kcalPer100g: 480, proteinPer100g: 6, fatPer100g: 20, carbsPer100g: 65, allergens: null },
+    };
+    await openNutrition();
+    await press(await screen.findByTestId('add-food'));
+    await press(await screen.findByTestId('scan-food'));
+    await press(await screen.findByTestId('fake-scan'));
+
+    expect(await screen.findByTestId('allergen-help')).toHaveTextContent(has('sin dato no significa que no tenga'));
   });
 });
 

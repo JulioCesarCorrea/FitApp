@@ -5,6 +5,7 @@ import { BarcodeScanner } from '../../components/BarcodeScanner';
 import { Chips } from '../../components/Chips';
 import { Body, Button, Field, Muted, Title } from '../../components/ui';
 import { useDeps } from '../../data/DataContext';
+import { ALLERGENS, allergenLabel, allergensFromOff } from '../../data/allergens';
 import { FIXED_MEALS } from '../../data/nutritionRules';
 import { localDate, type FoodIssue, type RawFoodInput } from '../../data/nutritionService';
 import type { LocalFood, ScannedProduct } from '../../data/types';
@@ -16,13 +17,18 @@ const MEAL_OPTIONS = [
   { value: OTHER, label: 'Otra' },
 ];
 
-const EMPTY_FOOD: RawFoodInput = { name: '', brand: '', barcode: '', kcal: '', protein: '', fat: '', carbs: '', source: 'manual' };
+const EMPTY_FOOD: RawFoodInput = {
+  name: '', brand: '', barcode: '', kcal: '', protein: '', fat: '', carbs: '', source: 'manual', allergens: [],
+};
+
+const ALLERGEN_OPTIONS = ALLERGENS.map((a) => ({ value: a.tag, label: a.label }));
+const labels = (tags: string[]): string => tags.map(allergenLabel).join(', ');
 
 const text = (n: number | null): string => (n === null ? '' : String(n).replace('.', ','));
 
 const fromProduct = (p: ScannedProduct): RawFoodInput => ({
   name: p.name ?? '', brand: p.brand ?? '', barcode: p.barcode, kcal: text(p.kcalPer100g), protein: text(p.proteinPer100g),
-  fat: text(p.fatPer100g), carbs: text(p.carbsPer100g), source: 'openfoodfacts',
+  fat: text(p.fatPer100g), carbs: text(p.carbsPer100g), source: 'openfoodfacts', allergens: p.allergens ?? [],
 });
 
 /**
@@ -46,7 +52,23 @@ export default function AddFoodScreen() {
   const [foodIssues, setFoodIssues] = useState<FoodIssue[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
+  // SPEC-nutrition-003: alérgenos del alimento elegido que chocan con las alergias del perfil, y si la persona ya los aceptó.
+  const [conflicts, setConflicts] = useState<string[]>([]);
+  const [confirmed, setConfirmed] = useState(false);
+  const [offHadAllergens, setOffHadAllergens] = useState(false);
   const [editing, setEditing] = useState<{ name: string; foodId: string | null; date: string } | null>(null);
+
+  const [listConflicts, setListConflicts] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    void Promise.all(foods.map(async (f) => [f.id, await nutrition.foodConflicts(f)] as const))
+      .then((pairs) => setListConflicts(Object.fromEntries(pairs)));
+  }, [nutrition, foods]);
+
+  useEffect(() => {
+    setConfirmed(false);
+    if (!selected) { setConflicts([]); return; }
+    void nutrition.foodConflicts(selected).then(setConflicts);
+  }, [nutrition, selected]);
 
   const reloadFoods = useCallback(async () => setFoods(await nutrition.searchFoods(query)), [nutrition, query]);
   useEffect(() => { void reloadFoods(); }, [reloadFoods]);
@@ -79,12 +101,15 @@ export default function AddFoodScreen() {
     const result = await products.lookup(code);
     if (result.kind === 'found') {
       setDraft(fromProduct(result.product));
+      setOffHadAllergens(result.product.allergens !== null);
       setNotice('Valores de Open Food Facts: revísalos antes de guardar.');
     } else if (result.kind === 'incomplete') {
       setDraft(fromProduct(result.product));
+      setOffHadAllergens(result.product.allergens !== null);
       setNotice('Open Food Facts no tiene todos los datos de este producto: complétalos.');
     } else {
       setDraft({ ...EMPTY_FOOD, barcode: code });
+      setOffHadAllergens(false);
       setNotice(result.kind === 'notFound' ? 'No encuentro ese producto: escribe sus valores.' : 'Sin conexión: escribe los valores del producto.');
     }
     setFoodIssues([]);
@@ -108,7 +133,17 @@ export default function AddFoodScreen() {
     await reloadFoods();
   };
 
+  const toggleAllergen = (tag: string) => setDraft((d) => ({
+    ...d, allergens: d.allergens?.includes(tag) ? d.allergens.filter((x) => x !== tag) : [...(d.allergens ?? []), tag],
+  }));
+
   const saveEntry = async () => {
+    // AC-nutrition-003-05: con una coincidencia se avisa y la persona decide; el aviso no bloquea.
+    if (!editing && conflicts.length > 0 && !confirmed) {
+      setProblems([]);
+      setConfirmed(true);
+      return;
+    }
     const foodId = editing ? editing.foodId : selected?.id;
     const result = await nutrition.saveEntry(
       { date: editing?.date ?? localDate(), meal, grams, foodId: foodId ?? '' }, entryId,
@@ -138,6 +173,15 @@ export default function AddFoodScreen() {
             <View style={[styles.card, { borderColor: colors.primary, backgroundColor: colors.surface }]} testID="selected-food">
               <Body style={styles.bold}>{selected.name}</Body>
               <Muted>{`${text(selected.kcalPer100g)} kcal por 100 g`}</Muted>
+              <Muted testID="selected-allergens">
+                {selected.allergens.length > 0 ? `Alérgenos declarados: ${labels(selected.allergens)}.` : 'Sin dato de alérgenos.'}
+              </Muted>
+            </View>
+          )}
+          {selected && conflicts.length > 0 && (
+            <View testID="allergen-warning" style={[styles.card, { borderColor: colors.danger }]}>
+              <Body style={{ color: colors.danger, fontWeight: '700' }}>{`Ojo: contiene ${labels(conflicts)}, que figura en tus alergias.`}</Body>
+              <Muted>Es orientativo: revisa siempre el etiquetado del producto.</Muted>
             </View>
           )}
           {notice && <Body testID="food-notice" style={{ color: colors.warning }}>{notice}</Body>}
@@ -153,6 +197,13 @@ export default function AddFoodScreen() {
               <Field label="Proteína por 100 g" value={draft.protein} onChangeText={setField('protein')} keyboardType="decimal-pad" />
               <Field label="Grasa por 100 g" value={draft.fat} onChangeText={setField('fat')} keyboardType="decimal-pad" />
               <Field label="Carbohidratos por 100 g" value={draft.carbs} onChangeText={setField('carbs')} keyboardType="decimal-pad" />
+              <Muted>Alérgenos del alimento (opcional)</Muted>
+              <Chips options={ALLERGEN_OPTIONS} selected={draft.allergens ?? []} onToggle={toggleAllergen} testIDPrefix="allergen" showHint={false} />
+              <Muted testID="allergen-help">
+                {draft.source === 'openfoodfacts' && !offHadAllergens
+                  ? 'Open Food Facts no trae alérgenos de este producto: sin dato no significa que no tenga. Revisa la etiqueta.'
+                  : 'Márcalos según la etiqueta. Si no marcas ninguno, el alimento queda «sin dato», no «sin alérgenos».'}
+              </Muted>
               {foodIssues.length > 0 && (
                 <View testID="food-issues" style={styles.issues}>
                   {foodIssues.map((i) => (
@@ -179,6 +230,9 @@ export default function AddFoodScreen() {
                 >
                   <Text style={{ color: colors.text, fontWeight: '600' }}>{f.name}</Text>
                   <Muted>{`${f.brand ? `${f.brand} · ` : ''}${text(f.kcalPer100g)} kcal por 100 g`}</Muted>
+                  {(listConflicts[f.id]?.length ?? 0) > 0 && (
+                    <Body testID={`allergen-flag-${f.id}`} style={{ color: colors.danger }}>{`⚠ Contiene ${labels(listConflicts[f.id])}`}</Body>
+                  )}
                 </Pressable>
               ))}
               {foods.length === 0 && <Muted>Aún no tienes alimentos con ese nombre.</Muted>}
@@ -203,7 +257,7 @@ export default function AddFoodScreen() {
             </View>
           )}
           <Button
-            title={chosenLabel ? `Guardar ${chosenLabel}` : 'Guardar'}
+            title={confirmed && conflicts.length > 0 ? 'Registrar igualmente' : chosenLabel ? `Guardar ${chosenLabel}` : 'Guardar'}
             testID="save-entry"
             onPress={() => void saveEntry()}
           />

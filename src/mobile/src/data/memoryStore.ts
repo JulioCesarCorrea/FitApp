@@ -134,7 +134,7 @@ export class MemoryStore implements LocalStore {
     for (const [id, f] of this.foods) if (f.pendingOp === null && f.status === 'synced') this.foods.delete(id);
     for (const f of foods) {
       if (this.foods.get(f.id)?.pendingOp) continue; // lo que espera envío manda sobre el servidor
-      this.foods.set(f.id, { ...f, status: 'synced', message: null, pendingOp: null, attempted: true });
+      this.foods.set(f.id, { ...f, allergens: f.allergens ?? [], status: 'synced', message: null, pendingOp: null, attempted: true });
     }
   }
 
