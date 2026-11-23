@@ -57,7 +57,7 @@ describe('migraciones de fitness.db (SPEC-mobile-002 y SPEC-mobile-003)', () => 
     await migrate(db);
 
     expect([...state.tables].sort()).toEqual([
-      'catalog_cache', 'equipment_local', 'exercise_logs_local', 'food_entries_local', 'foods_local', 'plan_day_state',
+      'catalog_cache', 'chat_conversations_local', 'chat_messages_local', 'equipment_local', 'exercise_logs_local', 'food_entries_local', 'foods_local', 'plan_day_state',
       'plan_entries_local', 'profile_local', 'recipes_local', 'settings', 'water_local', 'weight_queue',
     ]);
     expect(state.version).toBe(SCHEMA_VERSION);
@@ -223,5 +223,24 @@ describe('recetas (SPEC-nutrition-005)', () => {
     await expect(migrate(db)).resolves.toBeUndefined();
 
     expect(state.version).toBe(SCHEMA_VERSION);
+  });
+});
+
+describe('preguntas a la IA (SPEC-ai-004)', () => {
+  it('AC-ai-004-15 base con las recetas (versión 9): añade las tablas del chat sin perder datos', async () => {
+    const { db, state } = fakeDb(9, ['foods_local', 'food_entries_local', 'water_local', 'recipes_local'], ['recipe_id', 'servings', 'allergens']);
+
+    await migrate(db);
+
+    expect(state.tables.has('chat_conversations_local')).toBe(true);
+    expect(state.tables.has('chat_messages_local')).toBe(true);
+    expect(state.executed.some((sql) => /DROP|DELETE|UPDATE/i.test(sql))).toBe(false);
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+
+  it('AC-ai-004-15 con las tablas ya creadas (una rama antigua bajó la versión): no falla', async () => {
+    const { db } = fakeDb(9, ['chat_conversations_local', 'chat_messages_local', 'recipes_local'], ['recipe_id', 'servings']);
+
+    await expect(migrate(db)).resolves.toBeUndefined();
   });
 });

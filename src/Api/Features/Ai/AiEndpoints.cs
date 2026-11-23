@@ -84,6 +84,38 @@ public static class AiEndpoints
             return Results.NoContent();
         });
 
+        // SPEC-ai-004: preguntas en streaming. Los errores previos (consentimiento, límites, validación) son respuestas normales; después, eventos.
+        app.MapPost("/ai/chat", async (ChatRequest request, HttpContext http, ICurrentUser user, ChatHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+            if (!ChatHandler.TryBegin(userId)) return AiResults.RateLimited(TimeSpan.FromSeconds(30));
+            try
+            {
+                switch (await handler.PrepareAsync(userId, request, ct))
+                {
+                    case ChatPrepared.Invalid invalid:
+                        return Results.ValidationProblem(new Dictionary<string, string[]> { ["text"] = [invalid.Message] });
+                    case ChatPrepared.Emergency emergency:
+                        return Results.Ok(new { emergency = true, category = emergency.Category, text = emergency.Text });
+                    case ChatPrepared.Denied denied:
+                        return AiResults.Denied(denied.Reason, denied.RetryAfter);
+                    case ChatPrepared.RateLimited limited:
+                        return AiResults.RateLimited(limited.RetryAfter);
+                    case ChatPrepared.Ready ready:
+                        http.Response.ContentType = "text/event-stream";
+                        http.Response.Headers.CacheControl = "no-cache";
+                        await handler.StreamAsync(ready, http.Response.Body, ct);
+                        return Results.Empty;
+                    default:
+                        return Results.StatusCode(500);
+                }
+            }
+            finally
+            {
+                ChatHandler.End(userId);
+            }
+        });
+
         app.MapPost("/ai/analysis", async (AnalysisRequest request, ICurrentUser user, AiAssistantHandler handler, CancellationToken ct) =>
         {
             if (user.Id is not { } userId) return Results.Unauthorized();
@@ -136,6 +168,10 @@ public static class AiResults
         AiDenial.ProviderQuota => Problem(StatusCodes.Status429TooManyRequests, "provider_quota", "El servicio de IA no admite más peticiones ahora mismo.", retryAfter ?? TimeSpan.FromSeconds(60)),
         _ => Problem(StatusCodes.Status503ServiceUnavailable, "ai_disabled", "La IA no está disponible ahora mismo."),
     };
+
+    /// <summary>AC-ai-004-13: demasiadas preguntas o ya hay una respuesta en curso (429 rate_limited).</summary>
+    public static IResult RateLimited(TimeSpan retryAfter) =>
+        Problem(StatusCodes.Status429TooManyRequests, "rate_limited", "Has hecho demasiadas preguntas seguidas. Espera un poco antes de la siguiente.", retryAfter);
 
     public static IResult Failed(string message) => Problem(StatusCodes.Status502BadGateway, "provider_error", message);
 

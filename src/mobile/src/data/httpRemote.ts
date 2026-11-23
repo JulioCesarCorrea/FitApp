@@ -1,8 +1,9 @@
 import { reasonFrom } from '../api';
 import { authedFetch, type Authorizer } from './authedFetch';
 import type {
-  AiApi, AiAssistantApi, AiFeatureState, AiResult, AiUsage, Analysis, Proposal, ProposalResult,
+  AiApi, AiAssistantApi, AiFeatureState, AiResult, AiUsage, Analysis, ChatApi, ChatEvent, ChatOutcome, Proposal, ProposalResult,
 } from './aiService';
+import { parseSse } from './sse';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
   AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerNutritionHistory, ServerRecipe, ServerTrainingWeek, ServerWater,
@@ -10,7 +11,7 @@ import type {
 } from './types';
 
 /** Cliente HTTP de la API (SPEC-training-002). Traduce las respuestas al contrato de RemoteApi. */
-export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi {
+export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi {
   constructor(
     private readonly auth: Authorizer,
     private readonly baseUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL,
@@ -125,6 +126,55 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiAp
 
   resolveProposal(id: string, action: 'accept' | 'reject'): Promise<AiResult<ProposalResult>> {
     return this.aiCall('POST', `/ai/proposals/${encodeURIComponent(id)}/${action}`);
+  }
+
+  /**
+   * SPEC-ai-004: pregunta a la IA con la respuesta en streaming. Los fragmentos llegan como eventos; con `expo/fetch` (el `fetch` global en
+   * Android e iOS) el cuerpo se lee a medida que llega. Si el entorno no entrega el cuerpo por partes, se lee entero y se procesa igual.
+   */
+  async chat(
+    request: { text: string; history: { role: 'user' | 'assistant'; text: string }[]; useMyData: boolean },
+    onEvent: (event: ChatEvent) => void,
+    shouldStop: () => boolean,
+  ): Promise<ChatOutcome> {
+    if (!this.baseUrl) return { kind: 'offline' };
+    const res = await authedFetch(this.auth, `${this.baseUrl}/ai/chat`, {
+      method: 'POST', body: JSON.stringify(request), timeoutMs: 20000, headers: { Accept: 'text/event-stream' },
+    });
+    if (!res) return { kind: 'offline' };
+
+    if (!res.ok) {
+      const problem = (await res.json().catch(() => null)) as { code?: string; title?: string; retryAfterSeconds?: number | null; errors?: Record<string, string[]> } | null;
+      const detail = problem?.errors ? Object.values(problem.errors).flat()[0] : undefined;
+      return { kind: 'error', code: problem?.code ?? `http_${res.status}`, message: detail ?? problem?.title ?? 'La IA no respondió.', retryAfterSeconds: problem?.retryAfterSeconds ?? null };
+    }
+
+    if ((res.headers.get('content-type') ?? '').includes('application/json')) {
+      const body = (await res.json()) as { category: string; text: string };
+      return { kind: 'emergency', category: body.category, text: body.text };
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) {
+      for (const event of parseSse(`${await res.text()}\n\n`).events) onEvent(event);
+      return { kind: 'stream' };
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      if (shouldStop()) {
+        await reader.cancel().catch(() => {});
+        break;
+      }
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parsed = parseSse(buffer);
+      buffer = parsed.rest;
+      for (const event of parsed.events) onEvent(event);
+    }
+    return { kind: 'stream' };
   }
 
   async fetchTrainingWeekly(weeks: number): Promise<ServerTrainingWeek[] | null> {

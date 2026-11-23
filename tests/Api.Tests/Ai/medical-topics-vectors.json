@@ -1,0 +1,101 @@
+{
+  "descripcion": "Vectores del clasificador médico (SPEC-ai-004). «expected» es la categoría principal o null. Cualquier cambio de la lista se hace aquí primero.",
+  "cases": [
+    {
+      "text": "dolor muscular después de entrenar es normal",
+      "expected": null
+    },
+    {
+      "text": "tengo agujetas en las piernas",
+      "expected": null
+    },
+    {
+      "text": "¿Cuántas series hago de press de banca?",
+      "expected": null
+    },
+    {
+      "text": "¿qué como antes de entrenar?",
+      "expected": null
+    },
+    {
+      "text": "me duele la rodilla al hacer sentadillas",
+      "expected": "dolor_lesion"
+    },
+    {
+      "text": "creo que tengo una hernia",
+      "expected": "dolor_lesion"
+    },
+    {
+      "text": "estoy lesionado del hombro",
+      "expected": "dolor_lesion"
+    },
+    {
+      "text": "me duele el pecho y me falta el aire",
+      "expected": "emergencia"
+    },
+    {
+      "text": "tengo dolor de pecho y falta de aire cuando corro",
+      "expected": "emergencia"
+    },
+    {
+      "text": "no puedo respirar bien",
+      "expected": "emergencia"
+    },
+    {
+      "text": "a veces pienso que me quiero morir",
+      "expected": "emergencia"
+    },
+    {
+      "text": "me desmayé en el gimnasio",
+      "expected": "emergencia"
+    },
+    {
+      "text": "¿cuántos kilos puedo perder en una semana? quiero perder peso rápido",
+      "expected": "perdida_peso_rapida"
+    },
+    {
+      "text": "quiero hacer una dieta de 800 calorías",
+      "expected": "perdida_peso_rapida"
+    },
+    {
+      "text": "creo que tengo bulimia",
+      "expected": "trastornos_alimentarios"
+    },
+    {
+      "text": "quiero dejar de comer para adelgazar",
+      "expected": "trastornos_alimentarios"
+    },
+    {
+      "text": "¿qué dosis de insulina me pongo?",
+      "expected": "medicacion"
+    },
+    {
+      "text": "tomo metformina y quiero entrenar",
+      "expected": "medicacion"
+    },
+    {
+      "text": "soy diabético, ¿puedo hacer ayuno?",
+      "expected": "condiciones"
+    },
+    {
+      "text": "estoy embarazada, ¿qué ejercicios puedo hacer?",
+      "expected": "condiciones"
+    },
+    {
+      "text": "tengo asma y corro",
+      "expected": "condiciones"
+    },
+    {
+      "text": "¿la creatina es segura?",
+      "expected": null
+    },
+    {
+      "text": "¿cuánta proteína al día?",
+      "expected": null
+    },
+    {
+      "text": "ESTOY LESIONADO",
+      "expected": "dolor_lesion"
+    }
+  ]
+}

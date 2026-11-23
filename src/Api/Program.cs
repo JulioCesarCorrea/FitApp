@@ -138,6 +138,7 @@ builder.Services.AddScoped<IAiProvider>(sp => sp.GetRequiredService<GroqProvider
 builder.Services.AddScoped<AiGateway>();
 builder.Services.AddScoped<AiAccountHandler>();
 builder.Services.AddScoped<AiAssistantHandler>();
+builder.Services.AddScoped<ChatHandler>();
 
 var app = builder.Build();
 

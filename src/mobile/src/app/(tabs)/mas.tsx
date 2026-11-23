@@ -44,6 +44,7 @@ export default function MoreScreen() {
           <Button title="Análisis y planes" variant="secondary" testID="go-assistant" onPress={() => router.push('/assistant')} />
         </View>
       </View>
+      <Button title="Preguntas a la IA" variant="secondary" testID="go-chat" onPress={() => router.push('/chat')} />
 
       <Title>Recordatorios</Title>
       <Muted>Avisos en este teléfono para entrenar, registrar comidas y pesarte.</Muted>

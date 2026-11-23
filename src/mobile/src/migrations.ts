@@ -1,6 +1,6 @@
 // Migraciones de fitness.db. Sin dependencias de React Native: se prueban en Node con una base simulada.
 
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /** Lo mínimo que necesitamos de expo-sqlite para migrar. */
 export interface MigrationDb {
@@ -157,6 +157,26 @@ const V9 = `
   );
 `;
 
+// SPEC-ai-004: conversaciones de las preguntas a la IA, solo en el teléfono.
+const V10 = `
+  CREATE TABLE IF NOT EXISTS chat_conversations_local (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    last_activity TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS chat_messages_local (
+    id TEXT PRIMARY KEY NOT NULL,
+    conversation_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    complete INTEGER NOT NULL,
+    notice TEXT,
+    kind TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_chat_messages_local_conversation ON chat_messages_local (conversation_id, created_at);
+`;
+
 async function addMissingColumns(db: MigrationDb, table: string, columns: [string, string][]): Promise<void> {
   for (const [name, definition] of columns) {
     const found = await db.getFirstAsync<{ n: number }>(
@@ -185,6 +205,7 @@ export async function migrate(db: MigrationDb): Promise<void> {
     await addMissingColumns(db, 'food_entries_local', V9_ENTRY_COLUMNS);
     await db.execAsync(V9);
   }
+  if (current < 10) await db.execAsync(V10);
 
   // Nunca se baja la versión: solo se sube cuando se aplicó algo.
   if (current < SCHEMA_VERSION) await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);

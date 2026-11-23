@@ -1,8 +1,9 @@
 import { AuthService, MemoryTokenStore, type AuthRemote, type AuthResult, type StoredSession } from '../src/data/authService';
 import {
-  AiAssistantService, AiService, type AiApi, type AiAssistantApi, type AiFeatureState, type AiResult, type AiUsage, type Analysis, type Proposal,
+  AiAssistantService, AiService, type AiApi, type AiAssistantApi, type ChatApi, type ChatEvent, type ChatOutcome, type AiFeatureState, type AiResult, type AiUsage, type Analysis, type Proposal,
   type ProposalResult,
 } from '../src/data/aiService';
+import { ChatService } from '../src/data/chatService';
 import { MemoryScheduler } from '../src/data/memoryScheduler';
 import { MemoryStore } from '../src/data/memoryStore';
 import { ReminderService } from '../src/data/reminderService';
@@ -49,7 +50,7 @@ export const TARGETS: TargetsResponse = {
   },
 };
 
-export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi {
+export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi {
   online: boolean;
   /** Nutrición: lo que «tiene el servidor» y cómo responde. */
   serverFoods: ServerFood[];
@@ -70,6 +71,10 @@ export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi, AiA
   planResult: AiResult<Proposal> | null;
   resolveResult: AiResult<ProposalResult> | null;
   serverProposals: Proposal[];
+  /** SPEC-ai-004: eventos que entrega el chat, lo que termina devolviendo (por defecto el flujo) y las peticiones recibidas. */
+  chatEvents: ChatEvent[];
+  chatOutcome: ChatOutcome | null;
+  chatRequests: { text: string; history: { role: string; text: string }[]; useMyData: boolean }[];
   resolved: { id: string; action: string }[];
   /** SPEC-nutrition-002: ajustes recibidos y borrados del ajuste. */
   overridePuts: number[];
@@ -190,6 +195,9 @@ export function createFakes(
     planResult: null,
     resolveResult: null,
     serverProposals: [],
+    chatEvents: [],
+    chatOutcome: null,
+    chatRequests: [],
     resolved: [],
     serverAi: {
       features: [
@@ -290,6 +298,16 @@ export function createFakes(
       remote.serverEntries = remote.serverEntries.filter((e) => e.id !== id);
       return 'ok';
     },
+    chat: async (request, onEvent, shouldStop) => {
+      if (!remote.online) return { kind: 'offline' };
+      remote.chatRequests.push(request);
+      if (remote.chatOutcome && remote.chatOutcome.kind !== 'stream') return remote.chatOutcome;
+      for (const event of remote.chatEvents) {
+        if (shouldStop()) break;
+        onEvent(event);
+      }
+      return { kind: 'stream' };
+    },
     requestAnalysis: async () => (remote.online ? remote.analysisResult ?? { kind: 'error', code: 'ai_disabled', message: 'x', retryAfterSeconds: null } : { kind: 'offline' }),
     requestPlan: async () => {
       if (!remote.online) return { kind: 'offline' };
@@ -386,6 +404,7 @@ export function createFakes(
   const nutrition = new NutritionService(store, remote, () => `food-${++n}`);
   const ai = new AiService(remote);
   const assistant = new AiAssistantService(remote);
+  const chat = new ChatService(store, remote, () => `chat-${++n}`);
   const reminders = new ReminderService(store, scheduler, () => weights.list(), () => true, () => new Date(2026, 10, 12, 10, 0, 0));
   const products: ProductLookup & { result: ProductLookupResult; lookups: string[] } = {
     result: { kind: 'notFound' },
@@ -409,6 +428,6 @@ export function createFakes(
   }
   return {
     store, remote, service, sessions, auth, authRemote, tokens, profile, restrictions, suggestions, nutrition, products, weights, reminders, scheduler, weightsAdded, seedServer,
-    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, ai, assistant, reminders, products },
+    deps: { store, remote, service, sessions, auth, profile, restrictions, suggestions, nutrition, weights, ai, assistant, chat, reminders, products },
   };
 }

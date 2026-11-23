@@ -195,3 +195,93 @@ describe('Análisis y planes con IA (SPEC-ai-002)', () => {
     expect(await screen.findByTestId('assistant-message')).toHaveTextContent(/Reintenta en 60 s/);
   });
 });
+
+describe('Preguntas a la IA (SPEC-ai-004)', () => {
+  const stream = (...parts: string[]) => [
+    { type: 'meta' as const, medical: false, category: null, notice: null },
+    ...parts.map((text) => ({ type: 'delta' as const, text })),
+    { type: 'done' as const, usage: { promptTokens: 10, completionTokens: 5 } },
+  ];
+
+  it('AC-ai-004-18: pregunta, ve la respuesta, el aviso permanente y lo que ocupa lo guardado', async () => {
+    fakes.remote.chatEvents = stream('Come algo ', 'ligero.');
+    await openApp('/chat');
+    expect(await screen.findByTestId('chat-disclaimer')).toHaveTextContent(/no sustituyen a un profesional de la salud/);
+
+    await type('Tu pregunta', '¿Qué como antes de entrenar?');
+    await press(screen.getByTestId('chat-send'));
+
+    expect(await screen.findByText('Come algo ligero.')).toBeOnTheScreen();
+    expect(screen.getAllByText('¿Qué como antes de entrenar?').length).toBeGreaterThan(0); // la pregunta y el título de la conversación
+    await waitFor(() => expect(screen.getByTestId('chat-storage')).toHaveTextContent(/1 conversaciones, 2 mensajes/));
+    expect(fakes.remote.chatRequests[0]).toMatchObject({ text: '¿Qué como antes de entrenar?', useMyData: false, history: [] });
+  });
+
+  it('AC-ai-004-03: el interruptor «usar mis datos» se envía con la pregunta', async () => {
+    fakes.remote.chatEvents = stream('Ok');
+    await openApp('/chat');
+    await press(await screen.findByTestId('use-data-data'));
+
+    await type('Tu pregunta', '¿Cómo voy?');
+    await press(screen.getByTestId('chat-send'));
+
+    await screen.findByText('Ok');
+    expect(fakes.remote.chatRequests[0].useMyData).toBe(true);
+  });
+
+  it('AC-ai-004-05: una pregunta médica muestra el aviso fijo bajo la respuesta', async () => {
+    fakes.remote.chatEvents = [
+      { type: 'meta', medical: true, category: 'dolor_lesion', notice: 'Consulta a un profesional sanitario antes de seguir.' },
+      { type: 'delta', text: 'Descansa unos días.' },
+      { type: 'done', usage: { promptTokens: 1, completionTokens: 1 } },
+    ];
+    await openApp('/chat');
+
+    await type('Tu pregunta', 'Me duele la rodilla');
+    await press(screen.getByTestId('chat-send'));
+
+    expect(await screen.findByText('Consulta a un profesional sanitario antes de seguir.')).toBeOnTheScreen();
+  });
+
+  it('AC-ai-004-06: una emergencia muestra el texto fijo sin pasar por la IA', async () => {
+    fakes.remote.chatOutcome = { kind: 'emergency', category: 'emergencia', text: 'Acude ya a los servicios de emergencia de tu país.' };
+    await openApp('/chat');
+
+    await type('Tu pregunta', 'Me falta el aire');
+    await press(screen.getByTestId('chat-send'));
+
+    expect(await screen.findByText('Acude ya a los servicios de emergencia de tu país.')).toBeOnTheScreen();
+  });
+
+  it('AC-ai-004-18: sin conexión lo avisa, conserva la pregunta y el resto de la app sigue funcionando', async () => {
+    fakes.remote.online = false;
+    await openApp('/chat');
+
+    await type('Tu pregunta', 'Hola');
+    await press(screen.getByTestId('chat-send'));
+
+    expect(await screen.findByTestId('chat-message')).toHaveTextContent(/necesita conexión/);
+    expect(screen.getAllByText('Hola').length).toBeGreaterThan(0);
+  });
+
+  it('AC-ai-004-15 y 16: se pueden borrar una conversación y todo lo guardado', async () => {
+    fakes.remote.chatEvents = stream('Ok');
+    await openApp('/chat');
+    await type('Tu pregunta', 'Una pregunta');
+    await press(screen.getByTestId('chat-send'));
+    await screen.findByText('Ok');
+
+    await press(await screen.findByTestId('delete-conversation'));
+
+    await waitFor(() => expect(screen.getByTestId('chat-storage')).toHaveTextContent(/0 conversaciones, 0 mensajes/));
+    expect(screen.queryByText('Una pregunta')).not.toBeOnTheScreen();
+  });
+
+  it('AC-ai-004-18: «Más» lleva a las preguntas', async () => {
+    await openApp('/mas');
+
+    await press(await screen.findByTestId('go-chat'));
+
+    expect(await screen.findByTestId('chat-send')).toBeOnTheScreen();
+  });
+});

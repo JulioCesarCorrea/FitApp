@@ -5,6 +5,7 @@ import { syncPending, type LocalWeight } from '../sync';
 import { HttpAuthRemote } from './authRemote';
 import { AiAssistantService, AiService } from './aiService';
 import { AuthService } from './authService';
+import { ChatService } from './chatService';
 import { HttpRemote } from './httpRemote';
 import { NutritionService } from './nutritionService';
 import { NotificationsScheduler } from './notificationsScheduler';
@@ -39,6 +40,8 @@ export interface Deps {
   ai: AiService;
   /** Análisis y propuestas con IA (SPEC-ai-002). */
   assistant: AiAssistantService;
+  /** Preguntas a la IA, guardadas solo en el teléfono (SPEC-ai-004). */
+  chat: ChatService;
   /** Recordatorios locales (SPEC-notify-001). */
   reminders: ReminderService;
   /** Consulta de productos por código de barras (Open Food Facts). */
@@ -73,6 +76,7 @@ export async function createDeps(): Promise<Deps> {
     weights,
     ai: new AiService(remote),
     assistant: new AiAssistantService(remote),
+    chat: new ChatService(store, remote, newId),
     reminders: new ReminderService(store, new NotificationsScheduler(), () => weights.list(), () => auth.getState().status === 'signedIn'),
     products: new OpenFoodFactsClient(),
   };
