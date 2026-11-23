@@ -206,7 +206,7 @@ describe('alimentos propios (AC-nutrition-001-16, 07, 08, 09)', () => {
     // Un alimento que nunca se intentó enviar (un intento fallido ya cuenta: puede haber llegado).
     const unsent = {
       id: 'sin-enviar', name: 'Sin enviar', brand: null, barcode: null, kcalPer100g: 1, proteinPer100g: 0, fatPer100g: 0, carbsPer100g: 0,
-      source: 'manual' as const, status: 'pending' as const, message: null, pendingOp: 'upsert' as const, attempted: false,
+      source: 'manual' as const, allergens: [], status: 'pending' as const, message: null, pendingOp: 'upsert' as const, attempted: false,
     };
     await store.saveFood(unsent);
     remote.calls.length = 0;
@@ -373,7 +373,7 @@ describe('el día y el objetivo (AC-nutrition-001-13, 15, 18)', () => {
 
   it('AC-nutrition-001-15 con conexión trae del servidor las entradas y alimentos que el teléfono no tenía', async () => {
     remote.foods.set('f1', {
-      id: 'f1', name: 'Huevo', brand: null, barcode: null, kcalPer100g: 143, proteinPer100g: 12.6, fatPer100g: 9.5, carbsPer100g: 0.7, source: 'manual',
+      id: 'f1', name: 'Huevo', brand: null, barcode: null, kcalPer100g: 143, proteinPer100g: 12.6, fatPer100g: 9.5, carbsPer100g: 0.7, source: 'manual', allergens: [],
     });
     remote.entries.set('e1', { id: 'e1', date: TODAY, meal: 'cena', foodId: 'f1', grams: 120, name: 'Huevo', kcal: 172, proteinG: 15.1, fatG: 11.4, carbsG: 0.8 });
 
@@ -497,5 +497,61 @@ describe('objetivo ajustado a mano (SPEC-nutrition-002)', () => {
     const result = await empty.setOverride('2000');
 
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('alérgenos (SPEC-nutrition-003)', () => {
+  const MILK_ALLERGY: LocalProfile = { ...PROFILE, allergies: ['Intolerancia a la lactosa'] };
+
+  it('AC-nutrition-003-01 guarda las etiquetas ordenadas y sin repetir, y las envía a la API', async () => {
+    const saved = await saveFood({ allergens: ['leche', 'gluten', 'leche', 'polen'] });
+
+    expect(saved.allergens).toEqual(['gluten', 'leche']);
+    expect(remote.foods.get(saved.id)?.allergens).toEqual(['gluten', 'leche']);
+  });
+
+  it('AC-nutrition-003-01 sin etiquetas el alimento queda «sin dato» (vacío), no «sin alérgenos»', async () => {
+    expect((await saveFood()).allergens).toEqual([]);
+  });
+
+  it('AC-nutrition-003-07 sin conexión los conflictos se calculan en el teléfono con el perfil local', async () => {
+    await store.saveProfile(MILK_ALLERGY);
+    const milky = await saveFood({ name: 'Yogur', allergens: ['leche'] });
+    const plain = await saveFood({ name: 'Arroz' });
+    remote.online = false;
+
+    expect(await service.foodConflicts(milky)).toEqual(['leche']);
+    expect(await service.foodConflicts(plain)).toEqual([]);
+  });
+
+  it('AC-nutrition-003-06 el día marca las entradas cuyo alimento choca con las alergias', async () => {
+    await store.saveProfile(MILK_ALLERGY);
+    const milky = await saveFood({ name: 'Yogur', allergens: ['leche'] });
+    const plain = await saveFood({ name: 'Arroz' });
+    const a = await service.saveEntry({ date: TODAY, meal: 'cena', grams: '100', foodId: milky.id });
+    const b = await service.saveEntry({ date: TODAY, meal: 'cena', grams: '100', foodId: plain.id });
+    if (!a.ok || !b.ok) throw new Error('no se guardó');
+
+    const day = await service.loadDay(TODAY);
+
+    expect(day.conflicts).toEqual({ [a.entry.id]: ['leche'] });
+  });
+
+  it('AC-nutrition-003-06 sin alergias en el perfil no se marca nada', async () => {
+    const milky = await saveFood({ name: 'Yogur', allergens: ['leche'] });
+    await service.saveEntry({ date: TODAY, meal: 'cena', grams: '100', foodId: milky.id });
+
+    expect((await service.loadDay(TODAY)).conflicts).toEqual({});
+  });
+
+  it('AC-nutrition-003-01 al traer alimentos de un servidor sin el campo los deja sin dato', async () => {
+    remote.foods.set('f1', {
+      id: 'f1', name: 'Huevo', brand: null, barcode: null, kcalPer100g: 143, proteinPer100g: 12.6, fatPer100g: 9.5, carbsPer100g: 0.7,
+      source: 'manual',
+    } as unknown as ServerFood);
+
+    await service.loadDay(TODAY);
+
+    expect((await service.searchFoods()).map((f) => f.allergens)).toEqual([[]]);
   });
 });

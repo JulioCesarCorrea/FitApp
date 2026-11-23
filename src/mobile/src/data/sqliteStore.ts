@@ -187,11 +187,11 @@ export class SqliteStore implements LocalStore {
     const db = await getDb();
     await db.runAsync(
       `INSERT OR REPLACE INTO foods_local
-         (id, name, brand, barcode, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, source,
+         (id, name, brand, barcode, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, source, allergens,
           status, message, pending_op, attempted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       f.id, f.name, f.brand, f.barcode, f.kcalPer100g, f.proteinPer100g, f.fatPer100g, f.carbsPer100g, f.source,
-      f.status, f.message, f.pendingOp, f.attempted ? 1 : 0,
+      JSON.stringify(f.allergens ?? []), f.status, f.message, f.pendingOp, f.attempted ? 1 : 0,
     );
   }
 
@@ -208,10 +208,11 @@ export class SqliteStore implements LocalStore {
         // INSERT OR IGNORE: lo que espera envío (misma id) manda sobre el servidor.
         await db.runAsync(
           `INSERT OR IGNORE INTO foods_local
-             (id, name, brand, barcode, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, source,
+             (id, name, brand, barcode, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, source, allergens,
               status, message, pending_op, attempted)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
           f.id, f.name, f.brand, f.barcode, f.kcalPer100g, f.proteinPer100g, f.fatPer100g, f.carbsPer100g, f.source,
+          JSON.stringify(f.allergens ?? []),
         );
       }
     });
@@ -350,6 +351,7 @@ interface FoodRow {
   fat_per_100g: number;
   carbs_per_100g: number;
   source: 'manual' | 'openfoodfacts';
+  allergens: string;
   status: SyncStatus;
   message: string | null;
   pending_op: 'upsert' | 'delete' | null;
@@ -375,7 +377,8 @@ interface EntryRow {
 
 const toFood = (r: FoodRow): LocalFood => ({
   id: r.id, name: r.name, brand: r.brand, barcode: r.barcode, kcalPer100g: r.kcal_per_100g, proteinPer100g: r.protein_per_100g,
-  fatPer100g: r.fat_per_100g, carbsPer100g: r.carbs_per_100g, source: r.source, status: r.status, message: r.message,
+  fatPer100g: r.fat_per_100g, carbsPer100g: r.carbs_per_100g, source: r.source, allergens: JSON.parse(r.allergens || '[]') as string[],
+  status: r.status, message: r.message,
   pendingOp: r.pending_op, attempted: r.attempted === 1,
 });
 

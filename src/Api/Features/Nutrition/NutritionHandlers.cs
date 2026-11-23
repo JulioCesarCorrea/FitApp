@@ -11,11 +11,15 @@ namespace FitnessApp.Api.Features.Nutrition;
 
 public sealed record FoodRequest(
     string Name, string? Brand, string? Barcode,
-    decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g, string Source);
+    decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g, string Source,
+    string[]? Allergens = null);
 
 public sealed record FoodDto(
     Guid Id, string Name, string? Brand, string? Barcode,
-    decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g, string Source);
+    decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g, string Source, string[] Allergens);
+
+/// <summary>SPEC-nutrition-003, AC-04: alérgenos del alimento que coinciden con las alergias del perfil.</summary>
+public sealed record FoodConflictsDto(string[] Conflicts);
 
 public sealed record FoodEntryRequest(DateOnly Date, string Meal, Guid FoodId, int Grams);
 
@@ -86,6 +90,9 @@ public sealed partial class FoodRequestValidator : AbstractValidator<FoodRequest
         RuleFor(x => x).Must(x => x.ProteinPer100g + x.FatPer100g + x.CarbsPer100g <= 100m)
             .WithMessage("Proteína, grasa y carbohidratos no pueden sumar más de 100 g por 100 g.");
         RuleFor(x => x.Source).Must(s => s is "manual" or "openfoodfacts").WithMessage("El origen es manual u openfoodfacts.");
+        RuleFor(x => x.Allergens).Must(a => a is null || a.Length <= Allergens.MaxPerFood)
+            .WithMessage($"Un alimento lleva como máximo {Allergens.MaxPerFood} alérgenos.");
+        RuleForEach(x => x.Allergens).Must(Allergens.IsValid).WithMessage("Alérgeno no válido.");
     }
 }
 
@@ -153,6 +160,7 @@ public sealed class FoodHandler(AppDbContext db, TimeProvider clock)
         existing.FatPer100g = request.FatPer100g;
         existing.CarbsPer100g = request.CarbsPer100g;
         existing.Source = request.Source;
+        existing.Allergens = Allergens.Normalize(request.Allergens);
 
         try
         {
@@ -183,8 +191,18 @@ public sealed class FoodHandler(AppDbContext db, TimeProvider clock)
             .Select(ToDto).ToList();
     }
 
+    /// <summary>AC-04: null si el alimento no existe o es de otra persona.</summary>
+    public async Task<FoodConflictsDto?> ConflictsAsync(Guid userId, Guid id, CancellationToken ct)
+    {
+        var food = await db.Foods.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId, ct);
+        if (food is null) return null;
+
+        var allergies = await db.Profiles.AsNoTracking().Where(p => p.UserId == userId).Select(p => p.Allergies).FirstOrDefaultAsync(ct);
+        return new FoodConflictsDto(Allergens.Conflicts(allergies ?? [], food.Allergens));
+    }
+
     public static FoodDto ToDto(Food f) =>
-        new(f.Id, f.Name, f.Brand, f.Barcode, f.KcalPer100g, f.ProteinPer100g, f.FatPer100g, f.CarbsPer100g, f.Source);
+        new(f.Id, f.Name, f.Brand, f.Barcode, f.KcalPer100g, f.ProteinPer100g, f.FatPer100g, f.CarbsPer100g, f.Source, f.Allergens);
 
     private static string Fold(string text) =>
         new string(text.Normalize(NormalizationForm.FormD)

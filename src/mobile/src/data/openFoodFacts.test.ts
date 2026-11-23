@@ -19,7 +19,7 @@ describe('lectura de la respuesta (AC-nutrition-001-17)', () => {
       kind: 'found',
       product: {
         barcode: '3017624010701', name: 'Nutella', brand: 'Ferrero',
-        kcalPer100g: 539, proteinPer100g: 6.3, fatPer100g: 30.9, carbsPer100g: 57.5,
+        kcalPer100g: 539, proteinPer100g: 6.3, fatPer100g: 30.9, carbsPer100g: 57.5, allergens: null,
       },
     });
   });
@@ -67,7 +67,7 @@ describe('consulta (AC-nutrition-001-17)', () => {
 
     expect(result.kind).toBe('found');
     expect(calls).toHaveLength(1);
-    expect(calls[0].url).toBe('https://world.openfoodfacts.org/api/v2/product/3017624010701?fields=code,product_name,brands,nutriments');
+    expect(calls[0].url).toBe('https://world.openfoodfacts.org/api/v2/product/3017624010701?fields=code,product_name,brands,nutriments,allergens_tags');
     expect((calls[0].init?.headers as Record<string, string>)['User-Agent']).toBe(OFF_USER_AGENT);
     expect(JSON.stringify(calls[0].init)).not.toMatch(/authorization|cookie/i);
   });
@@ -80,5 +80,29 @@ describe('consulta (AC-nutrition-001-17)', () => {
     expect(await down.lookup('123456789')).toEqual({ kind: 'offline' });
     expect(await error.lookup('123456789')).toEqual({ kind: 'offline' });
     expect(await missing.lookup('123456789')).toEqual({ kind: 'notFound' });
+  });
+});
+
+describe('alérgenos de Open Food Facts (SPEC-nutrition-003)', () => {
+  const body = (extra: object) => ({
+    status: 1, product: { product_name: 'Galletas', brands: 'Marca', nutriments: { 'energy-kcal_100g': 480, proteins_100g: 6, fat_100g: 20, carbohydrates_100g: 65 }, ...extra },
+  });
+
+  it('AC-nutrition-003-03 traduce allergens_tags a las etiquetas propias', () => {
+    const { product } = parseProduct('123456789', body({ allergens_tags: ['en:gluten', 'en:milk', 'en:desconocido'] })) as { product: { allergens: string[] | null } };
+
+    expect(product.allergens).toEqual(['gluten', 'leche']);
+  });
+
+  it('AC-nutrition-003-03 sin el campo el dato es null («sin dato»), no una lista vacía', () => {
+    const { product } = parseProduct('123456789', body({})) as { product: { allergens: string[] | null } };
+
+    expect(product.allergens).toBeNull();
+  });
+
+  it('AC-nutrition-003-03 con una lista vacía el producto declara no tener alérgenos conocidos (lista vacía)', () => {
+    const { product } = parseProduct('123456789', body({ allergens_tags: [] })) as { product: { allergens: string[] | null } };
+
+    expect(product.allergens).toEqual([]);
   });
 });

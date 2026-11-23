@@ -106,6 +106,12 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.PrimitiveCollection<string[]>("Allergens")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasDefaultValueSql("'{}'");
+
                     b.Property<string>("Barcode")
                         .HasMaxLength(14)
                         .HasColumnType("character varying(14)");

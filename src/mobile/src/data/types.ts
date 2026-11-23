@@ -142,6 +142,8 @@ export interface LocalFood {
   fatPer100g: number;
   carbsPer100g: number;
   source: 'manual' | 'openfoodfacts';
+  /** Alérgenos declarados (SPEC-nutrition-003); vacío = sin dato. */
+  allergens: string[];
   status: SyncStatus;
   message: string | null;
   pendingOp: 'upsert' | 'delete' | null;
@@ -170,7 +172,7 @@ export interface LocalFoodEntry {
 
 export type ServerFood = Pick<
   LocalFood,
-  'id' | 'name' | 'brand' | 'barcode' | 'kcalPer100g' | 'proteinPer100g' | 'fatPer100g' | 'carbsPer100g' | 'source'
+  'id' | 'name' | 'brand' | 'barcode' | 'kcalPer100g' | 'proteinPer100g' | 'fatPer100g' | 'carbsPer100g' | 'source' | 'allergens'
 >;
 
 export type ServerFoodEntry = Pick<
@@ -220,6 +222,8 @@ export interface ScannedProduct {
   proteinPer100g: number | null;
   fatPer100g: number | null;
   carbsPer100g: number | null;
+  /** Alérgenos según Open Food Facts; null = el producto no trae ese dato (no significa «sin alérgenos»). */
+  allergens: string[] | null;
 }
 
 /** AC-nutrition-001-17: completo, incompleto (falta algún valor), desconocido o sin conexión. */

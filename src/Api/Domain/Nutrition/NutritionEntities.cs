@@ -19,6 +19,9 @@ public class Food
     /// <summary>manual | openfoodfacts.</summary>
     public string Source { get; set; } = "manual";
 
+    /// <summary>Alérgenos declarados del alimento (SPEC-nutrition-003), con las etiquetas de <see cref="Allergens"/>; vacío = sin dato.</summary>
+    public string[] Allergens { get; set; } = [];
+
     public DateTimeOffset CreatedAt { get; set; }
 }
 

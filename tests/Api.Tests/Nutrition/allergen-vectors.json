@@ -1,0 +1,208 @@
+{
+  "descripcion": "Vectores de alérgenos (SPEC-nutrition-003, ADR-0004). «matches» los ejecutan la API (C#) y la app (TypeScript); «off» solo la app (traducción de allergens_tags de Open Food Facts). Cualquier cambio de regla se hace aquí primero.",
+  "matches": [
+    {
+      "name": "la leche coincide con la palabra leche",
+      "profileAllergies": [
+        "leche"
+      ],
+      "foodAllergens": [
+        "leche"
+      ],
+      "expected": [
+        "leche"
+      ]
+    },
+    {
+      "name": "lactosa del perfil coincide con leche",
+      "profileAllergies": [
+        "Intolerancia a la lactosa"
+      ],
+      "foodAllergens": [
+        "leche",
+        "gluten"
+      ],
+      "expected": [
+        "leche"
+      ]
+    },
+    {
+      "name": "sin alergias no hay coincidencias",
+      "profileAllergies": [],
+      "foodAllergens": [
+        "leche"
+      ],
+      "expected": []
+    },
+    {
+      "name": "alimento sin alérgenos no coincide",
+      "profileAllergies": [
+        "leche"
+      ],
+      "foodAllergens": [],
+      "expected": []
+    },
+    {
+      "name": "nueces y almendras son frutos secos",
+      "profileAllergies": [
+        "Nueces",
+        "almendras"
+      ],
+      "foodAllergens": [
+        "frutos_secos",
+        "leche"
+      ],
+      "expected": [
+        "frutos_secos"
+      ]
+    },
+    {
+      "name": "el plural se reconoce",
+      "profileAllergies": [
+        "huevos"
+      ],
+      "foodAllergens": [
+        "huevo"
+      ],
+      "expected": [
+        "huevo"
+      ]
+    },
+    {
+      "name": "mani no coincide con manitas",
+      "profileAllergies": [
+        "manitas"
+      ],
+      "foodAllergens": [
+        "cacahuete"
+      ],
+      "expected": []
+    },
+    {
+      "name": "mani sí coincide con maní con acento",
+      "profileAllergies": [
+        "Maní"
+      ],
+      "foodAllergens": [
+        "cacahuete"
+      ],
+      "expected": [
+        "cacahuete"
+      ]
+    },
+    {
+      "name": "celiaquía apunta al gluten",
+      "profileAllergies": [
+        "celíaco"
+      ],
+      "foodAllergens": [
+        "gluten"
+      ],
+      "expected": [
+        "gluten"
+      ]
+    },
+    {
+      "name": "varias alergias, varias coincidencias",
+      "profileAllergies": [
+        "soja",
+        "marisco"
+      ],
+      "foodAllergens": [
+        "crustaceos",
+        "soja",
+        "leche"
+      ],
+      "expected": [
+        "crustaceos",
+        "soja"
+      ]
+    },
+    {
+      "name": "una alergia que no es de la lista no coincide",
+      "profileAllergies": [
+        "polen"
+      ],
+      "foodAllergens": [
+        "leche",
+        "gluten"
+      ],
+      "expected": []
+    },
+    {
+      "name": "el orden de salida es el del catálogo",
+      "profileAllergies": [
+        "sésamo",
+        "trigo"
+      ],
+      "foodAllergens": [
+        "sesamo",
+        "gluten"
+      ],
+      "expected": [
+        "gluten",
+        "sesamo"
+      ]
+    }
+  ],
+  "off": [
+    {
+      "name": "etiquetas conocidas",
+      "offTags": [
+        "en:milk",
+        "en:gluten"
+      ],
+      "expected": [
+        "gluten",
+        "leche"
+      ]
+    },
+    {
+      "name": "frutos secos y cacahuete son distintos",
+      "offTags": [
+        "en:nuts",
+        "en:peanuts"
+      ],
+      "expected": [
+        "cacahuete",
+        "frutos_secos"
+      ]
+    },
+    {
+      "name": "sulfitos y sésamo",
+      "offTags": [
+        "en:sulphur-dioxide-and-sulphites",
+        "en:sesame-seeds"
+      ],
+      "expected": [
+        "sesamo",
+        "sulfitos"
+      ]
+    },
+    {
+      "name": "las etiquetas desconocidas se ignoran",
+      "offTags": [
+        "en:something-new",
+        "en:eggs"
+      ],
+      "expected": [
+        "huevo"
+      ]
+    },
+    {
+      "name": "sin etiquetas no hay alérgenos",
+      "offTags": [],
+      "expected": []
+    },
+    {
+      "name": "sin repetidos",
+      "offTags": [
+        "en:eggs",
+        "en:eggs"
+      ],
+      "expected": [
+        "huevo"
+      ]
+    }
+  ]
+}

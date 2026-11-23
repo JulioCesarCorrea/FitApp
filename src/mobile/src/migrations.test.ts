@@ -30,6 +30,26 @@ function fakeDb(version: number, tables: string[] = [], columns: string[] = []) 
   return { db, state };
 }
 
+describe('alérgenos en los alimentos (SPEC-nutrition-003)', () => {
+  it('AC-nutrition-003-07 base con los alimentos (versión 6): añade solo la columna allergens, sin perder datos', async () => {
+    const { db, state } = fakeDb(6, ['foods_local', 'food_entries_local'], ['methodology', 'reps_per_set']);
+
+    await migrate(db);
+
+    expect(state.columns.has('allergens')).toBe(true);
+    expect(state.executed.some((sql) => /DROP|DELETE|UPDATE/i.test(sql))).toBe(false);
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+
+  it('AC-nutrition-003-07 con la columna ya creada (una rama antigua bajó la versión): no falla', async () => {
+    const { db, state } = fakeDb(6, ['foods_local'], ['methodology', 'reps_per_set', 'allergens']);
+
+    await expect(migrate(db)).resolves.toBeUndefined();
+
+    expect(state.version).toBe(SCHEMA_VERSION);
+  });
+});
+
 describe('migraciones de fitness.db (SPEC-mobile-002 y SPEC-mobile-003)', () => {
   it('base nueva: crea todas las tablas y deja la versión actual', async () => {
     const { db, state } = fakeDb(0);
@@ -124,14 +144,14 @@ describe('migraciones de fitness.db (SPEC-mobile-002 y SPEC-mobile-003)', () => 
 
     await migrate(db);
 
-    expect([...state.columns].sort()).toEqual(['methodology', 'reps_per_set']);
+    expect([...state.columns].sort()).toEqual(['allergens', 'methodology', 'reps_per_set']); // allergens: SPEC-nutrition-003 (V7)
     expect(state.executed.some((sql) => /DROP|DELETE|UPDATE/i.test(sql))).toBe(false);
     expect(state.executed.find((sql) => sql.includes('methodology'))).toContain("DEFAULT 'heavy_duty_personalizado'");
     expect(state.version).toBe(SCHEMA_VERSION);
   });
 
   it('AC-training-004-14 con las columnas ya creadas (una rama antigua bajó la versión): no falla ni las repite', async () => {
-    const { db, state } = fakeDb(4, ['exercise_logs_local'], ['methodology', 'reps_per_set']);
+    const { db, state } = fakeDb(4, ['exercise_logs_local'], ['methodology', 'reps_per_set', 'allergens']);
 
     await expect(migrate(db)).resolves.toBeUndefined();
 

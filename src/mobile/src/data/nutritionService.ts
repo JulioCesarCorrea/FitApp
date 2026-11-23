@@ -1,3 +1,4 @@
+import { allergenConflicts, normalizeAllergens } from './allergens';
 import {
   fold, macrosFor, MAX_GRAMS, MAX_OVERRIDE_CALORIES, MEAL_MAX_LENGTH, MIN_GRAMS, MIN_OVERRIDE_CALORIES, mealOrder, normalizeMeal,
   portionOf, sumPortions, type Portion,
@@ -22,6 +23,8 @@ export interface RawFoodInput {
   fat: string;
   carbs: string;
   source: 'manual' | 'openfoodfacts';
+  /** Etiquetas de alérgenos elegidas (SPEC-nutrition-003); sin ellas el alimento queda «sin dato». */
+  allergens?: string[];
 }
 
 export interface FoodIssue {
@@ -63,6 +66,8 @@ export interface DayView {
   target: TargetState;
   /** Objetivo menos lo consumido; negativo si se pasó. Null sin objetivo. */
   remaining: Portion | null;
+  /** Entradas cuyo alimento choca con las alergias del perfil: id de la entrada → alérgenos (SPEC-nutrition-003, AC-06). */
+  conflicts: Record<string, string[]>;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -122,14 +127,14 @@ export function parseFood(raw: RawFoodInput): { ok: true; draft: Omit<LocalFood,
     ok: true,
     draft: {
       name, brand: brand || null, barcode: barcode || null, kcalPer100g: kcal, proteinPer100g: protein,
-      fatPer100g: fat, carbsPer100g: carbs, source: raw.source,
+      fatPer100g: fat, carbsPer100g: carbs, source: raw.source, allergens: normalizeAllergens(raw.allergens),
     },
   };
 }
 
 const foodToServer = (f: LocalFood): ServerFood => ({
   id: f.id, name: f.name, brand: f.brand, barcode: f.barcode, kcalPer100g: f.kcalPer100g, proteinPer100g: f.proteinPer100g,
-  fatPer100g: f.fatPer100g, carbsPer100g: f.carbsPer100g, source: f.source,
+  fatPer100g: f.fatPer100g, carbsPer100g: f.carbsPer100g, source: f.source, allergens: f.allergens,
 });
 
 const isVisible = (x: { pendingOp: string | null }): boolean => x.pendingOp !== 'delete';
@@ -194,6 +199,25 @@ export class NutritionService {
     }
     await this.store.saveFood({ ...row, status: 'pending', message: null, pendingOp: 'delete' });
     await this.syncPending();
+  }
+
+  /** AC-nutrition-003-05 y 07: alérgenos del alimento que coinciden con las alergias del perfil local (sin conexión). */
+  async foodConflicts(food: LocalFood): Promise<string[]> {
+    const allergies = (await this.store.getProfile()).profile?.allergies ?? [];
+    return allergenConflicts(allergies, food.allergens ?? []);
+  }
+
+  private async entryConflicts(entries: LocalFoodEntry[]): Promise<Record<string, string[]>> {
+    const allergies = (await this.store.getProfile()).profile?.allergies ?? [];
+    if (allergies.length === 0) return {};
+    const foods = await this.store.getFoods();
+    const found: Record<string, string[]> = {};
+    for (const e of entries) {
+      const food = foods.find((f) => f.id === e.foodId);
+      const conflicts = food ? allergenConflicts(allergies, food.allergens ?? []) : [];
+      if (conflicts.length > 0) found[e.id] = conflicts;
+    }
+    return found;
   }
 
   // ---------- lo comido ----------
@@ -398,7 +422,7 @@ export class NutritionService {
           carbsG: Math.round((target.target.carbsG - totals.carbsG) * 10) / 10,
         }
       : null;
-    return { date, meals, totals, target, remaining };
+    return { date, meals, totals, target, remaining, conflicts: await this.entryConflicts(entries) };
   }
 
   /** Con conexión y sin cambios propios por enviar ni rechazados, la API es la fuente de verdad. */
