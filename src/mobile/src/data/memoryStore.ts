@@ -88,6 +88,10 @@ export class MemoryStore implements LocalStore {
     return [...this.logs.values()].filter((l) => l.exerciseId === exerciseId).map((l) => ({ ...l }));
   }
 
+  async getAllLogs() {
+    return [...this.logs.values()].map((l) => ({ ...l }));
+  }
+
   async getPendingLogs() {
     return [...this.logs.values()].filter((l) => l.pendingOp !== null && l.status === 'pending').map((l) => ({ ...l }));
   }
