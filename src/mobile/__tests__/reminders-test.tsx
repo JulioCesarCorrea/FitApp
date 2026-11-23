@@ -126,3 +126,72 @@ describe('Inteligencia artificial (SPEC-ai-001)', () => {
     expect(screen.queryByTestId('ai-toggle-chat')).not.toBeOnTheScreen();
   });
 });
+
+describe('Análisis y planes con IA (SPEC-ai-002)', () => {
+  const analysis = {
+    scope: 'training' as const, kind: 'proposal' as const, disclaimer: 'Orientativo: la app no diagnostica ni sustituye a un profesional de la salud.',
+    sections: [{
+      title: 'Volumen',
+      claims: [
+        { text: 'Entrenaste 3 sesiones.', kind: 'registrado' as const, source: 'entrenamiento_semanal', verified: true },
+        { text: 'Pesaste 91 kg.', kind: 'inferencia' as const, source: '', verified: false },
+      ],
+    }],
+  };
+  const proposal = (over: Record<string, unknown> = {}) => ({
+    id: 'p1', scope: 'training' as const, kind: 'proposal' as const, summary: 'Cambio de variante', status: 'pending' as const, createdAt: '2026-11-23T10:00:00Z',
+    changes: [{ kind: 'replace_exercise' as const, reason: 'Variar el estímulo', day: 'Monday', fromExerciseId: 'a', toExerciseId: 'b', toExerciseName: 'Press con barra' }],
+    ...over,
+  });
+
+  it('AC-ai-002-06: el análisis muestra cada afirmación con su tipo y su fuente y marca lo que no se pudo comprobar', async () => {
+    fakes.remote.analysisResult = { kind: 'ok', value: analysis };
+    await openApp('/assistant');
+
+    await press(await screen.findByTestId('ask-analysis'));
+
+    expect(await screen.findByTestId('claim-Volumen-0')).toHaveTextContent(/Dato registrado · fuente: entrenamiento_semanal/);
+    expect(screen.getByTestId('claim-Volumen-1')).toHaveTextContent(/Inferencia · no se pudo comprobar con tus datos/);
+    expect(screen.getByText(/Sugerencia de IA/)).toBeOnTheScreen();
+    expect(screen.getByText(/Nada se aplica solo/)).toBeOnTheScreen();
+  });
+
+  it('AC-ai-002-06 y 10: una propuesta no se aplica sola; al aceptarla se aplica y pasa al historial, y al rechazar otra también', async () => {
+    fakes.remote.serverProposals = [proposal(), proposal({ id: 'p2', summary: 'Otra' })];
+    await openApp('/assistant');
+    expect(await screen.findByTestId('proposal-p1')).toHaveTextContent(/Sugerencia de IA/);
+    expect(screen.getByTestId('proposal-p1')).toHaveTextContent(/El lunes: sustituir un ejercicio por «Press con barra»/);
+    expect(fakes.remote.resolved).toEqual([]);
+
+    await press(screen.getByTestId('accept-p1'));
+    await waitFor(() => expect(screen.queryByTestId('proposal-p1')).not.toBeOnTheScreen());
+    await press(screen.getByTestId('reject-p2'));
+
+    await waitFor(() => expect(screen.getByTestId('past-p2')).toHaveTextContent(/Rechazada · entrenamiento: Otra/));
+    expect(screen.getByTestId('past-p1')).toHaveTextContent(/Aceptada/);
+    expect(fakes.remote.resolved).toEqual([{ id: 'p1', action: 'accept' }, { id: 'p2', action: 'reject' }]);
+  });
+
+  it('AC-ai-002-08: sin consentimiento lo explica y lleva a los ajustes de la IA; sin conexión lo avisa', async () => {
+    fakes.remote.analysisResult = { kind: 'error', code: 'consent_required', message: 'x', retryAfterSeconds: null };
+    await openApp('/assistant');
+
+    await press(await screen.findByTestId('ask-analysis'));
+
+    expect(await screen.findByTestId('assistant-message')).toHaveTextContent(/Activa «Análisis y planes» en Inteligencia artificial/);
+    expect(screen.getByTestId('go-ai-settings')).toBeOnTheScreen();
+
+    fakes.remote.online = false;
+    await press(screen.getByTestId('ask-plan'));
+    await waitFor(() => expect(screen.getByTestId('assistant-message')).toHaveTextContent(/La IA necesita conexión\./));
+  });
+
+  it('AC-ai-002-08: con la cuota agotada dice cuándo reintentar y el resto de la app sigue funcionando', async () => {
+    fakes.remote.planResult = { kind: 'error', code: 'provider_quota', message: 'x', retryAfterSeconds: 60 };
+    await openApp('/assistant');
+
+    await press(await screen.findByTestId('ask-plan'));
+
+    expect(await screen.findByTestId('assistant-message')).toHaveTextContent(/Reintenta en 60 s/);
+  });
+});

@@ -1,6 +1,8 @@
 import { reasonFrom } from '../api';
 import { authedFetch, type Authorizer } from './authedFetch';
-import type { AiApi, AiFeatureState, AiUsage } from './aiService';
+import type {
+  AiApi, AiAssistantApi, AiFeatureState, AiResult, AiUsage, Analysis, Proposal, ProposalResult,
+} from './aiService';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
   AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerNutritionHistory, ServerRecipe, ServerTrainingWeek, ServerWater,
@@ -8,7 +10,7 @@ import type {
 } from './types';
 
 /** Cliente HTTP de la API (SPEC-training-002). Traduce las respuestas al contrato de RemoteApi. */
-export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiApi {
+export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi {
   constructor(
     private readonly auth: Authorizer,
     private readonly baseUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL,
@@ -97,6 +99,32 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiAp
   async fetchAiUsage(): Promise<AiUsage | null> {
     const res = await this.request('GET', '/ai/usage');
     return res?.ok ? ((await res.json()) as AiUsage) : null;
+  }
+
+  /** Llamada a una función de IA: traduce los errores de la pasarela (code, retryAfterSeconds) a un resultado tipado. */
+  private async aiCall<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<AiResult<T>> {
+    const res = await this.request(method, path, body);
+    if (!res) return { kind: 'offline' };
+    if (res.ok) return { kind: 'ok', value: (await res.json()) as T };
+    const problem = (await res.json().catch(() => null)) as { code?: string; title?: string; retryAfterSeconds?: number | null; errors?: Record<string, string[]> } | null;
+    const detail = problem?.errors ? Object.values(problem.errors).flat()[0] : undefined;
+    return { kind: 'error', code: problem?.code ?? `http_${res.status}`, message: detail ?? problem?.title ?? 'La IA no respondió.', retryAfterSeconds: problem?.retryAfterSeconds ?? null };
+  }
+
+  requestAnalysis(scope: string): Promise<AiResult<Analysis>> {
+    return this.aiCall('POST', '/ai/analysis', { scope });
+  }
+
+  requestPlan(scope: string): Promise<AiResult<Proposal>> {
+    return this.aiCall('POST', '/ai/plan', { scope });
+  }
+
+  fetchProposals(): Promise<AiResult<Proposal[]>> {
+    return this.aiCall('GET', '/ai/proposals');
+  }
+
+  resolveProposal(id: string, action: 'accept' | 'reject'): Promise<AiResult<ProposalResult>> {
+    return this.aiCall('POST', `/ai/proposals/${encodeURIComponent(id)}/${action}`);
   }
 
   async fetchTrainingWeekly(weeks: number): Promise<ServerTrainingWeek[] | null> {

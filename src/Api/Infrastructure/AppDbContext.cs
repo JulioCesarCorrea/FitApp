@@ -28,6 +28,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<WaterEntry> WaterEntries => Set<WaterEntry>();
     public DbSet<AiConsent> AiConsents => Set<AiConsent>();
     public DbSet<AiAudit> AiAudits => Set<AiAudit>();
+    public DbSet<AiProposal> AiProposals => Set<AiProposal>();
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
 
@@ -167,6 +168,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.ToTable("ai_consents");
             e.HasKey(x => new { x.UserId, x.Feature });
             e.Property(x => x.Feature).HasMaxLength(30);
+        });
+
+        modelBuilder.Entity<AiProposal>(e =>
+        {
+            e.ToTable("ai_proposals");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Scope).HasMaxLength(20);
+            e.Property(x => x.Summary).HasMaxLength(500);
+            e.Property(x => x.Status).HasMaxLength(10);
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
         });
 
         modelBuilder.Entity<AiAudit>(e =>

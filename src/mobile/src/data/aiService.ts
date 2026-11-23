@@ -72,3 +72,101 @@ export class AiService {
     return (await this.remote.setAiConsent(feature, consented)) === 'ok';
   }
 }
+
+// ---------- análisis y propuestas de plan (SPEC-ai-002) ----------
+
+/** Cada afirmación del análisis distingue dato registrado, estimación e inferencia y cita su fuente (P4). */
+export interface AnalysisClaim {
+  text: string;
+  kind: 'registrado' | 'estimacion' | 'inferencia';
+  source: string;
+  /** false = la app no pudo comprobarlo con tus datos y lo trata como inferencia. */
+  verified: boolean;
+}
+
+export interface Analysis {
+  scope: 'training' | 'nutrition';
+  kind: 'proposal';
+  sections: { title: string; claims: AnalysisClaim[] }[];
+  disclaimer: string;
+}
+
+export interface ProposedChange {
+  kind: 'replace_exercise' | 'add_entry';
+  reason: string;
+  day?: string | null;
+  fromExerciseId?: string | null;
+  toExerciseId?: string | null;
+  toExerciseName?: string | null;
+  meal?: string | null;
+  foodId?: string | null;
+  foodName?: string | null;
+  grams?: number | null;
+}
+
+export interface Proposal {
+  id: string;
+  scope: 'training' | 'nutrition';
+  kind: 'proposal';
+  summary: string;
+  changes: ProposedChange[];
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: string;
+}
+
+export interface ProposalResult {
+  id: string;
+  status: string;
+  applied: number;
+  skipped: number;
+}
+
+export type AiResult<T> =
+  | { kind: 'ok'; value: T }
+  | { kind: 'offline' }
+  | { kind: 'error'; code: string; message: string; retryAfterSeconds: number | null };
+
+export interface AiAssistantApi {
+  requestAnalysis(scope: string): Promise<AiResult<Analysis>>;
+  requestPlan(scope: string): Promise<AiResult<Proposal>>;
+  fetchProposals(): Promise<AiResult<Proposal[]>>;
+  resolveProposal(id: string, action: 'accept' | 'reject'): Promise<AiResult<ProposalResult>>;
+}
+
+const ERROR_TEXT: Record<string, string> = {
+  consent_required: 'Activa «Análisis y planes» en Inteligencia artificial para usar esto.',
+  budget_exceeded: 'Has llegado a tu límite de uso de la IA. Vuelve a intentarlo más tarde.',
+  provider_quota: 'El servicio de IA no admite más peticiones ahora mismo.',
+  ai_disabled: 'La IA no está disponible ahora mismo.',
+};
+
+/** Texto para la persona de un error de la IA, con cuándo reintentar si se sabe. */
+export function aiErrorText(error: { code: string; message: string; retryAfterSeconds: number | null }): string {
+  const base = ERROR_TEXT[error.code] ?? error.message;
+  return error.retryAfterSeconds ? `${base} Reintenta en ${error.retryAfterSeconds} s.` : base;
+}
+
+/** Análisis y propuestas con IA: solo con conexión; nada se aplica sin que la persona acepte (P4). */
+export class AiAssistantService {
+  constructor(private readonly remote: AiAssistantApi) {}
+
+  analyze(scope: 'training' | 'nutrition') {
+    return this.remote.requestAnalysis(scope);
+  }
+
+  propose(scope: 'training' | 'nutrition') {
+    return this.remote.requestPlan(scope);
+  }
+
+  proposals() {
+    return this.remote.fetchProposals();
+  }
+
+  accept(id: string) {
+    return this.remote.resolveProposal(id, 'accept');
+  }
+
+  reject(id: string) {
+    return this.remote.resolveProposal(id, 'reject');
+  }
+}

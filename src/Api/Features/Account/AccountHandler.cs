@@ -53,6 +53,8 @@ public sealed record ExportAiCall(
     string Feature, string Model, int PromptTokens, int CompletionTokens, decimal CostUsd, string Status, string? SentText, string? ResponseText,
     DateTimeOffset CreatedAt);
 
+public sealed record ExportAiProposal(string Scope, string Summary, string ChangesJson, string Status, DateTimeOffset CreatedAt);
+
 public sealed record ExportWaterEntry(Guid Id, DateOnly Date, int Ml);
 
 public sealed record AccountExport(
@@ -73,7 +75,8 @@ public sealed record AccountExport(
     List<ExportWaterEntry> WaterEntries,
     List<ExportRecipe> Recipes,
     List<ExportAiConsent> AiConsents,
-    List<ExportAiCall> AiCalls);
+    List<ExportAiCall> AiCalls,
+    List<ExportAiProposal> AiProposals);
 
 /// <summary>
 /// Entidades con datos de la persona. La exportación y el borrado las recorren y una prueba (AC-account-001-10)
@@ -85,7 +88,7 @@ public static class AccountData
     [
         typeof(AppUser), typeof(RefreshToken), typeof(UserProfile), typeof(UserRestriction), typeof(WeightEntry),
         typeof(PlanEntry), typeof(EquipmentSettings), typeof(TrainingSettings), typeof(ExerciseLogEntry), typeof(SuggestionDismissal),
-        typeof(Food), typeof(FoodEntry), typeof(TargetOverride), typeof(WaterEntry), typeof(Recipe), typeof(AiConsent), typeof(AiAudit),
+        typeof(Food), typeof(FoodEntry), typeof(TargetOverride), typeof(WaterEntry), typeof(Recipe), typeof(AiConsent), typeof(AiAudit), typeof(AiProposal),
     ];
 }
 
@@ -101,7 +104,8 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
     // 2: añade las calorías ajustadas a mano (SPEC-nutrition-002). 3: añade los alérgenos de los alimentos (SPEC-nutrition-003).
     // 4: fibra, azúcares y sodio de alimentos y entradas, y el agua (SPEC-nutrition-004). 5: recetas (SPEC-nutrition-005).
     // 6: fecha del último cambio de metodología (SPEC-training-007). 7: consentimientos y auditoría de la IA (SPEC-ai-001).
-    public const int ExportVersion = 7;
+    // 8: propuestas de la IA (SPEC-ai-002).
+    public const int ExportVersion = 8;
 
     public async Task<AccountExport?> ExportAsync(Guid userId, CancellationToken ct)
     {
@@ -161,12 +165,15 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
             .Select(c => new ExportAiCall(c.Feature, c.Model, c.PromptTokens, c.CompletionTokens, c.CostUsd, c.Status, c.SentText, c.ResponseText, c.CreatedAt))
             .ToListAsync(ct);
 
+        var aiProposals = await db.AiProposals.AsNoTracking().Where(p => p.UserId == userId).OrderBy(p => p.CreatedAt)
+            .Select(p => new ExportAiProposal(p.Scope, p.Summary, p.ChangesJson, p.Status, p.CreatedAt)).ToListAsync(ct);
+
         var overrideCalories = await db.TargetOverrides.AsNoTracking().Where(o => o.UserId == userId)
             .Select(o => (int?)o.Calories).FirstOrDefaultAsync(ct);
 
         return new AccountExport(
             ExportVersion, clock.GetUtcNow(), user, profile, restrictions, weights, plan, equipment, threshold, logs, dismissed, foods, foodEntries,
-            overrideCalories, water, recipes, aiConsents, aiCalls);
+            overrideCalories, water, recipes, aiConsents, aiCalls, aiProposals);
     }
 
     /// <summary>Borra la cuenta y todos sus datos en una sola transacción (AC-account-001-05, 06, 09).</summary>
@@ -190,6 +197,7 @@ public sealed class AccountHandler(AppDbContext db, PasswordService passwords, T
         await db.WaterEntries.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.AiConsents.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.AiAudits.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
+        await db.AiProposals.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.TrainingSettings.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.Profiles.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
         await db.RefreshTokens.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);

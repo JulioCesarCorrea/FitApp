@@ -3,7 +3,7 @@ import { postWeight, setAuthorizer } from '../api';
 import { openStore } from '../db';
 import { syncPending, type LocalWeight } from '../sync';
 import { HttpAuthRemote } from './authRemote';
-import { AiService } from './aiService';
+import { AiAssistantService, AiService } from './aiService';
 import { AuthService } from './authService';
 import { HttpRemote } from './httpRemote';
 import { NutritionService } from './nutritionService';
@@ -37,6 +37,8 @@ export interface Deps {
   weights: WeightSource;
   /** Consentimientos y uso de la IA (SPEC-ai-001). */
   ai: AiService;
+  /** Análisis y propuestas con IA (SPEC-ai-002). */
+  assistant: AiAssistantService;
   /** Recordatorios locales (SPEC-notify-001). */
   reminders: ReminderService;
   /** Consulta de productos por código de barras (Open Food Facts). */
@@ -70,6 +72,7 @@ export async function createDeps(): Promise<Deps> {
     nutrition: new NutritionService(store, remote, newId),
     weights,
     ai: new AiService(remote),
+    assistant: new AiAssistantService(remote),
     reminders: new ReminderService(store, new NotificationsScheduler(), () => weights.list(), () => auth.getState().status === 'signedIn'),
     products: new OpenFoodFactsClient(),
   };
