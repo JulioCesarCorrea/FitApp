@@ -53,6 +53,13 @@ public static partial class Allergens
             .Select(c => c.Tag).ToArray();
     }
 
+    /// <summary>Etiquetas cuyas palabras aparecen en un texto, p. ej. el nombre de un alimento («yogur de leche» → leche) (SPEC-ai-003, AC-07).</summary>
+    public static string[] MentionedIn(string text)
+    {
+        var folded = Fold(text);
+        return Catalog.Where(c => c.Words.Any(w => WordRegex(w).IsMatch(folded))).Select(c => c.Tag).ToArray();
+    }
+
     private static Regex WordRegex(string word) =>
         new($"(^|[^a-z]){Regex.Escape(word)}(s|es)?([^a-z]|$)", RegexOptions.CultureInvariant);
 

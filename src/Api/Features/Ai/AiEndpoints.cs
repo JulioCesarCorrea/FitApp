@@ -116,6 +116,21 @@ public static class AiEndpoints
             }
         });
 
+        app.MapPost("/ai/food-photo", async (FoodPhotoRequest request, ICurrentUser user, FoodPhotoHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+
+            return await handler.AnalyzeAsync(userId, request.ImageBase64, ct) switch
+            {
+                AssistantResult<FoodPhotoDto>.Done done => Results.Ok(done.Value),
+                AssistantResult<FoodPhotoDto>.Denied d => AiResults.Denied(d.Reason, d.RetryAfter),
+                AssistantResult<FoodPhotoDto>.Failed f => AiResults.Failed(f.Message),
+                AssistantResult<FoodPhotoDto>.RateLimited r => AiResults.RateLimited(r.RetryAfter),
+                AssistantResult<FoodPhotoDto>.BadRequest b => Results.ValidationProblem(new Dictionary<string, string[]> { ["image"] = [b.Message] }),
+                _ => Results.StatusCode(500),
+            };
+        });
+
         app.MapPost("/ai/analysis", async (AnalysisRequest request, ICurrentUser user, AiAssistantHandler handler, CancellationToken ct) =>
         {
             if (user.Id is not { } userId) return Results.Unauthorized();

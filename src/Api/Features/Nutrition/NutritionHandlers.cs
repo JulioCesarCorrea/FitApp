@@ -121,7 +121,7 @@ public sealed partial class FoodRequestValidator : AbstractValidator<FoodRequest
             .WithMessage("Los valores admiten como máximo un decimal.");
         RuleFor(x => x).Must(x => x.SugarsPer100g is null || x.SugarsPer100g <= x.CarbsPer100g)
             .WithMessage("Los azúcares no pueden superar los carbohidratos.");
-        RuleFor(x => x.Source).Must(s => s is "manual" or "openfoodfacts").WithMessage("El origen es manual u openfoodfacts.");
+        RuleFor(x => x.Source).Must(s => s is "manual" or "openfoodfacts" or "ia").WithMessage("El origen es manual, openfoodfacts o ia.");
         RuleFor(x => x.Allergens).Must(a => a is null || a.Length <= Allergens.MaxPerFood)
             .WithMessage($"Un alimento lleva como máximo {Allergens.MaxPerFood} alérgenos.");
         RuleForEach(x => x.Allergens).Must(Allergens.IsValid).WithMessage("Alérgeno no válido.");

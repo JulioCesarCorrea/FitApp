@@ -20,7 +20,17 @@ public sealed class GroqProvider(HttpClient http, IOptions<AiOptions> options) :
     private HttpRequestMessage Build(AiRequest request, bool stream)
     {
         var messages = new JsonArray { new JsonObject { ["role"] = "system", ["content"] = request.System } };
-        foreach (var m in request.Messages) messages.Add(new JsonObject { ["role"] = m.Role, ["content"] = m.Text });
+        foreach (var m in request.Messages)
+        {
+            JsonNode content = m.ImageDataUrl is null
+                ? m.Text
+                : new JsonArray
+                {
+                    new JsonObject { ["type"] = "text", ["text"] = m.Text },
+                    new JsonObject { ["type"] = "image_url", ["image_url"] = new JsonObject { ["url"] = m.ImageDataUrl } },
+                };
+            messages.Add(new JsonObject { ["role"] = m.Role, ["content"] = content });
+        }
         var body = new JsonObject
         {
             ["model"] = request.Model, ["messages"] = messages, ["max_completion_tokens"] = request.MaxOutputTokens, ["stream"] = stream,

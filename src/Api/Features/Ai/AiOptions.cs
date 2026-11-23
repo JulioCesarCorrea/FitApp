@@ -42,6 +42,9 @@ public sealed class AiOptions
     /// <summary>Preguntas al chat por persona (SPEC-ai-004, AC-13).</summary>
     public int ChatPerHour { get; set; } = 20;
     public int ChatPerDay { get; set; } = 30;
+
+    /// <summary>Fotos de comida por persona al día (SPEC-ai-003, AC-08): cada una gasta unos 3.000 tokens del modelo de visión.</summary>
+    public int FoodPhotosPerDay { get; set; } = 10;
     public int AuditTextRetentionDays { get; set; } = 30;
     public int AuditMetadataRetentionDays { get; set; } = 365;
 
