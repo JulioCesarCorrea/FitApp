@@ -35,7 +35,8 @@ public static class AiContractGuard
             .ToList();
 }
 
-public sealed record AiMessage(string Role, string Text);
+/// <param name="ImageDataUrl">Imagen ya limpia de metadatos como data URL (SPEC-ai-003); nunca se audita ni se guarda.</param>
+public sealed record AiMessage(string Role, string Text, string? ImageDataUrl = null);
 
 public sealed record AiRequest(string Model, string System, IReadOnlyList<AiMessage> Messages, int MaxOutputTokens);
 

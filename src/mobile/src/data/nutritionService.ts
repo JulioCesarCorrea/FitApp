@@ -29,7 +29,7 @@ export interface RawFoodInput {
   protein: string;
   fat: string;
   carbs: string;
-  source: 'manual' | 'openfoodfacts';
+  source: 'manual' | 'openfoodfacts' | 'ia';
   /** Etiquetas de alérgenos elegidas (SPEC-nutrition-003); sin ellas el alimento queda «sin dato». */
   allergens?: string[];
   /** Opcionales (SPEC-nutrition-004): fibra y azúcares en g y sodio en mg, por 100 g. Vacío = sin dato. */

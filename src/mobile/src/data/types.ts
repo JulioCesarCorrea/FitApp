@@ -141,7 +141,7 @@ export interface LocalFood {
   proteinPer100g: number;
   fatPer100g: number;
   carbsPer100g: number;
-  source: 'manual' | 'openfoodfacts';
+  source: 'manual' | 'openfoodfacts' | 'ia';
   /** Alérgenos declarados (SPEC-nutrition-003); vacío = sin dato. */
   allergens: string[];
   /** Por 100 g (SPEC-nutrition-004); null = sin dato (no es cero). */

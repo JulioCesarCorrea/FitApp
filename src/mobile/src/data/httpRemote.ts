@@ -3,6 +3,7 @@ import { authedFetch, type Authorizer } from './authedFetch';
 import type {
   AiApi, AiAssistantApi, AiFeatureState, AiResult, AiUsage, Analysis, ChatApi, ChatEvent, ChatOutcome, Proposal, ProposalResult,
 } from './aiService';
+import type { FoodPhoto, FoodPhotoApi } from './foodPhotoService';
 import { parseSse } from './sse';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
@@ -11,7 +12,7 @@ import type {
 } from './types';
 
 /** Cliente HTTP de la API (SPEC-training-002). Traduce las respuestas al contrato de RemoteApi. */
-export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi {
+export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiApi, AiAssistantApi, ChatApi, FoodPhotoApi {
   constructor(
     private readonly auth: Authorizer,
     private readonly baseUrl: string | undefined = process.env.EXPO_PUBLIC_API_URL,
@@ -110,6 +111,10 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi, AiAp
     const problem = (await res.json().catch(() => null)) as { code?: string; title?: string; retryAfterSeconds?: number | null; errors?: Record<string, string[]> } | null;
     const detail = problem?.errors ? Object.values(problem.errors).flat()[0] : undefined;
     return { kind: 'error', code: problem?.code ?? `http_${res.status}`, message: detail ?? problem?.title ?? 'La IA no respondió.', retryAfterSeconds: problem?.retryAfterSeconds ?? null };
+  }
+
+  analyzeFoodPhoto(imageBase64: string): Promise<AiResult<FoodPhoto>> {
+    return this.aiCall('POST', '/ai/food-photo', { imageBase64 });
   }
 
   requestAnalysis(scope: string): Promise<AiResult<Analysis>> {

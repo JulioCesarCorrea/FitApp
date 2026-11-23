@@ -27,6 +27,7 @@ public abstract record AssistantResult<T>
     public sealed record Denied(AiDenial Reason, TimeSpan? RetryAfter) : AssistantResult<T>;
     public sealed record Failed(string Message) : AssistantResult<T>;
     public sealed record BadRequest(string Message) : AssistantResult<T>;
+    public sealed record RateLimited(TimeSpan RetryAfter) : AssistantResult<T>;
 }
 
 /// <summary>

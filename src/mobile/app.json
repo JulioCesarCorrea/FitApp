@@ -36,6 +36,14 @@
       "expo-image",
       "expo-secure-store",
       [
+        "expo-image-picker",
+        {
+          "cameraPermission": "La cámara se usa para fotografiar tu comida y estimar lo que contiene.",
+          "photosPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-notifications",
         {
           "enableRemoteNotifications": false

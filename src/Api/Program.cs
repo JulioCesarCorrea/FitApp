@@ -139,6 +139,7 @@ builder.Services.AddScoped<AiGateway>();
 builder.Services.AddScoped<AiAccountHandler>();
 builder.Services.AddScoped<AiAssistantHandler>();
 builder.Services.AddScoped<ChatHandler>();
+builder.Services.AddScoped<FoodPhotoHandler>();
 
 var app = builder.Build();
 
