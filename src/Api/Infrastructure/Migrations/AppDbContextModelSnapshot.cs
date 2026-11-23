@@ -219,6 +219,13 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .HasPrecision(8, 1)
                         .HasColumnType("numeric(8,1)");
 
+                    b.Property<Guid?>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("Servings")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)");
+
                     b.Property<int?>("SodiumMg")
                         .HasColumnType("integer");
 
@@ -233,9 +240,100 @@ namespace FitnessApp.Api.Infrastructure.Migrations
 
                     b.HasIndex("FoodId");
 
+                    b.HasIndex("RecipeId");
+
                     b.HasIndex("UserId", "Date");
 
                     b.ToTable("food_entries", (string)null);
+                });
+
+            modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.Recipe", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("Servings")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("recipes", (string)null);
+                });
+
+            modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.RecipeIngredient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CarbsPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<decimal>("FatPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<decimal?>("FiberPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<Guid?>("FoodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Grams")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("KcalPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("ProteinPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("SodiumMgPer100g")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("SugarsPer100g")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FoodId");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("recipe_ingredients", (string)null);
                 });
 
             modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.TargetOverride", b =>
@@ -1897,6 +1995,25 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("FoodId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FitnessApp.Api.Domain.Nutrition.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.RecipeIngredient", b =>
+                {
+                    b.HasOne("FitnessApp.Api.Domain.Nutrition.Food", null)
+                        .WithMany()
+                        .HasForeignKey("FoodId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FitnessApp.Api.Domain.Nutrition.Recipe", null)
+                        .WithMany("Ingredients")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FitnessApp.Api.Domain.Training.ExerciseLogEntry", b =>
@@ -1915,6 +2032,11 @@ namespace FitnessApp.Api.Infrastructure.Migrations
                         .HasForeignKey("ExerciseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("FitnessApp.Api.Domain.Nutrition.Recipe", b =>
+                {
+                    b.Navigation("Ingredients");
                 });
 #pragma warning restore 612, 618
         }

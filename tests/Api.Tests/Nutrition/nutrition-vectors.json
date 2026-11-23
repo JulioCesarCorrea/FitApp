@@ -867,5 +867,399 @@
         "sodiumMg": 0
       }
     }
+  ],
+  "recipes": [
+    {
+      "name": "un ingrediente, una ración",
+      "servings": 1,
+      "ingredients": [
+        {
+          "kcalPer100g": 389,
+          "proteinPer100g": 16.9,
+          "fatPer100g": 6.9,
+          "carbsPer100g": 66.3,
+          "fiberPer100g": 10.6,
+          "sugarsPer100g": 1.1,
+          "sodiumMgPer100g": 2,
+          "grams": 100
+        }
+      ],
+      "expectedTotal": {
+        "kcal": 389,
+        "proteinG": 16.9,
+        "fatG": 6.9,
+        "carbsG": 66.3,
+        "fiberG": 10.6,
+        "sugarsG": 1.1,
+        "sodiumMg": 2
+      },
+      "eatenServings": 1,
+      "expectedEntry": {
+        "kcal": 389,
+        "proteinG": 16.9,
+        "fatG": 6.9,
+        "carbsG": 66.3,
+        "fiberG": 10.6,
+        "sugarsG": 1.1,
+        "sodiumMg": 2
+      },
+      "expectedPerServing": {
+        "kcal": 389,
+        "proteinG": 16.9,
+        "fatG": 6.9,
+        "carbsG": 66.3,
+        "fiberG": 10.6,
+        "sugarsG": 1.1,
+        "sodiumMg": 2
+      }
+    },
+    {
+      "name": "dos ingredientes entre cuatro raciones, una ración",
+      "servings": 4,
+      "ingredients": [
+        {
+          "kcalPer100g": 389,
+          "proteinPer100g": 16.9,
+          "fatPer100g": 6.9,
+          "carbsPer100g": 66.3,
+          "fiberPer100g": 10.6,
+          "sugarsPer100g": 1.1,
+          "sodiumMgPer100g": 2,
+          "grams": 200
+        },
+        {
+          "kcalPer100g": 143,
+          "proteinPer100g": 12.6,
+          "fatPer100g": 9.5,
+          "carbsPer100g": 0.7,
+          "fiberPer100g": 0,
+          "sugarsPer100g": 0.4,
+          "sodiumMgPer100g": 142,
+          "grams": 120
+        }
+      ],
+      "expectedTotal": {
+        "kcal": 950,
+        "proteinG": 48.9,
+        "fatG": 25.2,
+        "carbsG": 133.4,
+        "fiberG": 21.2,
+        "sugarsG": 2.7,
+        "sodiumMg": 174
+      },
+      "eatenServings": 1,
+      "expectedEntry": {
+        "kcal": 238,
+        "proteinG": 12.2,
+        "fatG": 6.3,
+        "carbsG": 33.4,
+        "fiberG": 5.3,
+        "sugarsG": 0.7,
+        "sodiumMg": 44
+      },
+      "expectedPerServing": {
+        "kcal": 238,
+        "proteinG": 12.2,
+        "fatG": 6.3,
+        "carbsG": 33.4,
+        "fiberG": 5.3,
+        "sugarsG": 0.7,
+        "sodiumMg": 44
+      }
+    },
+    {
+      "name": "media ración de una receta de tres",
+      "servings": 3,
+      "ingredients": [
+        {
+          "kcalPer100g": 539,
+          "proteinPer100g": 6.3,
+          "fatPer100g": 30.9,
+          "carbsPer100g": 57.5,
+          "fiberPer100g": 3.4,
+          "sugarsPer100g": 56.3,
+          "sodiumMgPer100g": 41,
+          "grams": 90
+        },
+        {
+          "kcalPer100g": 60,
+          "proteinPer100g": 4,
+          "fatPer100g": 3,
+          "carbsPer100g": 5,
+          "fiberPer100g": 0,
+          "sugarsPer100g": 5,
+          "sodiumMgPer100g": 50,
+          "grams": 150
+        }
+      ],
+      "expectedTotal": {
+        "kcal": 575,
+        "proteinG": 11.7,
+        "fatG": 32.3,
+        "carbsG": 59.3,
+        "fiberG": 3.1,
+        "sugarsG": 58.2,
+        "sodiumMg": 112
+      },
+      "eatenServings": 0.5,
+      "expectedEntry": {
+        "kcal": 96,
+        "proteinG": 2.0,
+        "fatG": 5.4,
+        "carbsG": 9.9,
+        "fiberG": 0.5,
+        "sugarsG": 9.7,
+        "sodiumMg": 19
+      },
+      "expectedPerServing": {
+        "kcal": 192,
+        "proteinG": 3.9,
+        "fatG": 10.8,
+        "carbsG": 19.8,
+        "fiberG": 1.0,
+        "sugarsG": 19.4,
+        "sodiumMg": 37
+      }
+    },
+    {
+      "name": "un ingrediente sin dato de fibra deja la fibra sin dato",
+      "servings": 2,
+      "ingredients": [
+        {
+          "kcalPer100g": 100,
+          "proteinPer100g": 1,
+          "fatPer100g": 1,
+          "carbsPer100g": 10,
+          "fiberPer100g": null,
+          "sugarsPer100g": 2,
+          "sodiumMgPer100g": 10,
+          "grams": 100
+        },
+        {
+          "kcalPer100g": 50,
+          "proteinPer100g": 1,
+          "fatPer100g": 1,
+          "carbsPer100g": 5,
+          "fiberPer100g": 1,
+          "sugarsPer100g": 1,
+          "sodiumMgPer100g": 5,
+          "grams": 100
+        }
+      ],
+      "expectedTotal": {
+        "kcal": 150,
+        "proteinG": 2.0,
+        "fatG": 2.0,
+        "carbsG": 15.0,
+        "fiberG": null,
+        "sugarsG": 3.0,
+        "sodiumMg": 15
+      },
+      "eatenServings": 1,
+      "expectedEntry": {
+        "kcal": 75,
+        "proteinG": 1.0,
+        "fatG": 1.0,
+        "carbsG": 7.5,
+        "fiberG": null,
+        "sugarsG": 1.5,
+        "sodiumMg": 8
+      },
+      "expectedPerServing": {
+        "kcal": 75,
+        "proteinG": 1.0,
+        "fatG": 1.0,
+        "carbsG": 7.5,
+        "fiberG": null,
+        "sugarsG": 1.5,
+        "sodiumMg": 8
+      }
+    },
+    {
+      "name": "un ingrediente sin dato de sodio deja el sodio sin dato",
+      "servings": 2,
+      "ingredients": [
+        {
+          "kcalPer100g": 100,
+          "proteinPer100g": 1,
+          "fatPer100g": 1,
+          "carbsPer100g": 10,
+          "fiberPer100g": 1,
+          "sugarsPer100g": 2,
+          "sodiumMgPer100g": null,
+          "grams": 100
+        },
+        {
+          "kcalPer100g": 50,
+          "proteinPer100g": 1,
+          "fatPer100g": 1,
+          "carbsPer100g": 5,
+          "fiberPer100g": 1,
+          "sugarsPer100g": 1,
+          "sodiumMgPer100g": 5,
+          "grams": 100
+        }
+      ],
+      "expectedTotal": {
+        "kcal": 150,
+        "proteinG": 2.0,
+        "fatG": 2.0,
+        "carbsG": 15.0,
+        "fiberG": 2.0,
+        "sugarsG": 3.0,
+        "sodiumMg": null
+      },
+      "eatenServings": 2,
+      "expectedEntry": {
+        "kcal": 150,
+        "proteinG": 2.0,
+        "fatG": 2.0,
+        "carbsG": 15.0,
+        "fiberG": 2.0,
+        "sugarsG": 3.0,
+        "sodiumMg": null
+      },
+      "expectedPerServing": {
+        "kcal": 75,
+        "proteinG": 1.0,
+        "fatG": 1.0,
+        "carbsG": 7.5,
+        "fiberG": 1.0,
+        "sugarsG": 1.5,
+        "sodiumMg": null
+      }
+    },
+    {
+      "name": "cuarto de ración con redondeo .5 hacia arriba",
+      "servings": 7,
+      "ingredients": [
+        {
+          "kcalPer100g": 333,
+          "proteinPer100g": 7.7,
+          "fatPer100g": 3.3,
+          "carbsPer100g": 44.4,
+          "fiberPer100g": 2.5,
+          "sugarsPer100g": 1.5,
+          "sodiumMgPer100g": 33,
+          "grams": 75
+        }
+      ],
+      "expectedTotal": {
+        "kcal": 250,
+        "proteinG": 5.8,
+        "fatG": 2.5,
+        "carbsG": 33.3,
+        "fiberG": 1.9,
+        "sugarsG": 1.1,
+        "sodiumMg": 25
+      },
+      "eatenServings": 0.25,
+      "expectedEntry": {
+        "kcal": 9,
+        "proteinG": 0.2,
+        "fatG": 0.1,
+        "carbsG": 1.2,
+        "fiberG": 0.1,
+        "sugarsG": 0.0,
+        "sodiumMg": 1
+      },
+      "expectedPerServing": {
+        "kcal": 36,
+        "proteinG": 0.8,
+        "fatG": 0.4,
+        "carbsG": 4.8,
+        "fiberG": 0.3,
+        "sugarsG": 0.2,
+        "sodiumMg": 4
+      }
+    },
+    {
+      "name": "veinte raciones de una receta de una",
+      "servings": 1,
+      "ingredients": [
+        {
+          "kcalPer100g": 250,
+          "proteinPer100g": 10,
+          "fatPer100g": 10,
+          "carbsPer100g": 30,
+          "fiberPer100g": 5,
+          "sugarsPer100g": 5,
+          "sodiumMgPer100g": 100,
+          "grams": 400
+        }
+      ],
+      "expectedTotal": {
+        "kcal": 1000,
+        "proteinG": 40.0,
+        "fatG": 40.0,
+        "carbsG": 120.0,
+        "fiberG": 20.0,
+        "sugarsG": 20.0,
+        "sodiumMg": 400
+      },
+      "eatenServings": 20,
+      "expectedEntry": {
+        "kcal": 20000,
+        "proteinG": 800.0,
+        "fatG": 800.0,
+        "carbsG": 2400.0,
+        "fiberG": 400.0,
+        "sugarsG": 400.0,
+        "sodiumMg": 8000
+      },
+      "expectedPerServing": {
+        "kcal": 1000,
+        "proteinG": 40.0,
+        "fatG": 40.0,
+        "carbsG": 120.0,
+        "fiberG": 20.0,
+        "sugarsG": 20.0,
+        "sodiumMg": 400
+      }
+    },
+    {
+      "name": "raciones con dos decimales",
+      "servings": 5,
+      "ingredients": [
+        {
+          "kcalPer100g": 210,
+          "proteinPer100g": 9.1,
+          "fatPer100g": 4.2,
+          "carbsPer100g": 31.5,
+          "fiberPer100g": 2.2,
+          "sugarsPer100g": 3.3,
+          "sodiumMgPer100g": 77,
+          "grams": 130
+        }
+      ],
+      "expectedTotal": {
+        "kcal": 273,
+        "proteinG": 11.8,
+        "fatG": 5.5,
+        "carbsG": 41.0,
+        "fiberG": 2.9,
+        "sugarsG": 4.3,
+        "sodiumMg": 100
+      },
+      "eatenServings": 1.75,
+      "expectedEntry": {
+        "kcal": 96,
+        "proteinG": 4.1,
+        "fatG": 1.9,
+        "carbsG": 14.4,
+        "fiberG": 1.0,
+        "sugarsG": 1.5,
+        "sodiumMg": 35
+      },
+      "expectedPerServing": {
+        "kcal": 55,
+        "proteinG": 2.4,
+        "fatG": 1.1,
+        "carbsG": 8.2,
+        "fiberG": 0.6,
+        "sugarsG": 0.9,
+        "sodiumMg": 20
+      }
+    }
   ]
 }

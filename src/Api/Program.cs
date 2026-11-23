@@ -124,6 +124,7 @@ builder.Services.AddScoped<SuggestionsHandler>();
 builder.Services.AddScoped<FoodHandler>();
 builder.Services.AddScoped<FoodEntryHandler>();
 builder.Services.AddScoped<WaterHandler>();
+builder.Services.AddScoped<RecipeHandler>();
 builder.Services.AddScoped<NutritionHandler>();
 
 var app = builder.Build();

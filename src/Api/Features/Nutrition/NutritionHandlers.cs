@@ -22,11 +22,13 @@ public sealed record FoodDto(
 /// <summary>SPEC-nutrition-003, AC-04: alérgenos del alimento que coinciden con las alergias del perfil.</summary>
 public sealed record FoodConflictsDto(string[] Conflicts);
 
-public sealed record FoodEntryRequest(DateOnly Date, string Meal, Guid FoodId, int Grams);
+/// <summary>Con alimento: <c>FoodId</c> y <c>Grams</c>. Con receta (SPEC-nutrition-005): <c>RecipeId</c> y <c>Servings</c>.</summary>
+public sealed record FoodEntryRequest(
+    DateOnly Date, string Meal, Guid? FoodId = null, int Grams = 0, Guid? RecipeId = null, decimal? Servings = null);
 
 public sealed record FoodEntryDto(
     Guid Id, DateOnly Date, string Meal, Guid? FoodId, int Grams, string Name, int Kcal, decimal ProteinG, decimal FatG, decimal CarbsG,
-    decimal? FiberG = null, decimal? SugarsG = null, int? SodiumMg = null);
+    decimal? FiberG = null, decimal? SugarsG = null, int? SodiumMg = null, Guid? RecipeId = null, decimal? Servings = null);
 
 public sealed record WaterRequest(DateOnly Date, int Ml);
 
@@ -129,8 +131,11 @@ public sealed class FoodEntryRequestValidator : AbstractValidator<FoodEntryReque
             .Must(d => d <= DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime).AddDays(1)).WithMessage("La fecha no puede ser futura.");
         RuleFor(x => x.Meal).NotEmpty().Must(m => m.Trim().Length is >= 1 and <= Meals.MaxLength)
             .WithMessage($"La comida lleva entre 1 y {Meals.MaxLength} caracteres.");
-        RuleFor(x => x.Grams).InclusiveBetween(1, 5000).WithMessage("Los gramos van de 1 a 5000.");
-        RuleFor(x => x.FoodId).NotEmpty().WithMessage("Falta el alimento.");
+        RuleFor(x => x).Must(x => (x.FoodId is not null && x.FoodId != Guid.Empty) ^ (x.RecipeId is not null && x.RecipeId != Guid.Empty))
+            .WithMessage("Indica un alimento o una receta, no los dos.");
+        RuleFor(x => x.Grams).InclusiveBetween(1, 5000).When(x => x.RecipeId is null).WithMessage("Los gramos van de 1 a 5000.");
+        RuleFor(x => x.Servings).NotNull().InclusiveBetween(0.25m, 20m).PrecisionScale(6, 2, ignoreTrailingZeros: true)
+            .When(x => x.RecipeId is not null).WithMessage("Las raciones van de 0,25 a 20, con hasta dos decimales.");
     }
 }
 
@@ -146,6 +151,7 @@ public abstract record PutEntryResult
     public sealed record Saved(FoodEntryDto Entry, bool Created) : PutEntryResult;
     public sealed record NotFound : PutEntryResult;
     public sealed record UnknownFood : PutEntryResult;
+    public sealed record UnknownRecipe : PutEntryResult;
 }
 
 public abstract record TargetsResult
@@ -245,8 +251,18 @@ public sealed class FoodEntryHandler(AppDbContext db, TimeProvider clock)
         var existing = await db.FoodEntries.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (existing is not null && existing.UserId != userId) return new PutEntryResult.NotFound();
 
-        var food = await db.Foods.AsNoTracking().FirstOrDefaultAsync(f => f.Id == request.FoodId && f.UserId == userId, ct);
-        if (food is null) return new PutEntryResult.UnknownFood();
+        Food? food = null;
+        Recipe? recipe = null;
+        if (request.RecipeId is { } recipeId)
+        {
+            recipe = await db.Recipes.AsNoTracking().Include(r => r.Ingredients).FirstOrDefaultAsync(r => r.Id == recipeId && r.UserId == userId, ct);
+            if (recipe is null) return new PutEntryResult.UnknownRecipe();
+        }
+        else
+        {
+            food = await db.Foods.AsNoTracking().FirstOrDefaultAsync(f => f.Id == request.FoodId && f.UserId == userId, ct);
+            if (food is null) return new PutEntryResult.UnknownFood();
+        }
 
         var created = existing is null;
         if (existing is null)
@@ -255,20 +271,37 @@ public sealed class FoodEntryHandler(AppDbContext db, TimeProvider clock)
             db.FoodEntries.Add(existing);
         }
 
-        var portion = NutritionRules.PortionOf(food.KcalPer100g, food.ProteinPer100g, food.FatPer100g, food.CarbsPer100g, request.Grams);
         existing.Date = request.Date;
         existing.Meal = Meals.Normalize(request.Meal);
-        existing.FoodId = food.Id;
-        existing.Grams = request.Grams;
-        existing.Name = food.Name;
-        existing.Kcal = portion.Kcal;
-        existing.ProteinG = portion.ProteinG;
-        existing.FatG = portion.FatG;
-        existing.CarbsG = portion.CarbsG;
-        var micros = NutritionRules.MicrosOf(food.FiberPer100g, food.SugarsPer100g, food.SodiumMgPer100g, request.Grams);
-        existing.FiberG = micros.FiberG;
-        existing.SugarsG = micros.SugarsG;
-        existing.SodiumMg = micros.SodiumMg;
+        if (recipe is not null)
+        {
+            // SPEC-nutrition-005, AC-04: la entrada copia los valores de esas raciones; cambiar o borrar la receta no la reescribe.
+            var eaten = NutritionRules.ScaleRecipe(RecipeHandler.TotalOf(recipe), recipe.Servings, request.Servings!.Value);
+            existing.FoodId = null;
+            existing.RecipeId = recipe.Id;
+            existing.Servings = request.Servings;
+            existing.Grams = 0;
+            existing.Name = recipe.Name;
+            (existing.Kcal, existing.ProteinG, existing.FatG, existing.CarbsG) = (eaten.Kcal, eaten.ProteinG, eaten.FatG, eaten.CarbsG);
+            (existing.FiberG, existing.SugarsG, existing.SodiumMg) = (eaten.FiberG, eaten.SugarsG, eaten.SodiumMg);
+        }
+        else
+        {
+            var portion = NutritionRules.PortionOf(food!.KcalPer100g, food.ProteinPer100g, food.FatPer100g, food.CarbsPer100g, request.Grams);
+            existing.FoodId = food.Id;
+            existing.RecipeId = null;
+            existing.Servings = null;
+            existing.Grams = request.Grams;
+            existing.Name = food.Name;
+            existing.Kcal = portion.Kcal;
+            existing.ProteinG = portion.ProteinG;
+            existing.FatG = portion.FatG;
+            existing.CarbsG = portion.CarbsG;
+            var micros = NutritionRules.MicrosOf(food.FiberPer100g, food.SugarsPer100g, food.SodiumMgPer100g, request.Grams);
+            existing.FiberG = micros.FiberG;
+            existing.SugarsG = micros.SugarsG;
+            existing.SodiumMg = micros.SodiumMg;
+        }
 
         try
         {
@@ -289,7 +322,7 @@ public sealed class FoodEntryHandler(AppDbContext db, TimeProvider clock)
         await db.FoodEntries.Where(e => e.Id == id && e.UserId == userId).ExecuteDeleteAsync(ct);
 
     public static FoodEntryDto ToDto(FoodEntry e) =>
-        new(e.Id, e.Date, e.Meal, e.FoodId, e.Grams, e.Name, e.Kcal, e.ProteinG, e.FatG, e.CarbsG, e.FiberG, e.SugarsG, e.SodiumMg);
+        new(e.Id, e.Date, e.Meal, e.FoodId, e.Grams, e.Name, e.Kcal, e.ProteinG, e.FatG, e.CarbsG, e.FiberG, e.SugarsG, e.SodiumMg, e.RecipeId, e.Servings);
 }
 
 public sealed class WaterRequestValidator : AbstractValidator<WaterRequest>

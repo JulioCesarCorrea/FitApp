@@ -23,7 +23,11 @@ public sealed class NutritionVectorsTests
     private sealed record OverrideCase(string Name, int Calories, decimal WeightKg, string Goal, OverrideExpected Expected);
     private sealed record MicroExpected(decimal? FiberG, decimal? SugarsG, int? SodiumMg);
     private sealed record MicroCase(string Name, decimal? FiberPer100g, decimal? SugarsPer100g, int? SodiumMgPer100g, int Grams, MicroExpected Expected);
-    private sealed record Vectors(TargetCase[] Targets, FloorCase[] Floor, PortionCase[] Portions, OverrideCase[] Override, MicroCase[] Micros);
+    private sealed record RecipeCase(
+        string Name, int Servings, IngredientValues[] Ingredients, RecipeValues ExpectedTotal, decimal EatenServings, RecipeValues ExpectedEntry,
+        RecipeValues ExpectedPerServing);
+    private sealed record Vectors(
+        TargetCase[] Targets, FloorCase[] Floor, PortionCase[] Portions, OverrideCase[] Override, MicroCase[] Micros, RecipeCase[] Recipes);
 
     private static readonly Vectors All = JsonSerializer.Deserialize<Vectors>(
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Nutrition", "nutrition-vectors.json")),
@@ -34,6 +38,21 @@ public sealed class NutritionVectorsTests
     public static TheoryData<string> PortionNames() => [.. All.Portions.Select(t => t.Name)];
     public static TheoryData<string> OverrideNames() => [.. All.Override.Select(t => t.Name)];
     public static TheoryData<string> MicroNames() => [.. All.Micros.Select(t => t.Name)];
+    public static TheoryData<string> RecipeNames() => [.. All.Recipes.Select(t => t.Name)];
+
+    // SPEC-nutrition-005, AC-03
+    [Theory]
+    [MemberData(nameof(RecipeNames))]
+    public void AC_nutrition_005_03_vectores_del_total_por_racion_y_por_cantidad_de_una_receta(string name)
+    {
+        var c = All.Recipes.Single(r => r.Name == name);
+
+        var total = NutritionRules.RecipeTotal(c.Ingredients);
+
+        Assert.Equal(c.ExpectedTotal, total);
+        Assert.Equal(c.ExpectedEntry, NutritionRules.ScaleRecipe(total, c.Servings, c.EatenServings));
+        Assert.Equal(c.ExpectedPerServing, NutritionRules.ScaleRecipe(total, c.Servings, 1m));
+    }
 
     // SPEC-nutrition-004, AC-04
     [Theory]
@@ -873,5 +892,160 @@ public sealed class NutritionApiTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.NotFound, edit.StatusCode);
         Assert.Equal(0, (await Day(other))!.Totals.WaterMl);
         Assert.Equal(250, (await Day(owner))!.Totals.WaterMl);
+    }
+
+    // ---------- SPEC-nutrition-005: recetas ----------
+
+    private static RecipeRequest Recipe(string name = "Gachas", int servings = 2, params (Guid FoodId, int Grams)[] ingredients) =>
+        new(name, servings, ingredients.Select(i => new IngredientRequest(i.FoodId, i.Grams)).ToList());
+
+    private static Task<HttpResponseMessage> PutRecipe(HttpClient c, Guid id, RecipeRequest recipe) => c.PutAsJsonAsync($"/recipes/{id}", recipe);
+
+    private static Task<List<RecipeDto>?> Recipes(HttpClient c) => c.GetFromJsonAsync<List<RecipeDto>>("/recipes");
+
+    // AC-nutrition-005-01
+    [Fact]
+    public async Task AC_nutrition_005_01_una_receta_valida_se_guarda_con_201_y_reenviarla_o_cambiarla_responde_200()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var oats = await PutFood(client, Food());
+        var milk = await PutFood(client, Food(name: "Leche", kcal: 64, protein: 3.3m, fat: 3.6m, carbs: 4.8m));
+        var id = Guid.NewGuid();
+
+        var created = await PutRecipe(client, id, Recipe(ingredients: [(oats, 80), (milk, 200)]));
+        var again = await PutRecipe(client, id, Recipe(ingredients: [(oats, 80), (milk, 200)]));
+        var changed = await PutRecipe(client, id, Recipe("Gachas con leche", 3, [(oats, 100)]));
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        var saved = Assert.Single((await Recipes(client))!);
+        Assert.Equal(("Gachas con leche", 3, 1), (saved.Name, saved.Servings, saved.Ingredients.Count));
+    }
+
+    // AC-nutrition-005-02
+    [Fact]
+    public async Task AC_nutrition_005_02_recetas_fuera_de_las_reglas_o_con_alimentos_ajenos_no_se_guardan()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var other = api.ClientFor(Guid.NewGuid());
+        var oats = await PutFood(client, Food());
+        var foreign = await PutFood(other, Food(name: "Ajeno"));
+
+        var cases = new (RecipeRequest Request, HttpStatusCode Expected)[]
+        {
+            (Recipe("", 2, [(oats, 50)]), HttpStatusCode.BadRequest),
+            (Recipe(new string('x', 81), 2, [(oats, 50)]), HttpStatusCode.BadRequest),
+            (Recipe("Sin raciones", 0, [(oats, 50)]), HttpStatusCode.BadRequest),
+            (Recipe("Demasiadas", 51, [(oats, 50)]), HttpStatusCode.BadRequest),
+            (Recipe("Sin ingredientes", 2, []), HttpStatusCode.BadRequest),
+            (Recipe("Gramos", 2, [(oats, 0)]), HttpStatusCode.BadRequest),
+            (Recipe("Gramos", 2, [(oats, 5001)]), HttpStatusCode.BadRequest),
+            (Recipe("Repetido", 2, [(oats, 50), (oats, 60)]), HttpStatusCode.BadRequest),
+            (Recipe("Ajeno", 2, [(foreign, 50)]), HttpStatusCode.UnprocessableEntity),
+            (Recipe("Inexistente", 2, [(Guid.NewGuid(), 50)]), HttpStatusCode.UnprocessableEntity),
+        };
+        foreach (var (request, expected) in cases)
+            Assert.Equal(expected, (await PutRecipe(client, Guid.NewGuid(), request)).StatusCode);
+
+        Assert.Empty((await Recipes(client))!);
+    }
+
+    // AC-nutrition-005-06
+    [Fact]
+    public async Task AC_nutrition_005_06_el_listado_trae_solo_las_propias_por_nombre_con_los_valores_por_racion()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var oats = await PutFood(client, Food()); // 389 kcal por 100 g
+        await PutRecipe(client, Guid.NewGuid(), Recipe("Zumo", 1, [(oats, 100)]));
+        await PutRecipe(client, Guid.NewGuid(), Recipe("Árbol de gachas", 2, [(oats, 100)]));
+        await PutRecipe(api.ClientFor(Guid.NewGuid()), Guid.NewGuid(), Recipe("Ajena", 1, [(await PutFood(api.ClientFor(Guid.NewGuid()), Food(name: "X")), 10)]));
+
+        var recipes = (await Recipes(client))!;
+
+        Assert.Equal(["Árbol de gachas", "Zumo"], recipes.Select(r => r.Name));
+        Assert.Equal(389, recipes[1].Total.Kcal);
+        Assert.Equal(195, recipes[0].PerServing.Kcal); // 389 / 2 = 194,5 → 195
+    }
+
+    // AC-nutrition-005-04
+    [Fact]
+    public async Task AC_nutrition_005_04_registrar_una_receta_copia_los_valores_de_esas_raciones_y_no_se_reescribe_despues()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var oats = await PutFood(client, Food());
+        var recipeId = Guid.NewGuid();
+        await PutRecipe(client, recipeId, Recipe("Gachas", 2, [(oats, 200)])); // total 778 kcal
+        var entryId = Guid.NewGuid();
+
+        var created = await client.PutAsJsonAsync($"/food-entries/{entryId}", new FoodEntryRequest(Today, "desayuno", RecipeId: recipeId, Servings: 1.5m));
+        var entry = (await Day(client))!.Meals.Single().Entries.Single();
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(("Gachas", 0, recipeId, 1.5m, 584), (entry.Name, entry.Grams, entry.RecipeId, entry.Servings, entry.Kcal)); // 778 × 1,5 / 2 = 583,5 → 584
+        Assert.Null(entry.FoodId);
+
+        await PutRecipe(client, recipeId, Recipe("Gachas ligeras", 2, [(oats, 50)]));
+        await client.DeleteAsync($"/recipes/{recipeId}");
+        var after = (await Day(client))!.Meals.Single().Entries.Single();
+        Assert.Equal(("Gachas", 584, null), (after.Name, after.Kcal, after.RecipeId)); // la entrada conserva su copia; la receta ya no existe
+    }
+
+    // AC-nutrition-005-04 (validación)
+    [Fact]
+    public async Task AC_nutrition_005_04_las_raciones_fuera_de_rango_o_indicar_alimento_y_receta_a_la_vez_responden_400_y_una_receta_ajena_422()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var oats = await PutFood(client, Food());
+        var recipeId = Guid.NewGuid();
+        await PutRecipe(client, recipeId, Recipe("Gachas", 2, [(oats, 100)]));
+        Task<HttpResponseMessage> Put(FoodEntryRequest r) => client.PutAsJsonAsync($"/food-entries/{Guid.NewGuid()}", r);
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await Put(new(Today, "cena", RecipeId: recipeId, Servings: 0.2m))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Put(new(Today, "cena", RecipeId: recipeId, Servings: 21m))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Put(new(Today, "cena", RecipeId: recipeId, Servings: 1.234m))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Put(new(Today, "cena", RecipeId: recipeId))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Put(new(Today, "cena", oats, 50, recipeId, 1m))).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await Put(new(Today, "cena", RecipeId: Guid.NewGuid(), Servings: 1m))).StatusCode);
+        Assert.Empty((await Day(client))!.Meals);
+    }
+
+    // AC-nutrition-005-05
+    [Fact]
+    public async Task AC_nutrition_005_05_si_se_borra_un_alimento_la_receta_conserva_sus_valores_y_marca_el_ingrediente_como_eliminado()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var oats = await PutFood(client, Food());
+        var recipeId = Guid.NewGuid();
+        await PutRecipe(client, recipeId, Recipe("Gachas", 1, [(oats, 100)]));
+
+        await client.DeleteAsync($"/foods/{oats}");
+
+        var recipe = Assert.Single((await Recipes(client))!);
+        var ingredient = Assert.Single(recipe.Ingredients);
+        Assert.True(ingredient.Deleted);
+        Assert.Null(ingredient.FoodId);
+        Assert.Equal(("Avena", 389), (ingredient.Name, recipe.Total.Kcal));
+    }
+
+    // AC-nutrition-005-07 (P7)
+    [Fact]
+    public async Task AC_nutrition_005_07_una_persona_no_ve_ni_cambia_las_recetas_de_otra()
+    {
+        var owner = api.ClientFor(Guid.NewGuid());
+        var other = api.ClientFor(Guid.NewGuid());
+        var oats = await PutFood(owner, Food());
+        var recipeId = Guid.NewGuid();
+        await PutRecipe(owner, recipeId, Recipe("Gachas", 2, [(oats, 100)]));
+        var otherOats = await PutFood(other, Food());
+
+        var edit = await PutRecipe(other, recipeId, Recipe("Robada", 1, [(otherOats, 10)]));
+        await other.DeleteAsync($"/recipes/{recipeId}");
+        var register = await other.PutAsJsonAsync($"/food-entries/{Guid.NewGuid()}", new FoodEntryRequest(Today, "cena", RecipeId: recipeId, Servings: 1m));
+
+        Assert.Equal(HttpStatusCode.NotFound, edit.StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, register.StatusCode);
+        Assert.Empty((await Recipes(other))!);
+        Assert.Equal("Gachas", Assert.Single((await Recipes(owner))!).Name);
     }
 }

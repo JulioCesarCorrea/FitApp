@@ -69,7 +69,46 @@ public class FoodEntry
     public decimal? FiberG { get; set; }
     public decimal? SugarsG { get; set; }
     public int? SodiumMg { get; set; }
+
+    /// <summary>Receta registrada (SPEC-nutrition-005): con ella <see cref="Grams"/> es 0 y vale <see cref="Servings"/>.</summary>
+    public Guid? RecipeId { get; set; }
+    public decimal? Servings { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Plato compuesto de alimentos propios (SPEC-nutrition-005). Clase C (P5). Cada ingrediente guarda una copia de los valores del
+/// alimento al guardar la receta, así borrar o cambiar el alimento no reescribe la receta (P4).
+/// </summary>
+public class Recipe
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string Name { get; set; } = "";
+    public int Servings { get; set; }
+    public List<RecipeIngredient> Ingredients { get; set; } = [];
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public class RecipeIngredient
+{
+    public Guid Id { get; set; }
+    public Guid RecipeId { get; set; }
+
+    /// <summary>Vacío si el alimento se borró («alimento eliminado»).</summary>
+    public Guid? FoodId { get; set; }
+
+    public int Position { get; set; }
+    public string Name { get; set; } = "";
+    public int Grams { get; set; }
+    public decimal KcalPer100g { get; set; }
+    public decimal ProteinPer100g { get; set; }
+    public decimal FatPer100g { get; set; }
+    public decimal CarbsPer100g { get; set; }
+    public decimal? FiberPer100g { get; set; }
+    public decimal? SugarsPer100g { get; set; }
+    public int? SodiumMgPer100g { get; set; }
 }
 
 /// <summary>Agua bebida en un día, en mililitros (SPEC-nutrition-004). Clase B.</summary>

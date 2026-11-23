@@ -25,6 +25,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<FoodEntry> FoodEntries => Set<FoodEntry>();
     public DbSet<TargetOverride> TargetOverrides => Set<TargetOverride>();
     public DbSet<WaterEntry> WaterEntries => Set<WaterEntry>();
+    public DbSet<Recipe> Recipes => Set<Recipe>();
+    public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -148,9 +150,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.FatG).HasPrecision(8, 1);
             e.Property(x => x.CarbsG).HasPrecision(8, 1);
             e.Property(x => x.FiberG).HasPrecision(8, 1);
+            e.Property(x => x.Servings).HasPrecision(6, 2);
+            // Borrar una receta no borra lo ya comido (SPEC-nutrition-005).
+            e.HasOne<Recipe>().WithMany().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.SetNull);
             e.Property(x => x.SugarsG).HasPrecision(8, 1);
             e.HasIndex(x => new { x.UserId, x.Date });
             // Borrar un alimento no borra lo ya comido: la entrada conserva su copia (AC-09).
+            e.HasOne<Food>().WithMany().HasForeignKey(x => x.FoodId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Recipe>(e =>
+        {
+            e.ToTable("recipes");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(80);
+            e.HasIndex(x => x.UserId);
+            e.HasMany(x => x.Ingredients).WithOne().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RecipeIngredient>(e =>
+        {
+            e.ToTable("recipe_ingredients");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(80);
+            e.Property(x => x.KcalPer100g).HasPrecision(7, 1);
+            e.Property(x => x.ProteinPer100g).HasPrecision(7, 1);
+            e.Property(x => x.FatPer100g).HasPrecision(7, 1);
+            e.Property(x => x.CarbsPer100g).HasPrecision(7, 1);
+            e.Property(x => x.FiberPer100g).HasPrecision(7, 1);
+            e.Property(x => x.SugarsPer100g).HasPrecision(7, 1);
+            // Borrar un alimento no borra la receta: el ingrediente conserva su copia (AC-05).
             e.HasOne<Food>().WithMany().HasForeignKey(x => x.FoodId).OnDelete(DeleteBehavior.SetNull);
         });
 
