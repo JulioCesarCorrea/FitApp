@@ -5,6 +5,7 @@ import { Body, Button, Field, Muted, Title } from '../../components/ui';
 import { useDeps } from '../../data/DataContext';
 import { useNutritionDay } from '../../data/hooks';
 import { allergenLabel } from '../../data/allergens';
+import { WATER_GOAL_ML } from '../../data/nutritionRules';
 import { localDate, type TargetState } from '../../data/nutritionService';
 import type { LocalFoodEntry, SyncStatus } from '../../data/types';
 import { useTheme } from '../../theme';
@@ -50,6 +51,33 @@ export default function NutritionScreen() {
         <Body testID="nutrition-totals">
           {`Consumido: ${totals.kcal} kcal · P ${grams(totals.proteinG)} · G ${grams(totals.fatG)} · C ${grams(totals.carbsG)}`}
         </Body>
+        <Body testID="nutrition-micros">
+          {`Fibra ${grams(view.micros.fiberG)} · Azúcares ${grams(view.micros.sugarsG)} · Sodio ${view.micros.sodiumMg} mg`}
+        </Body>
+        {view.micros.partial && (
+          <Muted testID="nutrition-micros-partial">Algunas comidas no tienen estos datos y no suman.</Muted>
+        )}
+        <View testID="nutrition-water">
+          <Body testID="nutrition-water-total">{`Agua: ${view.waterMl} ml de ${WATER_GOAL_ML} ml de referencia`}</Body>
+          <View style={styles.row}>
+            <View style={styles.flex}>
+              <Button title="+250 ml" variant="secondary" testID="water-250" onPress={act(() => nutrition.addWater(250, date))} />
+            </View>
+            <View style={styles.flex}>
+              <Button title="+500 ml" variant="secondary" testID="water-500" onPress={act(() => nutrition.addWater(500, date))} />
+            </View>
+            {view.water.length > 0 && (
+              <View style={styles.flex}>
+                <Button
+                  title="Deshacer"
+                  variant="secondary"
+                  testID="water-undo"
+                  onPress={act(() => nutrition.removeWater(view.water[view.water.length - 1].id))}
+                />
+              </View>
+            )}
+          </View>
+        </View>
         {remaining && (
           <Body testID="nutrition-remaining">
             {`${remaining.kcal >= 0 ? 'Te faltan' : 'Te pasas en'} ${Math.abs(remaining.kcal)} kcal`}

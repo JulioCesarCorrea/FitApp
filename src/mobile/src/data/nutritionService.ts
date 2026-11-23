@@ -1,9 +1,9 @@
 import { allergenConflicts, normalizeAllergens } from './allergens';
 import {
-  fold, macrosFor, MAX_GRAMS, MAX_OVERRIDE_CALORIES, MEAL_MAX_LENGTH, MIN_GRAMS, MIN_OVERRIDE_CALORIES, mealOrder, normalizeMeal,
-  portionOf, sumPortions, type Portion,
+  fold, macrosFor, MAX_GRAMS, MAX_OVERRIDE_CALORIES, MAX_WATER_ML, MEAL_MAX_LENGTH, microsOf, MIN_GRAMS, MIN_OVERRIDE_CALORIES,
+  MIN_WATER_ML, mealOrder, normalizeMeal, portionOf, sumMicros, sumPortions, type MicroTotals, type Portion,
 } from './nutritionRules';
-import type { LocalFood, LocalFoodEntry, LocalStore, NutritionApi, NutritionTarget, ServerFood } from './types';
+import type { LocalFood, LocalFoodEntry, LocalStore, LocalWater, NutritionApi, NutritionTarget, ServerFood } from './types';
 
 const TARGET_KEY = 'nutritionTarget';
 const MISSING_KEY = 'nutritionMissing';
@@ -25,10 +25,14 @@ export interface RawFoodInput {
   source: 'manual' | 'openfoodfacts';
   /** Etiquetas de alérgenos elegidas (SPEC-nutrition-003); sin ellas el alimento queda «sin dato». */
   allergens?: string[];
+  /** Opcionales (SPEC-nutrition-004): fibra y azúcares en g y sodio en mg, por 100 g. Vacío = sin dato. */
+  fiber?: string;
+  sugars?: string;
+  sodium?: string;
 }
 
 export interface FoodIssue {
-  field: 'name' | 'brand' | 'barcode' | 'kcal' | 'protein' | 'fat' | 'carbs' | 'total';
+  field: 'name' | 'brand' | 'barcode' | 'kcal' | 'protein' | 'fat' | 'carbs' | 'total' | 'fiber' | 'sugars' | 'sodium';
   message: string;
 }
 
@@ -66,6 +70,11 @@ export interface DayView {
   target: TargetState;
   /** Objetivo menos lo consumido; negativo si se pasó. Null sin objetivo. */
   remaining: Portion | null;
+  /** Fibra, azúcares y sodio del día; lo que no tiene dato no suma (SPEC-nutrition-004, AC-05). */
+  micros: MicroTotals;
+  /** Agua del día (SPEC-nutrition-004). */
+  water: LocalWater[];
+  waterMl: number;
   /** Entradas cuyo alimento choca con las alergias del perfil: id de la entrada → alérgenos (SPEC-nutrition-003, AC-06). */
   conflicts: Record<string, string[]>;
 }
@@ -122,12 +131,31 @@ export function parseFood(raw: RawFoodInput): { ok: true; draft: Omit<LocalFood,
     issues.push({ field: 'total', message: 'Proteína, grasa y carbohidratos no pueden sumar más de 100 g por 100 g.' });
   }
 
+  // SPEC-nutrition-004, AC-01 y 02: opcionales; vacío = sin dato.
+  const optional = (field: 'fiber' | 'sugars' | 'sodium', text: string | undefined, max: number, label: string, whole: boolean): number | null => {
+    if ((text ?? '').trim() === '') return null;
+    const n = decimal(text ?? '');
+    if (!Number.isFinite(n) || n < 0 || n > max) {
+      issues.push({ field, message: `${label} por 100 g va de 0 a ${max}${field === 'sodium' ? ' mg' : ' g'}.` });
+    } else if (whole ? !Number.isInteger(n) : !oneDecimal(n)) {
+      issues.push({ field, message: whole ? 'El sodio se escribe en mg, sin decimales.' : 'Los valores admiten como máximo un decimal.' });
+    }
+    return n;
+  };
+  const fiber = optional('fiber', raw.fiber, 100, 'La fibra', false);
+  const sugars = optional('sugars', raw.sugars, 100, 'Los azúcares', false);
+  const sodium = optional('sodium', raw.sodium, 40000, 'El sodio', true);
+  if (sugars !== null && Number.isFinite(sugars) && Number.isFinite(carbs) && Math.round(sugars * 10) > Math.round(carbs * 10)) {
+    issues.push({ field: 'sugars', message: 'Los azúcares no pueden superar los carbohidratos.' });
+  }
+
   if (issues.length > 0) return { ok: false, issues };
   return {
     ok: true,
     draft: {
       name, brand: brand || null, barcode: barcode || null, kcalPer100g: kcal, proteinPer100g: protein,
       fatPer100g: fat, carbsPer100g: carbs, source: raw.source, allergens: normalizeAllergens(raw.allergens),
+      fiberPer100g: fiber, sugarsPer100g: sugars, sodiumMgPer100g: sodium,
     },
   };
 }
@@ -135,6 +163,7 @@ export function parseFood(raw: RawFoodInput): { ok: true; draft: Omit<LocalFood,
 const foodToServer = (f: LocalFood): ServerFood => ({
   id: f.id, name: f.name, brand: f.brand, barcode: f.barcode, kcalPer100g: f.kcalPer100g, proteinPer100g: f.proteinPer100g,
   fatPer100g: f.fatPer100g, carbsPer100g: f.carbsPer100g, source: f.source, allergens: f.allergens,
+  fiberPer100g: f.fiberPer100g, sugarsPer100g: f.sugarsPer100g, sodiumMgPer100g: f.sodiumMgPer100g,
 });
 
 const isVisible = (x: { pendingOp: string | null }): boolean => x.pendingOp !== 'delete';
@@ -246,9 +275,10 @@ export class NutritionService {
     if (issues.length > 0 || !food) return { ok: false, issues };
 
     const portion = portionOf(food.kcalPer100g, food.proteinPer100g, food.fatPer100g, food.carbsPer100g, grams);
+    const micros = microsOf(food.fiberPer100g ?? null, food.sugarsPer100g ?? null, food.sodiumMgPer100g ?? null, grams);
     const existing = existingId ? await this.store.getFoodEntry(existingId) : null;
     const entry: LocalFoodEntry = {
-      id: existingId ?? this.newId(), date, meal, foodId: food.id, grams, name: food.name, ...portion,
+      id: existingId ?? this.newId(), date, meal, foodId: food.id, grams, name: food.name, ...portion, ...micros,
       status: 'pending', message: null, pendingOp: 'upsert', attempted: existing?.attempted ?? false,
     };
     await this.store.saveFoodEntry(entry);
@@ -322,6 +352,57 @@ export class NutritionService {
     return true;
   }
 
+  // ---------- agua (SPEC-nutrition-004) ----------
+
+  /** AC-06, 09 y 10: suma agua al día; se guarda en el teléfono con un id del dispositivo y se envía en cuanto hay conexión. */
+  async addWater(ml: number, date: string = this.today()): Promise<{ ok: true; water: LocalWater } | { ok: false; message: string }> {
+    if (!Number.isInteger(ml) || ml < MIN_WATER_ML || ml > MAX_WATER_ML) {
+      return { ok: false, message: `Los mililitros van de ${MIN_WATER_ML} a ${MAX_WATER_ML}.` };
+    }
+    const water: LocalWater = { id: this.newId(), date, ml, status: 'pending', message: null, pendingOp: 'upsert', attempted: false };
+    await this.store.saveWater(water);
+    await this.syncPending();
+    return { ok: true, water: (await this.store.getWaterEntry(water.id)) ?? water };
+  }
+
+  /** Deshacer o borrar un registro de agua; si nunca se intentó enviar no se envía nada. */
+  async removeWater(id: string): Promise<void> {
+    const row = await this.store.getWaterEntry(id);
+    if (!row) return;
+    if (!row.attempted) {
+      await this.store.deleteWater(id);
+      return;
+    }
+    await this.store.saveWater({ ...row, status: 'pending', message: null, pendingOp: 'delete' });
+    await this.syncPending();
+  }
+
+  async discardWater(id: string): Promise<void> {
+    await this.store.deleteWater(id);
+  }
+
+  private async sendWaterDelete(w: LocalWater): Promise<boolean> {
+    if ((await this.remote.deleteWaterEntry(w.id)) === 'retry') return false;
+    await this.store.deleteWater(w.id);
+    return true;
+  }
+
+  private async sendWater(water: LocalWater): Promise<boolean> {
+    const sending = { ...water, attempted: true };
+    await this.store.saveWater(sending);
+    const result = await this.remote.putWaterEntry({ id: sending.id, date: sending.date, ml: sending.ml });
+    if (result.kind === 'retry') return false;
+
+    const current = await this.store.getWaterEntry(water.id);
+    if (!current || current.pendingOp !== 'upsert' || current.date !== sending.date || current.ml !== sending.ml) return true;
+    await this.store.saveWater(
+      result.kind === 'ok'
+        ? { ...current, status: 'synced', message: null, pendingOp: null }
+        : { ...current, status: 'rejected', message: result.reason },
+    );
+    return true;
+  }
+
   // ---------- envío ----------
 
   syncPending(): Promise<void> {
@@ -334,11 +415,14 @@ export class NutritionService {
   private async doSync(): Promise<void> {
     const { foods, entries } = await this.store.getPendingNutrition();
     const override = await this.getPending();
+    const water = await this.store.getPendingWater();
     const stages: (() => Promise<boolean>)[] = [
       ...(override ? [() => this.sendOverride(override)] : []),
+      ...water.filter((w) => w.pendingOp === 'delete').map((w) => () => this.sendWaterDelete(w)),
       ...entries.filter((e) => e.pendingOp === 'delete').map((e) => () => this.sendEntryDelete(e)),
       ...foods.filter((f) => f.pendingOp === 'upsert').map((f) => () => this.sendFood(f)),
       ...entries.filter((e) => e.pendingOp === 'upsert').sort((a, b) => a.date.localeCompare(b.date)).map((e) => () => this.sendEntry(e)),
+      ...water.filter((w) => w.pendingOp === 'upsert').map((w) => () => this.sendWater(w)),
       ...foods.filter((f) => f.pendingOp === 'delete').map((f) => () => this.sendFoodDelete(f)),
     ];
     for (const stage of stages) if (!(await stage())) break;
@@ -422,7 +506,12 @@ export class NutritionService {
           carbsG: Math.round((target.target.carbsG - totals.carbsG) * 10) / 10,
         }
       : null;
-    return { date, meals, totals, target, remaining, conflicts: await this.entryConflicts(entries) };
+    const micros = sumMicros(entries.filter((e) => e.status !== 'rejected').map((e) => ({
+      fiberG: e.fiberG ?? null, sugarsG: e.sugarsG ?? null, sodiumMg: e.sodiumMg ?? null,
+    })));
+    const water = (await this.store.getWater(date)).filter(isVisible);
+    const waterMl = water.filter((w) => w.status !== 'rejected').reduce((acc, w) => acc + w.ml, 0);
+    return { date, meals, totals, target, remaining, micros, water, waterMl, conflicts: await this.entryConflicts(entries) };
   }
 
   /** Con conexión y sin cambios propios por enviar ni rechazados, la API es la fuente de verdad. */
@@ -431,6 +520,12 @@ export class NutritionService {
     if (foods.every((f) => f.status === 'synced' && f.pendingOp === null)) {
       const served = await this.remote.fetchFoods();
       if (served) await this.store.replaceSyncedFoods(served);
+    }
+
+    const water = await this.store.getWater(date);
+    if (water.every((w) => w.status === 'synced' && w.pendingOp === null)) {
+      const served = await this.remote.fetchDayWater(date);
+      if (served) await this.store.replaceSyncedWater(date, served);
     }
 
     const entries = await this.store.getFoodEntries(date);

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MemoryStore } from './memoryStore';
 import { NutritionService, parseFood, type RawFoodInput } from './nutritionService';
-import { macrosFor, portionOf } from './nutritionRules';
+import { macrosFor, microsOf, portionOf } from './nutritionRules';
 import type {
-  LocalProfile, NutritionApi, NutritionTarget, PutLogResult, ServerFood, ServerFoodEntry, TargetsResponse,
+  LocalProfile, NutritionApi, NutritionTarget, PutLogResult, ServerFood, ServerFoodEntry, ServerWater, TargetsResponse,
 } from './types';
 
 const TODAY = '2026-11-13';
@@ -23,6 +23,7 @@ interface Fake extends NutritionApi {
   calls: string[];
   foods: Map<string, ServerFood>;
   entries: Map<string, ServerFoodEntry>;
+  water: Map<string, ServerWater>;
   targets: TargetsResponse;
   foodResult: PutLogResult | null;
   entryResult: PutLogResult | null;
@@ -34,6 +35,7 @@ function fakeRemote(): Fake {
     calls: [],
     foods: new Map(),
     entries: new Map(),
+    water: new Map(),
     targets: { kind: 'ok', target: TARGET },
     foodResult: null,
     entryResult: null,
@@ -55,6 +57,19 @@ function fakeRemote(): Fake {
         const t = r.targets.target;
         r.targets = { kind: 'ok', target: { ...t, calories: t.calculatedCalories, ...macrosFor(t.calculatedCalories, t.weightKg, 'mantener'), source: 'calculated' } };
       }
+      return 'ok';
+    },
+    fetchDayWater: async (date) => (r.online ? [...r.water.values()].filter((w) => w.date === date) : null),
+    putWaterEntry: async (w) => {
+      if (!r.online) return { kind: 'retry' };
+      r.calls.push(`putWater:${w.id}`);
+      r.water.set(w.id, w);
+      return { kind: 'ok' };
+    },
+    deleteWaterEntry: async (id) => {
+      if (!r.online) return 'retry';
+      r.calls.push(`deleteWater:${id}`);
+      r.water.delete(id);
       return 'ok';
     },
     fetchFoods: async () => (r.online ? [...r.foods.values()] : null),
@@ -80,6 +95,7 @@ function fakeRemote(): Fake {
       if (!food) return { kind: 'rejected', reason: 'El alimento no existe en tu lista.' };
       r.entries.set(entry.id, {
         ...entry, name: food.name, ...portionOf(food.kcalPer100g, food.proteinPer100g, food.fatPer100g, food.carbsPer100g, entry.grams),
+        ...microsOf(food.fiberPer100g ?? null, food.sugarsPer100g ?? null, food.sodiumMgPer100g ?? null, entry.grams),
       });
       return { kind: 'ok' };
     },
@@ -206,7 +222,7 @@ describe('alimentos propios (AC-nutrition-001-16, 07, 08, 09)', () => {
     // Un alimento que nunca se intentó enviar (un intento fallido ya cuenta: puede haber llegado).
     const unsent = {
       id: 'sin-enviar', name: 'Sin enviar', brand: null, barcode: null, kcalPer100g: 1, proteinPer100g: 0, fatPer100g: 0, carbsPer100g: 0,
-      source: 'manual' as const, allergens: [], status: 'pending' as const, message: null, pendingOp: 'upsert' as const, attempted: false,
+      source: 'manual' as const, allergens: [], fiberPer100g: null, sugarsPer100g: null, sodiumMgPer100g: null, status: 'pending' as const, message: null, pendingOp: 'upsert' as const, attempted: false,
     };
     await store.saveFood(unsent);
     remote.calls.length = 0;
@@ -553,5 +569,103 @@ describe('alérgenos (SPEC-nutrition-003)', () => {
     await service.loadDay(TODAY);
 
     expect((await service.searchFoods()).map((f) => f.allergens)).toEqual([[]]);
+  });
+});
+
+describe('micronutrientes (SPEC-nutrition-004)', () => {
+  it.each<[Partial<RawFoodInput>, string]>([
+    [{ fiber: '-1' }, 'fiber'],
+    [{ fiber: '101' }, 'fiber'],
+    [{ fiber: '1,25' }, 'fiber'],
+    [{ sugars: 'mucho' }, 'sugars'],
+    [{ sugars: '70' }, 'sugars'], // el alimento de prueba lleva 66,3 g de carbohidratos
+    [{ sodium: '40001' }, 'sodium'],
+    [{ sodium: '12,5' }, 'sodium'],
+  ])('AC-nutrition-004-02 rechaza %j (campo %s) sin guardar nada', async (over, field) => {
+    const result = await service.saveFood(food(over));
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? [] : result.issues.map((i) => i.field)).toContain(field);
+    expect(await store.getFoods()).toEqual([]);
+  });
+
+  it('AC-nutrition-004-01 los micronutrientes son opcionales: vacío es «sin dato», no cero', async () => {
+    const plain = await saveFood();
+    const full = await saveFood({ name: 'Galletas', fiber: '3,5', sugars: '12', sodium: '400' });
+
+    expect([plain.fiberPer100g, plain.sugarsPer100g, plain.sodiumMgPer100g]).toEqual([null, null, null]);
+    expect([full.fiberPer100g, full.sugarsPer100g, full.sodiumMgPer100g]).toEqual([3.5, 12, 400]);
+    expect(remote.foods.get(full.id)).toMatchObject({ fiberPer100g: 3.5, sugarsPer100g: 12, sodiumMgPer100g: 400 });
+  });
+
+  it('AC-nutrition-004-03 y 05 la entrada copia los micronutrientes de esa cantidad y el día los suma avisando de lo parcial', async () => {
+    const galletas = await saveFood({ name: 'Galletas', fiber: '6,7', sugars: '1,2', sodium: '1250' });
+    const arroz = await saveFood({ name: 'Arroz' });
+    const a = await service.saveEntry({ date: TODAY, meal: 'cena', grams: '50', foodId: galletas.id });
+    if (!a.ok) throw new Error('no se guardó');
+    expect(a.entry).toMatchObject({ fiberG: 3.4, sugarsG: 0.6, sodiumMg: 625 });
+
+    expect((await service.loadDay(TODAY)).micros).toEqual({ fiberG: 3.4, sugarsG: 0.6, sodiumMg: 625, partial: false });
+    await service.saveEntry({ date: TODAY, meal: 'cena', grams: '100', foodId: arroz.id });
+
+    expect((await service.loadDay(TODAY)).micros).toEqual({ fiberG: 3.4, sugarsG: 0.6, sodiumMg: 625, partial: true });
+  });
+});
+
+describe('agua (SPEC-nutrition-004)', () => {
+  it('AC-nutrition-004-06 y 10 guarda primero en el teléfono con un id del dispositivo, lo envía y suma en el día', async () => {
+    const result = await service.addWater(250);
+    await service.addWater(500);
+
+    expect(result.ok && result.water).toMatchObject({ id: 'id-1', ml: 250, date: TODAY, status: 'synced' });
+    expect(remote.water.size).toBe(2);
+    const day = await service.loadDay(TODAY);
+    expect(day.waterMl).toBe(750);
+    expect(day.water.map((w) => w.ml)).toEqual([250, 500]);
+  });
+
+  it('AC-nutrition-004-07 rechaza mililitros fuera de rango sin guardar nada', async () => {
+    for (const ml of [0, 5001, 2.5, -10]) expect((await service.addWater(ml)).ok).toBe(false);
+
+    expect(await store.getWater(TODAY)).toEqual([]);
+  });
+
+  it('AC-nutrition-004-10 sin conexión suma al instante, queda pendiente y se envía una sola vez al volver la conexión', async () => {
+    remote.online = false;
+    await service.addWater(250);
+
+    expect((await service.loadDay(TODAY)).waterMl).toBe(250);
+    expect(remote.calls).toEqual([]);
+
+    remote.online = true;
+    await service.loadDay(TODAY);
+    await service.loadDay(TODAY);
+
+    expect(remote.calls.filter((c) => c.startsWith('putWater'))).toEqual(['putWater:id-1']);
+    expect((await store.getWater(TODAY))[0]).toMatchObject({ status: 'synced', pendingOp: null });
+  });
+
+  it('AC-nutrition-004-09 deshacer quita el agua del total al instante y el borrado llega a la API', async () => {
+    remote.online = false;
+    const unsent = await service.addWater(250);
+    if (!unsent.ok) throw new Error('no se guardó');
+    await service.removeWater(unsent.water.id);
+    expect((await service.loadDay(TODAY)).waterMl).toBe(0);
+
+    remote.online = true;
+    const sent = await service.addWater(500);
+    if (!sent.ok) throw new Error('no se guardó');
+    await service.removeWater(sent.water.id);
+
+    expect((await service.loadDay(TODAY)).waterMl).toBe(0);
+    // El primero se intentó enviar sin conexión (puede haber llegado): se borra en la API al volver la conexión.
+    expect(remote.calls).toEqual([`deleteWater:${unsent.water.id}`, `putWater:${sent.water.id}`, `deleteWater:${sent.water.id}`]);
+    expect(remote.water.size).toBe(0);
+  });
+
+  it('AC-nutrition-004-09 con conexión trae del servidor el agua que el teléfono no tenía', async () => {
+    remote.water.set('w1', { id: 'w1', date: TODAY, ml: 300 });
+
+    expect((await service.loadDay(TODAY)).waterMl).toBe(300);
   });
 });

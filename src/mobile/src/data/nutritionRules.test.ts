@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import vectors from '../../../../tests/Api.Tests/Nutrition/nutrition-vectors.json';
-import { fold, macrosFor, mealOrder, normalizeMeal, portionOf, sumPortions } from './nutritionRules';
+import { fold, macrosFor, mealOrder, microsOf, normalizeMeal, portionOf, sumMicros, sumPortions } from './nutritionRules';
 
 // Los mismos casos que ejecuta la API (NutritionTests.cs): ADR-0004. El objetivo diario solo lo calcula la API.
 
@@ -17,6 +17,21 @@ describe('vectores compartidos con la API (SPEC-nutrition-002)', () => {
     const m = macrosFor(c.calories, c.weightKg, c.goal as 'bajar_grasa' | 'ganar_musculo' | 'mantener');
 
     expect(m).toEqual(c.expected);
+  });
+});
+
+describe('vectores compartidos con la API (SPEC-nutrition-004)', () => {
+  it.each(vectors.micros)('AC-nutrition-004-04 micronutrientes por cantidad: $name', (c) => {
+    expect(microsOf(c.fiberPer100g, c.sugarsPer100g, c.sodiumMgPer100g, c.grams)).toEqual(c.expected);
+  });
+
+  it('AC-nutrition-004-05 los totales suman lo que tiene dato y marcan lo parcial', () => {
+    const full = { fiberG: 3.4, sugarsG: 0.6, sodiumMg: 625 };
+    const none = { fiberG: null, sugarsG: null, sodiumMg: null };
+
+    expect(sumMicros([full, full])).toEqual({ fiberG: 6.8, sugarsG: 1.2, sodiumMg: 1250, partial: false });
+    expect(sumMicros([full, none])).toEqual({ fiberG: 3.4, sugarsG: 0.6, sodiumMg: 625, partial: true });
+    expect(sumMicros([])).toEqual({ fiberG: 0, sugarsG: 0, sodiumMg: 0, partial: false });
   });
 });
 

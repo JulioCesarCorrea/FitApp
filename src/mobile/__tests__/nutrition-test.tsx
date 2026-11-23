@@ -199,7 +199,7 @@ describe('Pestaña Nutrición (SPEC-nutrition-001)', () => {
 
   it('AC-nutrition-001-18: sin conexión registra en el teléfono, calcula los totales aquí y muestra el último objetivo', async () => {
     fakes.remote.serverFoods = [OATS];
-    await fakes.store.saveFood({ ...OATS, status: 'synced', message: null, pendingOp: null, attempted: true });
+    await fakes.store.saveFood({ ...OATS, fiberPer100g: null, sugarsPer100g: null, sodiumMgPer100g: null, status: 'synced', message: null, pendingOp: null, attempted: true });
     await fakes.store.setSetting('nutritionTarget', JSON.stringify({ target: (fakes.remote.targets as { target: unknown }).target, calculatedAt: '2026-11-10' }));
     fakes.remote.online = false;
     await openNutrition();
@@ -243,7 +243,7 @@ describe('Pestaña Nutrición (SPEC-nutrition-001)', () => {
   it('AC-nutrition-001-19: una entrada rechazada por la API muestra el motivo, no cuenta y se puede descartar', async () => {
     fakes.remote.serverFoods = [OATS];
     fakes.remote.entryResult = { kind: 'rejected', reason: 'La fecha no es válida.' };
-    await fakes.store.saveFood({ ...OATS, status: 'synced', message: null, pendingOp: null, attempted: true });
+    await fakes.store.saveFood({ ...OATS, fiberPer100g: null, sugarsPer100g: null, sodiumMgPer100g: null, status: 'synced', message: null, pendingOp: null, attempted: true });
     await openNutrition();
     await press(await screen.findByTestId('add-food'));
     await press(await screen.findByTestId(`food-${OATS.id}`));
@@ -406,3 +406,67 @@ describe('Alérgenos (SPEC-nutrition-003)', () => {
   });
 });
 
+describe('Agua y micronutrientes (SPEC-nutrition-004)', () => {
+  it('AC-nutrition-004-09: añade agua con los botones rápidos, ve el total, deshace y se sincroniza', async () => {
+    await openNutrition();
+    expect(await screen.findByTestId('nutrition-water-total')).toHaveTextContent(has('Agua: 0 ml'));
+
+    await press(screen.getByTestId('water-250'));
+    await waitFor(() => expect(screen.getByTestId('nutrition-water-total')).toHaveTextContent(has('Agua: 250 ml')));
+    await press(screen.getByTestId('water-500'));
+    await waitFor(() => expect(screen.getByTestId('nutrition-water-total')).toHaveTextContent(has('Agua: 750 ml')));
+    expect(fakes.remote.serverWater.map((w) => w.ml)).toEqual([250, 500]);
+
+    await press(screen.getByTestId('water-undo'));
+
+    await waitFor(() => expect(screen.getByTestId('nutrition-water-total')).toHaveTextContent(has('Agua: 250 ml')));
+    expect(fakes.remote.serverWater.map((w) => w.ml)).toEqual([250]);
+  });
+
+  it('AC-nutrition-004-10: sin conexión el agua se suma al instante y llega a la API al volver la conexión', async () => {
+    await openNutrition();
+    await screen.findByTestId('nutrition-water-total');
+    fakes.remote.online = false;
+
+    await press(screen.getByTestId('water-500'));
+
+    await waitFor(() => expect(screen.getByTestId('nutrition-water-total')).toHaveTextContent(has('Agua: 500 ml')));
+    expect(fakes.remote.serverWater).toEqual([]);
+    fakes.remote.online = true;
+    await fakes.deps.nutrition.syncPending();
+    expect(fakes.remote.serverWater.map((w) => w.ml)).toEqual([500]);
+  });
+
+  it('AC-nutrition-004-09: muestra fibra, azúcares y sodio del día y avisa si alguna comida no tiene el dato', async () => {
+    const GALLETAS: ServerFood = { ...OATS, id: 'f-galletas', name: 'Galletas', fiberPer100g: 6.7, sugarsPer100g: 1.2, sodiumMgPer100g: 1250 };
+    fakes.remote.serverFoods = [GALLETAS, OATS];
+    fakes.remote.serverEntries = [
+      { ...entry('e1', 'desayuno', 50, GALLETAS), ...{ fiberG: 3.4, sugarsG: 0.6, sodiumMg: 625 } },
+      entry('e2', 'cena', 100),
+    ];
+    await openNutrition();
+
+    expect(await screen.findByTestId('nutrition-micros')).toHaveTextContent(has('Fibra 3,4 g · Azúcares 0,6 g · Sodio 625 mg'));
+    expect(screen.getByTestId('nutrition-micros-partial')).toBeOnTheScreen();
+  });
+
+  it('AC-nutrition-004-11: al escanear rellena fibra, azúcares y sodio de Open Food Facts para confirmarlos', async () => {
+    fakes.products.result = {
+      kind: 'found',
+      product: {
+        barcode: '3017624010701', name: 'Galletas', brand: null, kcalPer100g: 480, proteinPer100g: 6, fatPer100g: 20, carbsPer100g: 65,
+        fiberPer100g: 3.5, sugarsPer100g: 20, sodiumMgPer100g: 400,
+      },
+    };
+    await openNutrition();
+    await press(await screen.findByTestId('add-food'));
+    await press(await screen.findByTestId('scan-food'));
+    await press(await screen.findByTestId('fake-scan'));
+
+    await waitFor(() => expect(screen.getByLabelText('Fibra por 100 g (opcional)').props.value).toBe('3,5'));
+    expect(screen.getByLabelText('Azúcares por 100 g (opcional)').props.value).toBe('20');
+    expect(screen.getByLabelText('Sodio por 100 g en mg (opcional)').props.value).toBe('400');
+    await press(screen.getByTestId('save-food'));
+    expect((await fakes.store.getFoods())[0]).toMatchObject({ fiberPer100g: 3.5, sugarsPer100g: 20, sodiumMgPer100g: 400 });
+  });
+});

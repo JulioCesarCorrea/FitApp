@@ -1,6 +1,6 @@
 // Migraciones de fitness.db. Sin dependencias de React Native: se prueban en Node con una base simulada.
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** Lo mínimo que necesitamos de expo-sqlite para migrar. */
 export interface MigrationDb {
@@ -126,6 +126,24 @@ const V5_COLUMNS: [string, string][] = [
 // SPEC-nutrition-003: alérgenos de cada alimento (lista JSON de etiquetas; '[]' = sin dato).
 const V7_COLUMNS: [string, string][] = [['allergens', "TEXT NOT NULL DEFAULT '[]'"]];
 
+// SPEC-nutrition-004: fibra, azúcares y sodio (null = sin dato) en alimentos y entradas, y el agua bebida.
+const V8_FOOD_COLUMNS: [string, string][] = [
+  ['fiber_per_100g', 'REAL'], ['sugars_per_100g', 'REAL'], ['sodium_mg_per_100g', 'INTEGER'],
+];
+const V8_ENTRY_COLUMNS: [string, string][] = [['fiber_g', 'REAL'], ['sugars_g', 'REAL'], ['sodium_mg', 'INTEGER']];
+const V8 = `
+  CREATE TABLE IF NOT EXISTS water_local (
+    id TEXT PRIMARY KEY NOT NULL,
+    date TEXT NOT NULL,
+    ml INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    message TEXT,
+    pending_op TEXT,
+    attempted INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_water_local_date ON water_local (date);
+`;
+
 async function addMissingColumns(db: MigrationDb, table: string, columns: [string, string][]): Promise<void> {
   for (const [name, definition] of columns) {
     const found = await db.getFirstAsync<{ n: number }>(
@@ -145,6 +163,11 @@ export async function migrate(db: MigrationDb): Promise<void> {
   if (current < 5) await addMissingColumns(db, 'exercise_logs_local', V5_COLUMNS);
   if (current < 6) await db.execAsync(V6);
   if (current < 7) await addMissingColumns(db, 'foods_local', V7_COLUMNS);
+  if (current < 8) {
+    await addMissingColumns(db, 'foods_local', V8_FOOD_COLUMNS);
+    await addMissingColumns(db, 'food_entries_local', V8_ENTRY_COLUMNS);
+    await db.execAsync(V8);
+  }
 
   // Nunca se baja la versión: solo se sube cuando se aplicó algo.
   if (current < SCHEMA_VERSION) await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION}`);

@@ -9,7 +9,7 @@ import { portionOf } from '../src/data/nutritionRules';
 import { SuggestionService } from '../src/data/suggestionService';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, NutritionApi, ProductLookup, ProductLookupResult, RemoteApi, RestrictionItem, ServerFood, ServerFoodEntry,
+  AcceptSuggestionResult, NutritionApi, ProductLookup, ProductLookupResult, RemoteApi, RestrictionItem, ServerFood, ServerFoodEntry, ServerWater,
   Suggestion, SuggestionsApi, TargetsResponse,
 } from '../src/data/types';
 
@@ -48,6 +48,8 @@ export interface FakeRemote extends RemoteApi, SuggestionsApi, NutritionApi {
   serverFoods: ServerFood[];
   serverEntries: ServerFoodEntry[];
   targets: TargetsResponse;
+  /** SPEC-nutrition-004: el agua que «tiene el servidor» y sus llamadas. */
+  serverWater: ServerWater[];
   /** SPEC-nutrition-002: ajustes recibidos y borrados del ajuste. */
   overridePuts: number[];
   overrideDeletes: number;
@@ -159,6 +161,7 @@ export function createFakes(
     serverFoods: [],
     serverEntries: [],
     targets: TARGETS,
+    serverWater: [],
     overridePuts: [],
     overrideDeletes: 0,
     foodResult: null,
@@ -230,12 +233,23 @@ export function createFakes(
       if (!food) return { kind: 'rejected', reason: 'El alimento no existe en tu lista.' };
       remote.entryPuts.push(entry.id);
       const portion = portionOf(food.kcalPer100g, food.proteinPer100g, food.fatPer100g, food.carbsPer100g, entry.grams);
-      remote.serverEntries = [...remote.serverEntries.filter((e) => e.id !== entry.id), { ...entry, name: food.name, ...portion }];
+      remote.serverEntries = [...remote.serverEntries.filter((e) => e.id !== entry.id), { ...entry, name: food.name, ...portion, fiberG: null, sugarsG: null, sodiumMg: null }];
       return { kind: 'ok' };
     },
     deleteFoodEntry: async (id) => {
       if (!remote.online) return 'retry';
       remote.serverEntries = remote.serverEntries.filter((e) => e.id !== id);
+      return 'ok';
+    },
+    fetchDayWater: async (date) => (remote.online ? remote.serverWater.filter((w) => w.date === date) : null),
+    putWaterEntry: async (water) => {
+      if (!remote.online) return { kind: 'retry' };
+      remote.serverWater = [...remote.serverWater.filter((w) => w.id !== water.id), water];
+      return { kind: 'ok' };
+    },
+    deleteWaterEntry: async (id) => {
+      if (!remote.online) return 'retry';
+      remote.serverWater = remote.serverWater.filter((w) => w.id !== id);
       return 'ok';
     },
     fetchSuggestions: async () => (remote.online ? [...remote.serverSuggestions] : null),
