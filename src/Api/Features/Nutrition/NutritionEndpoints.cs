@@ -104,6 +104,27 @@ public static class NutritionEndpoints
             })
             .AddEndpointFilter<ValidationFilter<FoodEntryRequest>>();
 
+        app.MapPut("/water-entries/{id:guid}", async (Guid id, WaterRequest request, ICurrentUser user, WaterHandler handler, CancellationToken ct) =>
+            {
+                if (user.Id is not { } userId) return Results.Unauthorized();
+
+                return await handler.PutAsync(userId, id, request, ct) switch
+                {
+                    { Created: true } saved => Results.Created($"/water-entries/{id}", saved.Water),
+                    { } saved => Results.Ok(saved.Water),
+                    _ => Results.NotFound(),
+                };
+            })
+            .AddEndpointFilter<ValidationFilter<WaterRequest>>();
+
+        app.MapDelete("/water-entries/{id:guid}", async (Guid id, ICurrentUser user, WaterHandler handler, CancellationToken ct) =>
+        {
+            if (user.Id is not { } userId) return Results.Unauthorized();
+
+            await handler.DeleteAsync(userId, id, ct);
+            return Results.NoContent();
+        });
+
         app.MapDelete("/food-entries/{id:guid}", async (Guid id, ICurrentUser user, FoodEntryHandler handler, CancellationToken ct) =>
         {
             if (user.Id is not { } userId) return Results.Unauthorized();

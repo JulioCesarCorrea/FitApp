@@ -20,6 +20,7 @@ describe('lectura de la respuesta (AC-nutrition-001-17)', () => {
       product: {
         barcode: '3017624010701', name: 'Nutella', brand: 'Ferrero',
         kcalPer100g: 539, proteinPer100g: 6.3, fatPer100g: 30.9, carbsPer100g: 57.5, allergens: null,
+        fiberPer100g: null, sugarsPer100g: null, sodiumMgPer100g: null,
       },
     });
   });
@@ -104,5 +105,36 @@ describe('alérgenos de Open Food Facts (SPEC-nutrition-003)', () => {
     const { product } = parseProduct('123456789', body({ allergens_tags: [] })) as { product: { allergens: string[] | null } };
 
     expect(product.allergens).toEqual([]);
+  });
+});
+
+describe('micronutrientes de Open Food Facts (SPEC-nutrition-004)', () => {
+  const withNutriments = (extra: Record<string, number>) => ({
+    status: 1,
+    product: {
+      product_name: 'Galletas', brands: 'Marca',
+      nutriments: { 'energy-kcal_100g': 480, proteins_100g: 6, fat_100g: 20, carbohydrates_100g: 65, ...extra },
+    },
+  });
+
+  it('AC-nutrition-004-11 lee fibra y azúcares en g y convierte el sodio de g a mg', () => {
+    const { product } = parseProduct('123456789', withNutriments({ fiber_100g: 3.45, sugars_100g: 20, sodium_100g: 0.4 })) as {
+      product: { fiberPer100g: number | null; sugarsPer100g: number | null; sodiumMgPer100g: number | null };
+    };
+
+    expect(product).toMatchObject({ fiberPer100g: 3.5, sugarsPer100g: 20, sodiumMgPer100g: 400 });
+  });
+
+  it('AC-nutrition-004-11 si solo hay sal, el sodio es sal / 2,5', () => {
+    const { product } = parseProduct('123456789', withNutriments({ salt_100g: 1 })) as { product: { sodiumMgPer100g: number | null } };
+
+    expect(product.sodiumMgPer100g).toBe(400);
+  });
+
+  it('AC-nutrition-004-11 sin esos datos quedan vacíos y el producto sigue siendo completo', () => {
+    const result = parseProduct('123456789', withNutriments({}));
+
+    expect(result.kind).toBe('found');
+    expect(result.kind === 'found' && result.product).toMatchObject({ fiberPer100g: null, sugarsPer100g: null, sodiumMgPer100g: null });
   });
 });

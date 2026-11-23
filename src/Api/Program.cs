@@ -123,6 +123,7 @@ builder.Services.AddScoped<AccountHandler>();
 builder.Services.AddScoped<SuggestionsHandler>();
 builder.Services.AddScoped<FoodHandler>();
 builder.Services.AddScoped<FoodEntryHandler>();
+builder.Services.AddScoped<WaterHandler>();
 builder.Services.AddScoped<NutritionHandler>();
 
 var app = builder.Build();

@@ -55,8 +55,9 @@ public sealed class AccountTests(ApiFixture api)
         db.Equipment.Add(new EquipmentSettings { UserId = userId, DumbbellsKg = [10m, 12m], DiscsKg = [5m], MachineStepKg = 5m });
         db.TrainingSettings.Add(new TrainingSettings { UserId = userId, StagnationThreshold = 5 });
         var foodId = Guid.NewGuid();
-        db.Foods.Add(new Food { Id = foodId, UserId = userId, Name = "Avena", KcalPer100g = 389m, ProteinPer100g = 16.9m, FatPer100g = 6.9m, CarbsPer100g = 66.3m, Allergens = ["gluten"], CreatedAt = now });
-        db.FoodEntries.Add(new FoodEntry { Id = Guid.NewGuid(), UserId = userId, Date = DateOnly.FromDateTime(DateTime.UtcNow), Meal = "desayuno", FoodId = foodId, Grams = 50, Name = "Avena", Kcal = 195, ProteinG = 8.5m, FatG = 3.5m, CarbsG = 33.2m, CreatedAt = now });
+        db.Foods.Add(new Food { Id = foodId, UserId = userId, Name = "Avena", KcalPer100g = 389m, ProteinPer100g = 16.9m, FatPer100g = 6.9m, CarbsPer100g = 66.3m, Allergens = ["gluten"], FiberPer100g = 10m, SodiumMgPer100g = 20, CreatedAt = now });
+        db.FoodEntries.Add(new FoodEntry { Id = Guid.NewGuid(), UserId = userId, Date = DateOnly.FromDateTime(DateTime.UtcNow), Meal = "desayuno", FoodId = foodId, Grams = 50, Name = "Avena", Kcal = 195, ProteinG = 8.5m, FatG = 3.5m, CarbsG = 33.2m, FiberG = 5m, SodiumMg = 10, CreatedAt = now });
+        db.WaterEntries.Add(new WaterEntry { Id = Guid.NewGuid(), UserId = userId, Date = DateOnly.FromDateTime(DateTime.UtcNow), Ml = 250, CreatedAt = now });
         db.SuggestionDismissals.Add(new SuggestionDismissal { UserId = userId, Key = "metodo:ejemplo:2026-11-01", DismissedAt = now });
         db.TargetOverrides.Add(new TargetOverride { UserId = userId, Calories = 2100, UpdatedAt = now });
         db.ExerciseLogs.Add(new ExerciseLogEntry
@@ -74,7 +75,7 @@ public sealed class AccountTests(ApiFixture api)
         + await db.Equipment.CountAsync(x => x.UserId == userId) + await db.TrainingSettings.CountAsync(x => x.UserId == userId)
         + await db.ExerciseLogs.CountAsync(x => x.UserId == userId) + await db.SuggestionDismissals.CountAsync(x => x.UserId == userId)
         + await db.Foods.CountAsync(x => x.UserId == userId) + await db.FoodEntries.CountAsync(x => x.UserId == userId)
-        + await db.TargetOverrides.CountAsync(x => x.UserId == userId));
+        + await db.TargetOverrides.CountAsync(x => x.UserId == userId) + await db.WaterEntries.CountAsync(x => x.UserId == userId));
 
     private HttpClient Bearer(string token) => api.ClientWithToken(token);
 
@@ -106,6 +107,9 @@ public sealed class AccountTests(ApiFixture api)
         Assert.Equal("Avena", root.GetProperty("foods")[0].GetProperty("name").GetString()); // SPEC-nutrition-001
         Assert.Equal("gluten", root.GetProperty("foods")[0].GetProperty("allergens")[0].GetString()); // AC-nutrition-003-09
         Assert.Equal(195, root.GetProperty("foodEntries")[0].GetProperty("kcal").GetInt32());
+        Assert.Equal(20, root.GetProperty("foods")[0].GetProperty("sodiumMgPer100g").GetInt32()); // AC-nutrition-004-12
+        Assert.Equal(10, root.GetProperty("foodEntries")[0].GetProperty("sodiumMg").GetInt32());
+        Assert.Equal(250, root.GetProperty("waterEntries")[0].GetProperty("ml").GetInt32());
         Assert.Equal(2100, root.GetProperty("nutritionOverrideCalories").GetInt32()); // AC-nutrition-002-11
     }
 
@@ -120,7 +124,7 @@ public sealed class AccountTests(ApiFixture api)
         var text = await Bearer(auth.AccessToken).GetStringAsync("/account/export");
 
         using var json = JsonDocument.Parse(text);
-        Assert.Equal(3, json.RootElement.GetProperty("version").GetInt32()); // 3: SPEC-nutrition-002 (AC-nutrition-002-11) y SPEC-nutrition-003 (AC-nutrition-003-09)
+        Assert.Equal(4, json.RootElement.GetProperty("version").GetInt32()); // 4: SPEC-nutrition-002/003 y SPEC-nutrition-004 (AC-nutrition-004-12)
         Assert.True(json.RootElement.TryGetProperty("exportedAt", out _));
         Assert.Equal(name, json.RootElement.GetProperty("user").GetProperty("username").GetString());
         Assert.DoesNotContain("passwordHash", text, StringComparison.OrdinalIgnoreCase);
@@ -143,7 +147,7 @@ public sealed class AccountTests(ApiFixture api)
         Assert.Equal(JsonValueKind.Null, root.GetProperty("equipment").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("stagnationThreshold").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("nutritionOverrideCalories").ValueKind);
-        foreach (var list in new[] { "restrictions", "weights", "plan", "exerciseLogs" })
+        foreach (var list in new[] { "restrictions", "weights", "plan", "exerciseLogs", "waterEntries" })
             Assert.Equal(0, root.GetProperty(list).GetArrayLength());
     }
 

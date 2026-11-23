@@ -2,7 +2,7 @@ import { reasonFrom } from '../api';
 import { authedFetch, type Authorizer } from './authedFetch';
 import type {
   CatalogSection, DayKey, EquipmentProfile, LocalPlanEntry, LocalProfile, PutDayResult, PutEquipmentResult, PutLogResult,
-  AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry,
+  AcceptSuggestionResult, NutritionApi, NutritionTarget, RemoteApi, RestrictionHit, RestrictionItem, ServerExerciseLog, ServerFood, ServerFoodEntry, ServerWater,
   Suggestion, SuggestionsApi, TargetsResponse,
 } from './types';
 
@@ -186,6 +186,22 @@ export class HttpRemote implements RemoteApi, SuggestionsApi, NutritionApi {
     if (!res?.ok) return null;
     const day = (await res.json()) as { meals: { entries: ServerFoodEntry[] }[] };
     return day.meals.flatMap((m) => m.entries);
+  }
+
+  async fetchDayWater(date: string): Promise<ServerWater[] | null> {
+    const res = await this.request('GET', `/nutrition/day?date=${encodeURIComponent(date)}`);
+    if (!res?.ok) return null;
+    return ((await res.json()) as { water?: ServerWater[] }).water ?? [];
+  }
+
+  async putWaterEntry(water: ServerWater): Promise<PutLogResult> {
+    const { id, ...body } = water;
+    return this.putResult(await this.request('PUT', `/water-entries/${id}`, body));
+  }
+
+  async deleteWaterEntry(id: string): Promise<'ok' | 'retry'> {
+    const res = await this.request('DELETE', `/water-entries/${id}`);
+    return res?.ok ? 'ok' : 'retry';
   }
 
   async putFoodEntry(entry: Pick<ServerFoodEntry, 'id' | 'date' | 'meal' | 'foodId' | 'grams'>): Promise<PutLogResult> {

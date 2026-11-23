@@ -18,7 +18,7 @@ const MEAL_OPTIONS = [
 ];
 
 const EMPTY_FOOD: RawFoodInput = {
-  name: '', brand: '', barcode: '', kcal: '', protein: '', fat: '', carbs: '', source: 'manual', allergens: [],
+  name: '', brand: '', barcode: '', kcal: '', protein: '', fat: '', carbs: '', source: 'manual', allergens: [], fiber: '', sugars: '', sodium: '',
 };
 
 const ALLERGEN_OPTIONS = ALLERGENS.map((a) => ({ value: a.tag, label: a.label }));
@@ -29,6 +29,7 @@ const text = (n: number | null): string => (n === null ? '' : String(n).replace(
 const fromProduct = (p: ScannedProduct): RawFoodInput => ({
   name: p.name ?? '', brand: p.brand ?? '', barcode: p.barcode, kcal: text(p.kcalPer100g), protein: text(p.proteinPer100g),
   fat: text(p.fatPer100g), carbs: text(p.carbsPer100g), source: 'openfoodfacts', allergens: p.allergens ?? [],
+  fiber: text(p.fiberPer100g ?? null), sugars: text(p.sugarsPer100g ?? null), sodium: text(p.sodiumMgPer100g ?? null),
 });
 
 /**
@@ -197,6 +198,9 @@ export default function AddFoodScreen() {
               <Field label="Proteína por 100 g" value={draft.protein} onChangeText={setField('protein')} keyboardType="decimal-pad" />
               <Field label="Grasa por 100 g" value={draft.fat} onChangeText={setField('fat')} keyboardType="decimal-pad" />
               <Field label="Carbohidratos por 100 g" value={draft.carbs} onChangeText={setField('carbs')} keyboardType="decimal-pad" />
+              <Field label="Fibra por 100 g (opcional)" value={draft.fiber ?? ''} onChangeText={setField('fiber')} keyboardType="decimal-pad" />
+              <Field label="Azúcares por 100 g (opcional)" value={draft.sugars ?? ''} onChangeText={setField('sugars')} keyboardType="decimal-pad" />
+              <Field label="Sodio por 100 g en mg (opcional)" value={draft.sodium ?? ''} onChangeText={setField('sodium')} keyboardType="number-pad" />
               <Muted>Alérgenos del alimento (opcional)</Muted>
               <Chips options={ALLERGEN_OPTIONS} selected={draft.allergens ?? []} onToggle={toggleAllergen} testIDPrefix="allergen" showHint={false} />
               <Muted testID="allergen-help">

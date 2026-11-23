@@ -21,7 +21,9 @@ public sealed class NutritionVectorsTests
         string Name, decimal KcalPer100g, decimal ProteinPer100g, decimal FatPer100g, decimal CarbsPer100g, int Grams, PortionExpected Expected);
     private sealed record OverrideExpected(int ProteinG, int FatG, int CarbsG);
     private sealed record OverrideCase(string Name, int Calories, decimal WeightKg, string Goal, OverrideExpected Expected);
-    private sealed record Vectors(TargetCase[] Targets, FloorCase[] Floor, PortionCase[] Portions, OverrideCase[] Override);
+    private sealed record MicroExpected(decimal? FiberG, decimal? SugarsG, int? SodiumMg);
+    private sealed record MicroCase(string Name, decimal? FiberPer100g, decimal? SugarsPer100g, int? SodiumMgPer100g, int Grams, MicroExpected Expected);
+    private sealed record Vectors(TargetCase[] Targets, FloorCase[] Floor, PortionCase[] Portions, OverrideCase[] Override, MicroCase[] Micros);
 
     private static readonly Vectors All = JsonSerializer.Deserialize<Vectors>(
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Nutrition", "nutrition-vectors.json")),
@@ -31,6 +33,19 @@ public sealed class NutritionVectorsTests
     public static TheoryData<string> FloorNames() => [.. All.Floor.Select(t => t.Name)];
     public static TheoryData<string> PortionNames() => [.. All.Portions.Select(t => t.Name)];
     public static TheoryData<string> OverrideNames() => [.. All.Override.Select(t => t.Name)];
+    public static TheoryData<string> MicroNames() => [.. All.Micros.Select(t => t.Name)];
+
+    // SPEC-nutrition-004, AC-04
+    [Theory]
+    [MemberData(nameof(MicroNames))]
+    public void AC_nutrition_004_04_vectores_del_calculo_de_micronutrientes_por_cantidad(string name)
+    {
+        var c = All.Micros.Single(m => m.Name == name);
+
+        var m = NutritionRules.MicrosOf(c.FiberPer100g, c.SugarsPer100g, c.SodiumMgPer100g, c.Grams);
+
+        Assert.Equal(c.Expected, new MicroExpected(m.FiberG, m.SugarsG, m.SodiumMg));
+    }
 
     // SPEC-nutrition-002, AC-03
     [Theory]
@@ -717,5 +732,146 @@ public sealed class NutritionApiTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.NotFound, asOther.StatusCode); // ni ve el alimento ajeno
         Assert.Empty(otherOwn.Conflicts); // las alergias de la otra persona no se le aplican
         Assert.Equal(["leche"], (await owner.GetFromJsonAsync<FoodConflictsDto>($"/foods/{foodId}/conflicts"))!.Conflicts);
+    }
+
+    // ---------- SPEC-nutrition-004: agua y micronutrientes ----------
+
+    private static FoodRequest WithMicros(decimal? fiber, decimal? sugars, int? sodium) =>
+        Food() with { FiberPer100g = fiber, SugarsPer100g = sugars, SodiumMgPer100g = sodium };
+
+    // AC-nutrition-004-01
+    [Fact]
+    public async Task AC_nutrition_004_01_los_micronutrientes_se_guardan_y_sin_ellos_el_alimento_queda_sin_dato()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        var full = await PutFood(client, WithMicros(5.5m, 2m, 300));
+        var plain = await PutFood(client, Food(name: "Arroz"));
+
+        var foods = (await client.GetFromJsonAsync<List<FoodDto>>("/foods"))!;
+        var withData = foods.Single(f => f.Id == full);
+        Assert.Equal((5.5m, 2m, 300), (withData.FiberPer100g, withData.SugarsPer100g, withData.SodiumMgPer100g));
+        var without = foods.Single(f => f.Id == plain);
+        Assert.Null(without.FiberPer100g);
+        Assert.Null(without.SugarsPer100g);
+        Assert.Null(without.SodiumMgPer100g);
+    }
+
+    // AC-nutrition-004-02
+    [Theory]
+    [InlineData(-1, 1, 1)]
+    [InlineData(101, 1, 1)]
+    [InlineData(1, -1, 1)]
+    [InlineData(1, 70, 1)] // más azúcares que carbohidratos (el alimento de prueba lleva 66,3 g)
+    [InlineData(1, 1, -1)]
+    [InlineData(1, 1, 40001)]
+    public async Task AC_nutrition_004_02_valores_fuera_de_rango_o_azucares_mayores_que_carbohidratos_responden_400(double fiber, double sugars, int sodium)
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        var response = await client.PutAsJsonAsync($"/foods/{Guid.NewGuid()}", WithMicros((decimal)fiber, (decimal)sugars, sodium));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty((await client.GetFromJsonAsync<List<FoodDto>>("/foods"))!);
+    }
+
+    // AC-nutrition-004-03
+    [Fact]
+    public async Task AC_nutrition_004_03_la_entrada_copia_los_micronutrientes_de_esa_cantidad_y_sin_dato_queda_sin_dato()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var full = await PutFood(client, WithMicros(6.7m, 1.2m, 1250));
+        var plain = await PutFood(client, Food(name: "Arroz"));
+        var withData = Guid.NewGuid();
+        var withoutData = Guid.NewGuid();
+
+        await PutEntry(client, withData, full, grams: 50);
+        await PutEntry(client, withoutData, plain, grams: 50);
+
+        var entries = (await Day(client))!.Meals.Single().Entries;
+        var a = entries.Single(e => e.Id == withData);
+        Assert.Equal((3.4m, 0.6m, 625), (a.FiberG, a.SugarsG, a.SodiumMg)); // vectores: 6,7 g y 1,2 g por 100 g, 1250 mg por 100 g
+        var b = entries.Single(e => e.Id == withoutData);
+        Assert.Null(b.FiberG);
+        Assert.Null(b.SugarsG);
+        Assert.Null(b.SodiumMg);
+    }
+
+    // AC-nutrition-004-05
+    [Fact]
+    public async Task AC_nutrition_004_05_los_totales_del_dia_suman_lo_que_tiene_dato_y_avisan_de_lo_parcial()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var full = await PutFood(client, WithMicros(10m, 4m, 400));
+        var plain = await PutFood(client, Food(name: "Arroz"));
+        await PutEntry(client, Guid.NewGuid(), full, grams: 100);
+        await PutEntry(client, Guid.NewGuid(), full, grams: 50);
+
+        var complete = (await Day(client))!.Totals;
+        await PutEntry(client, Guid.NewGuid(), plain, grams: 100);
+        var partial = (await Day(client))!.Totals;
+
+        Assert.Equal((15m, 6m, 600, false), (complete.FiberG, complete.SugarsG, complete.SodiumMg, complete.Partial));
+        Assert.Equal((15m, 6m, 600, true), (partial.FiberG, partial.SugarsG, partial.SodiumMg, partial.Partial)); // lo sin dato no suma
+    }
+
+    private static Task<HttpResponseMessage> PutWater(HttpClient c, Guid id, int ml, DateOnly? date = null) =>
+        c.PutAsJsonAsync($"/water-entries/{id}", new WaterRequest(date ?? Today, ml));
+
+    // AC-nutrition-004-06
+    [Fact]
+    public async Task AC_nutrition_004_06_el_agua_se_guarda_idempotente_suma_en_el_dia_y_se_borra_incluso_si_es_ajena_o_no_existe()
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+        var id = Guid.NewGuid();
+
+        var created = await PutWater(client, id, 250);
+        var again = await PutWater(client, id, 250);
+        var changed = await PutWater(client, id, 300);
+        await PutWater(client, Guid.NewGuid(), 500);
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        var day = (await Day(client))!;
+        Assert.Equal(800, day.Totals.WaterMl);
+        Assert.Equal([300, 500], day.Water.Select(w => w.Ml).Order());
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/water-entries/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/water-entries/{id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/water-entries/{Guid.NewGuid()}")).StatusCode);
+        Assert.Equal(500, (await Day(client))!.Totals.WaterMl);
+    }
+
+    // AC-nutrition-004-07
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(5001, 0)]
+    [InlineData(250, 3)] // fecha posterior a mañana
+    public async Task AC_nutrition_004_07_ml_fuera_de_rango_o_fecha_futura_responden_400_y_no_guardan_nada(int ml, int daysAhead)
+    {
+        var client = api.ClientFor(Guid.NewGuid());
+
+        var response = await PutWater(client, Guid.NewGuid(), ml, Today.AddDays(daysAhead));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(0, (await Day(client, Today.AddDays(daysAhead)))!.Totals.WaterMl);
+    }
+
+    // AC-nutrition-004-08 (P7)
+    [Fact]
+    public async Task AC_nutrition_004_08_una_persona_no_ve_ni_cambia_el_agua_ni_los_micronutrientes_de_otra()
+    {
+        var owner = api.ClientFor(Guid.NewGuid());
+        var other = api.ClientFor(Guid.NewGuid());
+        var waterId = Guid.NewGuid();
+        await PutWater(owner, waterId, 250);
+
+        var edit = await PutWater(other, waterId, 999);
+        await other.DeleteAsync($"/water-entries/{waterId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, edit.StatusCode);
+        Assert.Equal(0, (await Day(other))!.Totals.WaterMl);
+        Assert.Equal(250, (await Day(owner))!.Totals.WaterMl);
     }
 }

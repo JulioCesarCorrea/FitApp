@@ -8,6 +8,7 @@ import {
   type LocalExerciseLog,
   type LocalFood,
   type LocalFoodEntry,
+  type LocalWater,
   type LocalPlanEntry,
   type LocalProfile,
   type LocalStore,
@@ -15,6 +16,7 @@ import {
   type ServerExerciseLog,
   type ServerFood,
   type ServerFoodEntry,
+  type ServerWater,
   type SyncStatus,
 } from './types';
 
@@ -27,6 +29,7 @@ export class MemoryStore implements LocalStore {
   private logs = new Map<string, LocalExerciseLog>();
   private foods = new Map<string, LocalFood>();
   private foodEntries = new Map<string, LocalFoodEntry>();
+  private water = new Map<string, LocalWater>();
   private profile: ProfileState = { profile: null, status: 'synced', message: null };
 
   /** Los pesos viven en otra tabla (db.ts); las pruebas fijan aquí cuántos hay pendientes. */
@@ -134,7 +137,9 @@ export class MemoryStore implements LocalStore {
     for (const [id, f] of this.foods) if (f.pendingOp === null && f.status === 'synced') this.foods.delete(id);
     for (const f of foods) {
       if (this.foods.get(f.id)?.pendingOp) continue; // lo que espera envío manda sobre el servidor
-      this.foods.set(f.id, { ...f, allergens: f.allergens ?? [], status: 'synced', message: null, pendingOp: null, attempted: true });
+      this.foods.set(f.id, {
+        ...f, allergens: f.allergens ?? [], fiberPer100g: f.fiberPer100g ?? null, sugarsPer100g: f.sugarsPer100g ?? null,
+        sodiumMgPer100g: f.sodiumMgPer100g ?? null, status: 'synced', message: null, pendingOp: null, attempted: true });
     }
   }
 
@@ -167,7 +172,37 @@ export class MemoryStore implements LocalStore {
     for (const [id, e] of this.foodEntries) if (e.date === date && e.pendingOp === null && e.status === 'synced') this.foodEntries.delete(id);
     for (const e of entries) {
       if (this.foodEntries.get(e.id)?.pendingOp) continue;
-      this.foodEntries.set(e.id, { ...e, status: 'synced', message: null, pendingOp: null, attempted: true });
+      this.foodEntries.set(e.id, {
+        ...e, fiberG: e.fiberG ?? null, sugarsG: e.sugarsG ?? null, sodiumMg: e.sodiumMg ?? null, status: 'synced', message: null, pendingOp: null, attempted: true });
+    }
+  }
+
+  async getWater(date: string) {
+    return [...this.water.values()].filter((w) => w.date === date).map((w) => ({ ...w }));
+  }
+
+  async getWaterEntry(id: string) {
+    const w = this.water.get(id);
+    return w ? { ...w } : null;
+  }
+
+  async saveWater(water: LocalWater) {
+    this.water.set(water.id, { ...water });
+  }
+
+  async deleteWater(id: string) {
+    this.water.delete(id);
+  }
+
+  async getPendingWater() {
+    return [...this.water.values()].filter((w) => w.pendingOp !== null && w.status === 'pending').map((w) => ({ ...w }));
+  }
+
+  async replaceSyncedWater(date: string, water: ServerWater[]) {
+    for (const [id, w] of this.water) if (w.date === date && w.pendingOp === null && w.status === 'synced') this.water.delete(id);
+    for (const w of water) {
+      if (this.water.get(w.id)?.pendingOp) continue;
+      this.water.set(w.id, { ...w, status: 'synced', message: null, pendingOp: null, attempted: true });
     }
   }
 
@@ -175,6 +210,7 @@ export class MemoryStore implements LocalStore {
     this.profile = { profile: null, status: 'synced', message: null };
     this.foods.clear();
     this.foodEntries.clear();
+    this.water.clear();
     this.days.clear();
     this.equipment = { profile: null, status: 'synced', message: null };
     this.logs.clear();
@@ -189,7 +225,8 @@ export class MemoryStore implements LocalStore {
     const equipment = this.equipment.profile !== null && this.equipment.status === 'pending' ? 1 : 0;
     const logs = [...this.logs.values()].filter((l) => l.pendingOp !== null && l.status === 'pending').length
       + [...this.foods.values()].filter((f) => f.pendingOp !== null && f.status === 'pending').length
-      + [...this.foodEntries.values()].filter((e) => e.pendingOp !== null && e.status === 'pending').length;
+      + [...this.foodEntries.values()].filter((e) => e.pendingOp !== null && e.status === 'pending').length
+      + [...this.water.values()].filter((w) => w.pendingOp !== null && w.status === 'pending').length;
     const threshold = this.settings.get('stagnationThresholdStatus') === 'pending' ? 1 : 0;
     const profile = this.profile.profile !== null && this.profile.status === 'pending' ? 1 : 0;
     return days + equipment + logs + threshold + profile + this.pendingWeights;

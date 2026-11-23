@@ -19,6 +19,14 @@ interface OffResponse {
 const num = (value: unknown): number | null =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.round(value * 10) / 10 : null;
 
+/** Sodio por 100 g en mg: `sodium_100g` viene en gramos; si solo hay sal (`salt_100g`), sodio = sal / 2,5 (SPEC-nutrition-004). */
+function sodiumMg(nutriments: Record<string, unknown>): number | null {
+  const sodium = nutriments['sodium_100g'];
+  if (typeof sodium === 'number' && Number.isFinite(sodium) && sodium >= 0) return Math.round(sodium * 1000);
+  const salt = nutriments['salt_100g'];
+  return typeof salt === 'number' && Number.isFinite(salt) && salt >= 0 ? Math.round((salt / 2.5) * 1000) : null;
+}
+
 /** Traduce la respuesta de Open Food Facts (SPEC-nutrition-001, AC-17). Todo es opcional: la base es comunitaria. */
 export function parseProduct(barcode: string, body: OffResponse): ProductLookupResult {
   if (body.status !== 1 || !body.product) return { kind: 'notFound' };
@@ -32,6 +40,9 @@ export function parseProduct(barcode: string, body: OffResponse): ProductLookupR
     proteinPer100g: num(n['proteins_100g']),
     fatPer100g: num(n['fat_100g']),
     carbsPer100g: num(n['carbohydrates_100g']),
+    fiberPer100g: num(n['fiber_100g']),
+    sugarsPer100g: num(n['sugars_100g']),
+    sodiumMgPer100g: sodiumMg(n),
     // Sin el dato (campo ausente) queda null: la app lo muestra como «sin dato», nunca como «libre de alérgenos».
     allergens: Array.isArray(body.product.allergens_tags)
       ? allergensFromOff(body.product.allergens_tags.filter((t): t is string => typeof t === 'string'))

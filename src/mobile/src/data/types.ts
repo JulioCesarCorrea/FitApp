@@ -144,6 +144,10 @@ export interface LocalFood {
   source: 'manual' | 'openfoodfacts';
   /** Alérgenos declarados (SPEC-nutrition-003); vacío = sin dato. */
   allergens: string[];
+  /** Por 100 g (SPEC-nutrition-004); null = sin dato (no es cero). */
+  fiberPer100g: number | null;
+  sugarsPer100g: number | null;
+  sodiumMgPer100g: number | null;
   status: SyncStatus;
   message: string | null;
   pendingOp: 'upsert' | 'delete' | null;
@@ -164,21 +168,39 @@ export interface LocalFoodEntry {
   proteinG: number;
   fatG: number;
   carbsG: number;
+  /** Copia de esa cantidad (SPEC-nutrition-004); null = el alimento no tenía el dato. */
+  fiberG: number | null;
+  sugarsG: number | null;
+  sodiumMg: number | null;
   status: SyncStatus;
   message: string | null;
   pendingOp: 'upsert' | 'delete' | null;
   attempted: boolean;
 }
 
+/** Agua bebida en un día, en mililitros (SPEC-nutrition-004). */
+export interface LocalWater {
+  id: string;
+  /** Día local, AAAA-MM-DD. */
+  date: string;
+  ml: number;
+  status: SyncStatus;
+  message: string | null;
+  pendingOp: 'upsert' | 'delete' | null;
+  attempted: boolean;
+}
+
+export type ServerWater = Pick<LocalWater, 'id' | 'date' | 'ml'>;
+
 export type ServerFood = Pick<
   LocalFood,
   'id' | 'name' | 'brand' | 'barcode' | 'kcalPer100g' | 'proteinPer100g' | 'fatPer100g' | 'carbsPer100g' | 'source' | 'allergens'
->;
+> & Partial<Pick<LocalFood, 'fiberPer100g' | 'sugarsPer100g' | 'sodiumMgPer100g'>>;
 
 export type ServerFoodEntry = Pick<
   LocalFoodEntry,
   'id' | 'date' | 'meal' | 'foodId' | 'grams' | 'name' | 'kcal' | 'proteinG' | 'fatG' | 'carbsG'
->;
+> & Partial<Pick<LocalFoodEntry, 'fiberG' | 'sugarsG' | 'sodiumMg'>>;
 
 /** Objetivo diario que calcula la API. */
 export interface NutritionTarget {
@@ -211,6 +233,10 @@ export interface NutritionApi {
   fetchDayEntries(date: string): Promise<ServerFoodEntry[] | null>;
   putFoodEntry(entry: Pick<ServerFoodEntry, 'id' | 'date' | 'meal' | 'foodId' | 'grams'>): Promise<PutLogResult>;
   deleteFoodEntry(id: string): Promise<'ok' | 'retry'>;
+  /** SPEC-nutrition-004: el agua del día (null = sin conexión o error), y su alta y baja. */
+  fetchDayWater(date: string): Promise<ServerWater[] | null>;
+  putWaterEntry(water: ServerWater): Promise<PutLogResult>;
+  deleteWaterEntry(id: string): Promise<'ok' | 'retry'>;
 }
 
 /** Producto que devuelve Open Food Facts, con lo que se pudo leer. Los valores son por 100 g. */
@@ -222,8 +248,12 @@ export interface ScannedProduct {
   proteinPer100g: number | null;
   fatPer100g: number | null;
   carbsPer100g: number | null;
+  /** Opcionales: si faltan no impiden guardar (SPEC-nutrition-004). El sodio va en mg. */
+  fiberPer100g?: number | null;
+  sugarsPer100g?: number | null;
+  sodiumMgPer100g?: number | null;
   /** Alérgenos según Open Food Facts; null = el producto no trae ese dato (no significa «sin alérgenos»). */
-  allergens: string[] | null;
+  allergens?: string[] | null;
 }
 
 /** AC-nutrition-001-17: completo, incompleto (falta algún valor), desconocido o sin conexión. */
@@ -283,6 +313,13 @@ export interface LocalStore {
   getPendingNutrition(): Promise<{ foods: LocalFood[]; entries: LocalFoodEntry[] }>;
   /** Sustituye las entradas ya sincronizadas del día por lo que dice el servidor; conserva las pendientes. */
   replaceSyncedFoodEntries(date: string, entries: ServerFoodEntry[]): Promise<void>;
+  /** Agua del día, también la que espera borrarse (SPEC-nutrition-004). */
+  getWater(date: string): Promise<LocalWater[]>;
+  getWaterEntry(id: string): Promise<LocalWater | null>;
+  saveWater(water: LocalWater): Promise<void>;
+  deleteWater(id: string): Promise<void>;
+  getPendingWater(): Promise<LocalWater[]>;
+  replaceSyncedWater(date: string, water: ServerWater[]): Promise<void>;
 
   /**
    * AC-mobile-004-07 y 08: borra los datos de la cuenta (rutina, equipo, registros, cola de pesos, umbral y de quién son).

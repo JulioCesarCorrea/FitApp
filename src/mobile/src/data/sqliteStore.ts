@@ -9,6 +9,7 @@ import {
   type LocalExerciseLog,
   type LocalFood,
   type LocalFoodEntry,
+  type LocalWater,
   type LocalPlanEntry,
   type LocalProfile,
   type LocalStore,
@@ -16,6 +17,7 @@ import {
   type ServerExerciseLog,
   type ServerFood,
   type ServerFoodEntry,
+  type ServerWater,
   type SyncStatus,
 } from './types';
 
@@ -188,10 +190,10 @@ export class SqliteStore implements LocalStore {
     await db.runAsync(
       `INSERT OR REPLACE INTO foods_local
          (id, name, brand, barcode, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, source, allergens,
-          status, message, pending_op, attempted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          fiber_per_100g, sugars_per_100g, sodium_mg_per_100g, status, message, pending_op, attempted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       f.id, f.name, f.brand, f.barcode, f.kcalPer100g, f.proteinPer100g, f.fatPer100g, f.carbsPer100g, f.source,
-      JSON.stringify(f.allergens ?? []), f.status, f.message, f.pendingOp, f.attempted ? 1 : 0,
+      JSON.stringify(f.allergens ?? []), f.fiberPer100g ?? null, f.sugarsPer100g ?? null, f.sodiumMgPer100g ?? null, f.status, f.message, f.pendingOp, f.attempted ? 1 : 0,
     );
   }
 
@@ -209,10 +211,10 @@ export class SqliteStore implements LocalStore {
         await db.runAsync(
           `INSERT OR IGNORE INTO foods_local
              (id, name, brand, barcode, kcal_per_100g, protein_per_100g, fat_per_100g, carbs_per_100g, source, allergens,
-              status, message, pending_op, attempted)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
+              fiber_per_100g, sugars_per_100g, sodium_mg_per_100g, status, message, pending_op, attempted)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
           f.id, f.name, f.brand, f.barcode, f.kcalPer100g, f.proteinPer100g, f.fatPer100g, f.carbsPer100g, f.source,
-          JSON.stringify(f.allergens ?? []),
+          JSON.stringify(f.allergens ?? []), f.fiberPer100g ?? null, f.sugarsPer100g ?? null, f.sodiumMgPer100g ?? null,
         );
       }
     });
@@ -233,10 +235,11 @@ export class SqliteStore implements LocalStore {
     const db = await getDb();
     await db.runAsync(
       `INSERT OR REPLACE INTO food_entries_local
-         (id, date, meal, food_id, grams, name, kcal, protein_g, fat_g, carbs_g, status, message, pending_op, attempted)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, date, meal, food_id, grams, name, kcal, protein_g, fat_g, carbs_g, fiber_g, sugars_g, sodium_mg,
+          status, message, pending_op, attempted)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       e.id, e.date, e.meal, e.foodId, e.grams, e.name, e.kcal, e.proteinG, e.fatG, e.carbsG,
-      e.status, e.message, e.pendingOp, e.attempted ? 1 : 0,
+      e.fiberG ?? null, e.sugarsG ?? null, e.sodiumMg ?? null, e.status, e.message, e.pendingOp, e.attempted ? 1 : 0,
     );
   }
 
@@ -261,9 +264,53 @@ export class SqliteStore implements LocalStore {
       for (const e of entries) {
         await db.runAsync(
           `INSERT OR IGNORE INTO food_entries_local
-             (id, date, meal, food_id, grams, name, kcal, protein_g, fat_g, carbs_g, status, message, pending_op, attempted)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
+             (id, date, meal, food_id, grams, name, kcal, protein_g, fat_g, carbs_g, fiber_g, sugars_g, sodium_mg,
+              status, message, pending_op, attempted)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NULL, NULL, 1)`,
           e.id, e.date, e.meal, e.foodId, e.grams, e.name, e.kcal, e.proteinG, e.fatG, e.carbsG,
+          e.fiberG ?? null, e.sugarsG ?? null, e.sodiumMg ?? null,
+        );
+      }
+    });
+  }
+
+  async getWater(date: string): Promise<LocalWater[]> {
+    const db = await getDb();
+    return (await db.getAllAsync<WaterRow>('SELECT * FROM water_local WHERE date = ? ORDER BY rowid', date)).map(toWater);
+  }
+
+  async getWaterEntry(id: string): Promise<LocalWater | null> {
+    const db = await getDb();
+    const row = await db.getFirstAsync<WaterRow>('SELECT * FROM water_local WHERE id = ?', id);
+    return row ? toWater(row) : null;
+  }
+
+  async saveWater(w: LocalWater): Promise<void> {
+    const db = await getDb();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO water_local (id, date, ml, status, message, pending_op, attempted) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      w.id, w.date, w.ml, w.status, w.message, w.pendingOp, w.attempted ? 1 : 0,
+    );
+  }
+
+  async deleteWater(id: string): Promise<void> {
+    const db = await getDb();
+    await db.runAsync('DELETE FROM water_local WHERE id = ?', id);
+  }
+
+  async getPendingWater(): Promise<LocalWater[]> {
+    const db = await getDb();
+    return (await db.getAllAsync<WaterRow>(`SELECT * FROM water_local WHERE pending_op IS NOT NULL AND status = 'pending'`)).map(toWater);
+  }
+
+  async replaceSyncedWater(date: string, water: ServerWater[]): Promise<void> {
+    const db = await getDb();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`DELETE FROM water_local WHERE date = ? AND pending_op IS NULL AND status = 'synced'`, date);
+      for (const w of water) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO water_local (id, date, ml, status, message, pending_op, attempted) VALUES (?, ?, ?, 'synced', NULL, NULL, 1)`,
+          w.id, w.date, w.ml,
         );
       }
     });
@@ -274,7 +321,7 @@ export class SqliteStore implements LocalStore {
     await db.withTransactionAsync(async () => {
       for (const table of [
         'plan_entries_local', 'plan_day_state', 'equipment_local', 'exercise_logs_local', 'profile_local', 'weight_queue',
-        'foods_local', 'food_entries_local',
+        'foods_local', 'food_entries_local', 'water_local',
       ]) {
         await db.runAsync(`DELETE FROM ${table}`);
       }
@@ -292,6 +339,7 @@ export class SqliteStore implements LocalStore {
       (await count(`SELECT COUNT(*) AS n FROM exercise_logs_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM foods_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM food_entries_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
+      (await count(`SELECT COUNT(*) AS n FROM water_local WHERE pending_op IS NOT NULL AND status = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM settings WHERE key = 'stagnationThresholdStatus' AND value = 'pending'`)) +
       (await count(`SELECT COUNT(*) AS n FROM weight_queue WHERE status = 'pending'`))
     );
@@ -352,6 +400,9 @@ interface FoodRow {
   carbs_per_100g: number;
   source: 'manual' | 'openfoodfacts';
   allergens: string;
+  fiber_per_100g: number | null;
+  sugars_per_100g: number | null;
+  sodium_mg_per_100g: number | null;
   status: SyncStatus;
   message: string | null;
   pending_op: 'upsert' | 'delete' | null;
@@ -369,22 +420,41 @@ interface EntryRow {
   protein_g: number;
   fat_g: number;
   carbs_g: number;
+  fiber_g: number | null;
+  sugars_g: number | null;
+  sodium_mg: number | null;
   status: SyncStatus;
   message: string | null;
   pending_op: 'upsert' | 'delete' | null;
   attempted: number;
 }
 
+interface WaterRow {
+  id: string;
+  date: string;
+  ml: number;
+  status: SyncStatus;
+  message: string | null;
+  pending_op: 'upsert' | 'delete' | null;
+  attempted: number;
+}
+
+const toWater = (r: WaterRow): LocalWater => ({
+  id: r.id, date: r.date, ml: r.ml, status: r.status, message: r.message, pendingOp: r.pending_op, attempted: r.attempted === 1,
+});
+
 const toFood = (r: FoodRow): LocalFood => ({
   id: r.id, name: r.name, brand: r.brand, barcode: r.barcode, kcalPer100g: r.kcal_per_100g, proteinPer100g: r.protein_per_100g,
   fatPer100g: r.fat_per_100g, carbsPer100g: r.carbs_per_100g, source: r.source, allergens: JSON.parse(r.allergens || '[]') as string[],
+  fiberPer100g: r.fiber_per_100g ?? null, sugarsPer100g: r.sugars_per_100g ?? null, sodiumMgPer100g: r.sodium_mg_per_100g ?? null,
   status: r.status, message: r.message,
   pendingOp: r.pending_op, attempted: r.attempted === 1,
 });
 
 const toEntryRow = (r: EntryRow): LocalFoodEntry => ({
   id: r.id, date: r.date, meal: r.meal, foodId: r.food_id, grams: r.grams, name: r.name, kcal: r.kcal, proteinG: r.protein_g,
-  fatG: r.fat_g, carbsG: r.carbs_g, status: r.status, message: r.message, pendingOp: r.pending_op, attempted: r.attempted === 1,
+  fatG: r.fat_g, carbsG: r.carbs_g, fiberG: r.fiber_g ?? null, sugarsG: r.sugars_g ?? null, sodiumMg: r.sodium_mg ?? null,
+  status: r.status, message: r.message, pendingOp: r.pending_op, attempted: r.attempted === 1,
 });
 
 const toLog = (r: LogRow): LocalExerciseLog => ({
